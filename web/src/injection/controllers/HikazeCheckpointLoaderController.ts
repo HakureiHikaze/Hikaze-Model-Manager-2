@@ -1,28 +1,25 @@
-import type { InjectionContext, WidgetOverlayDefinition } from '../types'
+import type { InjectionContext, NodeBodyOverlayDefinition } from '../types'
 import { BaseHikazeNodeController } from './BaseHikazeNodeController'
 
 const NODE_TYPE = 'HikazeCheckpointLoader'
 const CKPT_WIDGET = 'ckpt_path'
 
 export class HikazeCheckpointLoaderController extends BaseHikazeNodeController {
-  protected override getVueWidgetOverlays(
+  protected override getVueBodyOverlays(
     _ctx: InjectionContext
-  ): WidgetOverlayDefinition[] {
+  ): NodeBodyOverlayDefinition[] {
     return [
       {
         key: CKPT_WIDGET,
-        widgetName: CKPT_WIDGET,
         title: 'Click to select a checkpoint path',
-        patchInput: {
-          readonly: true,
-          placeholder: 'Click to select',
-          cursor: 'pointer'
-        },
-        onClick: ({ widget, inputEl }) => {
+        cursor: 'pointer',
+        onClick: () => {
+          const widget = this.findWidget(CKPT_WIDGET)
+          if (!widget) return
           const current = String(widget?.value ?? '')
           const next = window.prompt('Enter absolute checkpoint path', current)
           if (next != null && next !== current) {
-            this.setWidgetValue(widget, next, { inputEl })
+            this.setWidgetValue(widget, next)
           }
         }
       }
@@ -37,4 +34,3 @@ export class HikazeCheckpointLoaderController extends BaseHikazeNodeController {
 }
 
 BaseHikazeNodeController.register(NODE_TYPE, HikazeCheckpointLoaderController)
-

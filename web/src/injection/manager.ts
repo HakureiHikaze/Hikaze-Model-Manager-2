@@ -18,6 +18,7 @@ const HAS_OWN: (obj: any, key: string) => boolean =
   Object.hasOwn ?? ((obj, key) => Object.prototype.hasOwnProperty.call(obj, key))
 
 const ON_ADDED_HOOK_FLAG = '__hikazeOnAddedHooked'
+const COLLAPSE_HOOK_FLAG = '__hikazeCollapseHooked'
 const SETTINGS_HOOK_FLAG = '__hikazeVueNodesSettingHooked'
 
 export class HikazeInjectionManager {
@@ -27,6 +28,7 @@ export class HikazeInjectionManager {
   private controllersByNode = new WeakMap<object, BaseHikazeNodeController>()
   private controllers = new Set<BaseHikazeNodeController>()
   private graphChangeListenerInstalled = false
+  private collapseReinjectTimers = new WeakMap<object, number>()
 
   constructor(options: ManagerOptions) {
     this.extName = options.extName
@@ -98,7 +100,57 @@ export class HikazeInjectionManager {
     controller.reinject(ctx)
   }
 
+  private reinjectSingleNode(node: UnknownNode, reason: InjectionReason) {
+    const app = this.getComfyApp()
+    const graph = this.getActiveGraph(app)
+    const ctx: InjectionContext = {
+      mode: this.getCurrentMode(),
+      reason,
+      app,
+      graph
+    }
+
+    this.reinjectNode(node, ctx)
+  }
+
+  private disposeControllerIfExists(node: UnknownNode) {
+    if (!node || typeof node !== 'object') return
+    const controller = this.controllersByNode.get(node)
+    if (!controller) return
+    try {
+      controller.dispose()
+    } catch {
+      // ignore
+    }
+  }
+
+  private scheduleReinjectSingleNode(node: UnknownNode, reason: InjectionReason) {
+    if (!node || typeof node !== 'object') return
+
+    const existing = this.collapseReinjectTimers.get(node)
+    if (existing != null) {
+      try {
+        window.clearTimeout(existing)
+      } catch {
+        // ignore
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      this.collapseReinjectTimers.delete(node)
+
+      if (!this.isHikazeNode(node)) return
+      if (node?.flags?.collapsed) return
+
+      this.reinjectSingleNode(node, reason)
+    }, 0)
+
+    this.collapseReinjectTimers.set(node, timer)
+  }
+
   private getOrCreateController(node: UnknownNode) {
+    this.ensureCollapseHook(node)
+
     if (node && typeof node === 'object') {
       const existing = this.controllersByNode.get(node)
       if (existing) return existing
@@ -210,6 +262,34 @@ export class HikazeInjectionManager {
           : undefined
       } finally {
         this.injectNode(node, 'node-added')
+      }
+    }
+  }
+
+  private ensureCollapseHook(node: UnknownNode) {
+    if (!node || typeof node !== 'object') return
+    if (HAS_OWN(node, COLLAPSE_HOOK_FLAG)) return
+
+    const originalCollapse = node.collapse
+    if (typeof originalCollapse !== 'function') return
+
+    this.defineHiddenFlag(node, COLLAPSE_HOOK_FLAG)
+
+    node.collapse = (...args: any[]) => {
+      const wasCollapsed = !!node?.flags?.collapsed
+      try {
+        return originalCollapse.call(node, ...args)
+      } finally {
+        const isCollapsed = !!node?.flags?.collapsed
+        if (wasCollapsed === isCollapsed) {
+          // no-op
+        } else if (isCollapsed) {
+          this.disposeControllerIfExists(node)
+        } else {
+          this.scheduleReinjectSingleNode(node, 'collapse-changed')
+        }
+
+        // Intentionally do not return from finally; preserve original return/throw.
       }
     }
   }

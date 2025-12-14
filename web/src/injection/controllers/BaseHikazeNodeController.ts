@@ -4,6 +4,7 @@ import HikazeNodeOverlay from '../../components/HikazeNodeOverlay.vue'
 import type {
   InjectionContext,
   InjectionMode,
+  NodeBodyOverlayDefinition,
   WidgetOverlayDefinition
 } from '../types'
 
@@ -104,6 +105,10 @@ export class BaseHikazeNodeController {
   }
 
   protected getVueWidgetOverlays(_ctx: InjectionContext): WidgetOverlayDefinition[] {
+    return []
+  }
+
+  protected getVueBodyOverlays(_ctx: InjectionContext): NodeBodyOverlayDefinition[] {
     return []
   }
 
@@ -321,8 +326,13 @@ export class BaseHikazeNodeController {
 
     bodyEl.appendChild(host)
 
+    const bodyOverlays = this.getVueBodyOverlays(ctx)
     const widgetOverlays = this.getVueWidgetOverlays(ctx)
-    const app = createApp(HikazeNodeOverlay, { node: this.node, widgetOverlays })
+    const app = createApp(HikazeNodeOverlay, {
+      node: this.node,
+      bodyOverlays,
+      widgetOverlays
+    })
     app.mount(host)
 
     this.vueOverlay = { host, app }

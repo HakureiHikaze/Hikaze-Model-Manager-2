@@ -6,6 +6,7 @@ export type InjectionReason =
   | 'node-added'
   | 'loaded-graph-node'
   | 'graph-changed'
+  | 'collapse-changed'
   | 'mode-changed'
   | 'manual-reload'
 
@@ -47,3 +48,34 @@ export interface WidgetOverlayDefinition {
   onClick?: (payload: WidgetOverlayClickPayload) => void
 }
 
+export interface NodeBodyOverlayClickPayload {
+  node: any
+  e: MouseEvent
+}
+
+export interface NodeBodyOverlayDefinition {
+  /**
+   * Unique key for rendering / debugging.
+   */
+  key: string
+  title?: string
+  cursor?: string
+  /**
+   * Controls whether this overlay can receive pointer events.
+   * Defaults to 'auto' when `onClick` or `component` is present, otherwise 'none'.
+   */
+  pointerEvents?: 'auto' | 'none'
+  /**
+   * Extra CSS applied to the overlay root (which is always absolute/inset:0).
+   */
+  style?: Record<string, string>
+  /**
+   * Optional Vue component to render inside the overlay.
+   */
+  component?: any
+  /**
+   * Props to pass to `component`.
+   */
+  props?: Record<string, any> | ((payload: { node: any }) => Record<string, any>)
+  onClick?: (payload: NodeBodyOverlayClickPayload) => void
+}
