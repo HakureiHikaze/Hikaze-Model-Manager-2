@@ -8,25 +8,33 @@
     }"
   />
 
-  <!-- Example: attach a clickable overlay to the schema-defined text widget. -->
-  <Teleport v-if="ckptOverlayTarget" :to="ckptOverlayTarget">
+  <Teleport
+    v-for="overlay in resolvedWidgetOverlays"
+    :key="overlay.key"
+    :to="overlay.target"
+  >
     <div
-      data-hikaze-overlay="ckpt_path"
-      title="Click to select a checkpoint path"
+      :data-hikaze-overlay="overlay.key"
+      :title="overlay.title"
       :style="{
         position: 'absolute',
         inset: '0',
-        cursor: 'pointer',
+        cursor: overlay.cursor,
         background: 'transparent',
         pointerEvents: 'auto'
       }"
-      @click="handleCkptPick"
+      @click="overlay.onClick"
     />
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
+
+import type {
+  WidgetOverlayClickPayload,
+  WidgetOverlayDefinition
+} from '../injection/types'
 
 type UnknownNode = {
   id?: string | number
@@ -35,25 +43,23 @@ type UnknownNode = {
     value: any
     callback?: (value: any) => void
   }>
-  onResize?: () => void
-  graph?: {
-    setDirtyCanvas?: (fg: boolean, bg: boolean) => void
-  }
 }
 
 const props = defineProps<{
   node: UnknownNode
+  widgetOverlays?: WidgetOverlayDefinition[]
 }>()
 
-const ckptOverlayTarget = ref<HTMLElement | null>(null)
-let ckptWidget:
-  | {
-      name: string
-      value: any
-      callback?: (value: any) => void
-    }
-  | undefined
-let ckptInputEl: HTMLInputElement | null = null
+type ResolvedWidgetOverlay = {
+  key: string
+  title?: string
+  cursor: string
+  target: HTMLElement
+  onClick: () => void
+}
+
+const resolvedWidgetOverlays = ref<ResolvedWidgetOverlay[]>([])
+let resolveRetryTimer: number | null = null
 
 function getVueNodeElement(nodeId: string | number) {
   return document.querySelector(`.lg-node[data-node-id="${nodeId}"]`)
@@ -67,53 +73,82 @@ function findSchemaTextInput(nodeId: string | number, widgetName: string) {
   ) as HTMLInputElement | null
 }
 
-function setWidgetValue(node: UnknownNode, widget: any, next: string) {
-  widget.value = next
-  widget.callback?.(next)
-
-  try {
-    if (ckptInputEl) ckptInputEl.value = next
-  } catch {
-    // ignore
+function resolveWidgetOverlays(attemptsRemaining = 50) {
+  const nodeId = props.node?.id
+  const overlays = props.widgetOverlays ?? []
+  if (nodeId == null || overlays.length === 0) {
+    resolvedWidgetOverlays.value = []
+    return
   }
 
-  node.onResize?.()
-  node.graph?.setDirtyCanvas?.(true, true)
-}
+  const widgets = props.node.widgets ?? []
 
-function handleCkptPick() {
-  if (!ckptWidget) return
-  const current = String(ckptWidget.value ?? '')
-  const next = window.prompt('Enter absolute checkpoint path', current)
-  if (next != null && next !== current) {
-    setWidgetValue(props.node, ckptWidget, next)
+  const resolved: ResolvedWidgetOverlay[] = []
+  for (const overlay of overlays) {
+    const widget = widgets.find((w) => w.name === overlay.widgetName)
+    if (!widget) continue
+
+    const inputEl = findSchemaTextInput(nodeId, overlay.widgetName)
+    if (!inputEl) continue
+
+    try {
+      if (overlay.patchInput?.readonly) {
+        inputEl.setAttribute('readonly', 'readonly')
+      }
+      if (overlay.patchInput?.placeholder != null) {
+        inputEl.setAttribute('placeholder', overlay.patchInput.placeholder)
+      }
+      if (overlay.patchInput?.cursor) {
+        inputEl.style.cursor = overlay.patchInput.cursor
+      }
+    } catch {
+      // ignore
+    }
+
+    const target = inputEl.parentElement ?? inputEl
+    target.style.position = target.style.position || 'relative'
+
+    const handler = () => {
+      const payload: WidgetOverlayClickPayload = {
+        node: props.node,
+        widget,
+        inputEl
+      }
+      overlay.onClick?.(payload)
+    }
+
+    resolved.push({
+      key: overlay.key,
+      title: overlay.title,
+      cursor: overlay.patchInput?.cursor ?? 'pointer',
+      target,
+      onClick: handler
+    })
+  }
+
+  resolvedWidgetOverlays.value = resolved
+
+  if (resolved.length < overlays.length && attemptsRemaining > 0) {
+    if (resolveRetryTimer != null) return
+    resolveRetryTimer = window.setTimeout(() => {
+      resolveRetryTimer = null
+      resolveWidgetOverlays(attemptsRemaining - 1)
+    }, 100)
   }
 }
 
 onMounted(() => {
-  const nodeId = props.node?.id
-  if (nodeId == null) return
+  resolveWidgetOverlays()
+})
 
-  ckptWidget = props.node.widgets?.find((w) => w.name === 'ckpt_path')
-  if (!ckptWidget) return
-
-  const inputEl = findSchemaTextInput(nodeId, ckptWidget.name)
-  if (!inputEl) return
-  ckptInputEl = inputEl
-
-  const target = inputEl.parentElement ?? inputEl
-  if (target.querySelector('[data-hikaze-overlay="ckpt_path"]')) return
-
-  // Hint: keep the visual consistent but prevent free typing.
-  try {
-    inputEl.setAttribute('readonly', 'readonly')
-    inputEl.setAttribute('placeholder', 'Click to select')
-    inputEl.style.cursor = 'pointer'
-  } catch {
-    // ignore
+onUnmounted(() => {
+  if (resolveRetryTimer != null) {
+    try {
+      window.clearTimeout(resolveRetryTimer)
+    } catch {
+      // ignore
+    }
+    resolveRetryTimer = null
   }
-
-  target.style.position = target.style.position || 'relative'
-  ckptOverlayTarget.value = target
 })
 </script>
