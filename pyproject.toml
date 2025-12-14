@@ -9,4 +9,4 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [tool.comfy]
-web = "web"
+web = "web/dist"

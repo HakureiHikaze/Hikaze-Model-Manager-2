@@ -30,7 +30,6 @@ class HikazeCheckpointLoader(HikazeBaseNode):
                     default="",
                     socketless=True,
                     tooltip="Absolute path to the checkpoint. Click the overlay to choose.",
-                    extra_dict={"placeholder": "Click to select", "readonly": True},
                 ),
             ],
             outputs=[

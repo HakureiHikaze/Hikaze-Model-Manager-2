@@ -8,26 +8,22 @@ Backend scaffolding for Hikaze Model Manager 2 custom nodes.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Any
 
 from comfy_api.latest import io
 
 
-class HikazeBaseNode(io.ComfyNode, ABC):
-    """Abstract base for Hikaze nodes. Do not register this class directly."""
+class HikazeBaseNode(io.ComfyNode):
+    """
+    Base class for Hikaze V3 nodes.
 
-    @classmethod
-    @abstractmethod
-    def define_schema(cls) -> io.Schema:
-        """Subclasses must return an io.Schema describing inputs/outputs/UI metadata."""
-        raise NotImplementedError
+    IMPORTANT: Do not inherit from `abc.ABC` here.
+    ComfyUI V3 clones and "locks" node classes at runtime to prevent monkey-patching;
+    `ABCMeta` needs to set `__abstractmethods__` during class creation, which conflicts
+    with the locking mechanism and will break prompt validation/execution.
 
-    @classmethod
-    @abstractmethod
-    def execute(cls, **kwargs) -> io.NodeOutput:
-        """Subclasses must implement node logic."""
-        raise NotImplementedError
+    Subclasses must still override `define_schema` and `execute` (inherited from `io.ComfyNode`).
+    """
 
     # Optional hooks: subclasses may override as needed
     @classmethod
