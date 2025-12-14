@@ -21,7 +21,7 @@ class HikazeCheckpointLoader(HikazeBaseNode):
         return io.Schema(
             node_id="HikazeCheckpointLoader",
             display_name="Hikaze Checkpoint Loader",
-            category="loaders",
+            category="Hikaze Model Manager 2 nodes",
             description="Load a diffusion checkpoint by absolute path (Model / CLIP / VAE).",
             inputs=[
                 io.String.Input(
