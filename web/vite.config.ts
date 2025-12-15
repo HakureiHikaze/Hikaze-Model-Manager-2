@@ -21,9 +21,9 @@ export default defineConfig({
     cssCodeSplit: false,
     sourcemap: true,
     lib: {
-      entry: resolve(__dirname, "extensions/hikaze-checkpoint-loader.js"),
+      entry: resolve(__dirname, "extensions/hikaze-model-manager.js"),
       formats: ["es"],
-      fileName: () => "hikaze-checkpoint-loader.js",
+      fileName: () => "hikaze-model-manager.js",
     },
     rollupOptions: {
       output: {
