@@ -39,29 +39,13 @@
         Write JSON
       </button>
     </div>
-
-    <div v-if="pickerOpen" class="picker">
-      <div class="picker__panel" :style="panelStyle">
-        <div class="picker__head">
-          <div class="picker__title">LoRA picker (placeholder)</div>
-          <button type="button" class="picker__close" @click="closePicker">
-            X
-          </button>
-        </div>
-        <iframe class="picker__iframe" :srcdoc="pickerSrcdoc" title="LoRA picker" />
-        <div class="picker__actions">
-          <button type="button" class="btn" @click="confirmPicker">Confirm</button>
-          <button type="button" class="btn btn--ghost" @click="closePicker">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue'
+
+import type { LoRAListDocument } from '../injection/types'
 
 type LoraRow = {
   name: string
@@ -75,6 +59,28 @@ const props = defineProps<{
   loraJsonRef: Ref<string>
   commitJson: (next: string) => void
 }>()
+
+const PLACEHOLDER_DOC: LoRAListDocument = {
+  version: 1,
+  LoRAs: [
+    {
+      name: 'example_lora_1',
+      full_path: './example_lora_1.safetensors',
+      MStrength: 1.0,
+      CStrength: 1.0,
+      sha256: '0123456789abcdef0123456789abcdef',
+      toggleOn: true
+    },
+    {
+      name: 'example_lora_2',
+      full_path: './example_lora_2.safetensors',
+      MStrength: 0.8,
+      CStrength: 0.6,
+      sha256: 'f123456789abcdef0123456789abcdef',
+      toggleOn: true
+    }
+  ]
+}
 
 function clamp01(n: number) {
   if (!Number.isFinite(n)) return 0
@@ -212,16 +218,31 @@ function coerceNumber(v: any, fallback: number) {
 }
 
 function normalizeRows(parsed: any): LoraRow[] {
-  const entries = Array.isArray(parsed) ? parsed : parsed?.loras
+  const entries = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.LoRAs)
+      ? parsed.LoRAs
+      : Array.isArray(parsed?.LoRAList)
+        ? parsed.LoRAList
+        : parsed?.loras
   if (!Array.isArray(entries)) return []
 
   const rows: LoraRow[] = []
   for (const item of entries) {
     if (!item || typeof item !== 'object') continue
-    const name = String((item as any).name ?? '').trim() || '(unnamed)'
-    const strengthModel = coerceNumber((item as any).strength_model, 1)
-    const strengthClip = coerceNumber((item as any).strength_clip, 1)
-    const enabled = (item as any).enabled !== false
+    const name =
+      String((item as any).name ?? (item as any).full_path ?? '').trim() ||
+      '(unnamed)'
+    const strengthModel = coerceNumber(
+      (item as any).strength_model ?? (item as any).MStrength,
+      1
+    )
+    const strengthClip = coerceNumber(
+      (item as any).strength_clip ?? (item as any).CStrength,
+      1
+    )
+    const enabledRaw = (item as any).enabled ?? (item as any).toggleOn
+    const enabled = typeof enabledRaw === 'boolean' ? enabledRaw : enabledRaw !== false
     rows.push({ name, strengthModel, strengthClip, enabled })
   }
   return rows
@@ -238,67 +259,12 @@ const rows = computed<LoraRow[]>(() => {
   }
 })
 
-const pickerOpen = ref(false)
-
-const pickerSrcdoc = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Placeholder</title>
-    <style>
-      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #0f1117; color: #e8ecf2; }
-      .wrap { padding: 14px; }
-      .card { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.04); }
-      .muted { color: #aab3c4; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="card">
-        <div><strong>LoRA picker UI</strong> (placeholder)</div>
-        <div class="muted" style="margin-top: 8px;">
-          This iframe will later host the real picker UI.
-        </div>
-      </div>
-    </div>
-  </body>
-</html>`
-
 function openPicker() {
-  pickerOpen.value = true
-}
-
-function closePicker() {
-  pickerOpen.value = false
-}
-
-function buildPlaceholderJson() {
-  return [
-    {
-      name: 'example_lora_1.safetensors',
-      strength_model: 1.0,
-      strength_clip: 1.0,
-      enabled: true
-    },
-    {
-      name: 'example_lora_2.safetensors',
-      strength_model: 0.8,
-      strength_clip: 0.6,
-      enabled: true
-    }
-  ]
-}
-
-function confirmPicker() {
-  const payload = buildPlaceholderJson()
-  props.commitJson(JSON.stringify(payload, null, 2))
-  pickerOpen.value = false
+  console.debug("placeholder openPicker")
 }
 
 function writePlaceholderJson() {
-  const payload = buildPlaceholderJson()
-  props.commitJson(JSON.stringify(payload, null, 2))
+  props.commitJson(JSON.stringify(PLACEHOLDER_DOC, null, 2))
 }
 
 let observer: MutationObserver | null = null

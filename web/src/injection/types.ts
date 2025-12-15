@@ -79,3 +79,23 @@ export interface NodeBodyOverlayDefinition {
   props?: Record<string, any> | ((payload: { node: any }) => Record<string, any>)
   onClick?: (payload: NodeBodyOverlayClickPayload) => void
 }
+
+export interface LoRAEntry {
+  /**
+   * Defination of LoRA list element
+   */
+  name?: string
+  full_path: string
+  MStrength: number
+  CStrength: number
+  sha256?: string
+  toggleOn: boolean
+}
+
+export interface LoRAListDocument {
+  /**
+   * Defination of LoRA list json
+   */
+  version: number
+  LoRAs: Array<LoRAEntry>
+}
