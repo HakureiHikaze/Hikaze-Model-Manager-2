@@ -32,23 +32,15 @@
           </template>
 
           <template v-else-if="column.key === 'MStrength'">
-            <input
-              v-model.number="row.MStrength"
-              class="cell-num"
-              type="number"
-              step="0.01"
-              @change="scheduleCommit"
-            />
+            <span class="cell-strength" :title="String(row.MStrength ?? '')">
+              {{ formatStrength(row.MStrength) }}
+            </span>
           </template>
 
           <template v-else-if="column.key === 'CStrength'">
-            <input
-              v-model.number="row.CStrength"
-              class="cell-num"
-              type="number"
-              step="0.01"
-              @change="scheduleCommit"
-            />
+            <span class="cell-strength" :title="String(row.CStrength ?? '')">
+              {{ formatStrength(row.CStrength) }}
+            </span>
           </template>
 
           <template v-else-if="column.key === 'toggleOn'">
@@ -280,6 +272,12 @@ function scheduleCommit() {
   }, 200)
 }
 
+function formatStrength(value: unknown) {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) return ''
+  return num.toFixed(3)
+}
+
 function onDeletePlaceholder(_row: any, _index: number) {
   console.debug('TODO: delete LoRA row (placeholder)')
 }
@@ -370,6 +368,8 @@ onUnmounted(() => {
 
 .table-wrap {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -413,21 +413,24 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-.cell-num {
+.cell-strength {
+  display: block;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
   height: var(--hikaze-cell-size);
-  appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: #e8ecf2;
   border-radius: 8px;
-  padding: 0 2px;
+  padding: 0 6px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  line-height: var(--hikaze-cell-size);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .cell-check {
@@ -456,6 +459,9 @@ onUnmounted(() => {
 :deep(.hikaze-grid td[data-col-key="MStrength"]),
 :deep(.hikaze-grid td[data-col-key="CStrength"]) {
   padding: 0;
+  position: relative;
+  overflow: hidden;
+  contain: paint;
 }
 
 .actions {

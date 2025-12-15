@@ -139,6 +139,11 @@ function resolveAllOverlays(attemptsRemaining = 50) {
   const resolvedBodies: ResolvedBodyOverlay[] = []
   if (bodyTarget && bodyOverlays.length) {
     bodyTarget.style.position = bodyTarget.style.position || 'relative'
+    bodyTarget.style.width = '100%'
+    bodyTarget.style.minWidth = '0'
+    bodyTarget.style.maxWidth = '100%'
+    bodyTarget.style.alignSelf = 'stretch'
+    bodyTarget.style.boxSizing = 'border-box'
 
     for (const overlay of bodyOverlays) {
       const pointerEvents =

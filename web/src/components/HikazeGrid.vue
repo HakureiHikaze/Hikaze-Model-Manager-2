@@ -126,6 +126,7 @@ function formatValue(value: unknown, row: any, col: GridColumn) {
 <style scoped>
 .hikaze-grid {
   width: 100% !important;
+  min-width: 100%;
   max-width: 100%;
   table-layout: fixed !important;
   border-collapse: collapse;
