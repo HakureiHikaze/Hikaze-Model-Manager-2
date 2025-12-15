@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 
+import { findSchemaTextInput, getVueNodeWidgetBodyElement } from '../util/dom'
 import type {
   NodeBodyOverlayDefinition,
   NodeBodyOverlayClickPayload,
@@ -62,6 +63,17 @@ import type {
   WidgetOverlayDefinition
 } from '../injection/types'
 
+/**
+ * Overlay renderer for a single ComfyUI node (VueNodes mode).
+ *
+ * This component is mounted by `BaseHikazeNodeController` into a per-node host.
+ * It then uses Vue `<Teleport>` to render overlays into the actual node DOM:
+ * - body overlays go into `.lg-node-widgets`
+ * - widget overlays attach to the schema input wrapper
+ *
+ * The "business logic" lives in controllers; this component only resolves targets
+ * and renders the overlays.
+ */
 type UnknownNode = {
   id?: string | number
   widgets?: Array<{
@@ -77,6 +89,7 @@ const props = defineProps<{
   widgetOverlays?: WidgetOverlayDefinition[]
 }>()
 
+/** A node-body overlay with its DOM target resolved. */
 type ResolvedBodyOverlay = {
   key: string
   title?: string
@@ -88,6 +101,7 @@ type ResolvedBodyOverlay = {
   onClick: (e: MouseEvent) => void
 }
 
+/** A widget overlay with its DOM target resolved. */
 type ResolvedWidgetOverlay = {
   key: string
   title?: string
@@ -98,26 +112,15 @@ type ResolvedWidgetOverlay = {
 
 const resolvedWidgetOverlays = ref<ResolvedWidgetOverlay[]>([])
 const resolvedBodyOverlays = ref<ResolvedBodyOverlay[]>([])
+// Retry timer for cases where the node DOM isn't ready yet.
 let resolveRetryTimer: number | null = null
 
-function getVueNodeElement(nodeId: string | number) {
-  return document.querySelector(`.lg-node[data-node-id="${nodeId}"]`)
-}
-
-function getVueNodeWidgetBodyElement(nodeId: string | number) {
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return null
-  return nodeEl.querySelector('.lg-node-widgets') as HTMLElement | null
-}
-
-function findSchemaTextInput(nodeId: string | number, widgetName: string) {
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return null
-  return nodeEl.querySelector(
-    `input[aria-label="${widgetName}"]`
-    ) as HTMLInputElement | null
-}
-
+/**
+ * Resolve overlay targets and precompute styles/click handlers.
+ *
+ * VueNodes mode can hydrate DOM asynchronously when a graph loads or nodes expand,
+ * so we retry a few times if required targets are missing.
+ */
 function resolveAllOverlays(attemptsRemaining = 50) {
   const nodeId = props.node?.id
   const widgetOverlays = props.widgetOverlays ?? []
@@ -131,7 +134,7 @@ function resolveAllOverlays(attemptsRemaining = 50) {
 
   const widgets = props.node.widgets ?? []
 
-  // Resolve node-body overlays (target = .lg-node-widgets)
+  // Resolve node-body overlays (target = `.lg-node-widgets`).
   const bodyTarget = getVueNodeWidgetBodyElement(nodeId)
   const resolvedBodies: ResolvedBodyOverlay[] = []
   if (bodyTarget && bodyOverlays.length) {
@@ -183,6 +186,7 @@ function resolveAllOverlays(attemptsRemaining = 50) {
     if (!inputEl) continue
 
     try {
+      // Apply optional patches directly on the real input element.
       if (overlay.patchInput?.readonly) {
         inputEl.setAttribute('readonly', 'readonly')
       }
@@ -199,6 +203,7 @@ function resolveAllOverlays(attemptsRemaining = 50) {
     const target = inputEl.parentElement ?? inputEl
     target.style.position = target.style.position || 'relative'
 
+    // Translate the overlay click into the controller's click callback payload.
     const handler = () => {
       const payload: WidgetOverlayClickPayload = {
         node: props.node,
@@ -223,6 +228,7 @@ function resolveAllOverlays(attemptsRemaining = 50) {
   const missingWidgetOverlays =
     resolved.length < widgetOverlays.length && widgetOverlays.length > 0
 
+  // If some overlays couldn't be resolved yet, retry briefly (debounced).
   if ((missingBodyOverlays || missingWidgetOverlays) && attemptsRemaining > 0) {
     if (resolveRetryTimer != null) return
     resolveRetryTimer = window.setTimeout(() => {

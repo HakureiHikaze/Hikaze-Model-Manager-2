@@ -46,7 +46,19 @@
 import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue'
 
 import type { LoRAListDocument } from '../injection/types'
+import { pickNodeAccentColor, parseHex, parseRgb, toRgba, type RGB } from '../util/colors'
+import { getVueNodeElement } from '../util/dom'
+import { coerceNumber } from '../util/numbers'
 
+/**
+ * Node body overlay UI for `HikazeLoraPowerLoader`.
+ *
+ * Data flow:
+ * - `loraJsonRef` is the authoritative text value (backed by the schema widget value).
+ * - This component parses it and renders a simple table.
+ * - Any edits must be committed via `commitJson(...)` so the widget value (and workflow JSON)
+ *   stays in sync.
+ */
 type LoraRow = {
   name: string
   strengthModel: number
@@ -54,12 +66,17 @@ type LoraRow = {
   enabled: boolean
 }
 
+/** Props are provided by the controller (`HikazeLoraPowerLoaderController`). */
 const props = defineProps<{
   nodeId: string | number | null
   loraJsonRef: Ref<string>
   commitJson: (next: string) => void
 }>()
 
+/**
+ * Placeholder document for development/testing.
+ * "Write JSON" will serialize this object into the node's `lora_json` widget.
+ */
 const PLACEHOLDER_DOC: LoRAListDocument = {
   version: 1,
   LoRAs: [
@@ -82,89 +99,16 @@ const PLACEHOLDER_DOC: LoRAListDocument = {
   ]
 }
 
-function clamp01(n: number) {
-  if (!Number.isFinite(n)) return 0
-  return Math.max(0, Math.min(1, n))
-}
-
-type RGB = { r: number; g: number; b: number }
-
-function parseRgb(color: string): RGB | null {
-  const m = color
-    .trim()
-    .match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+\s*)?\)$/i)
-  if (!m) return null
-  return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) }
-}
-
-function parseHex(color: string): RGB | null {
-  const hex = color.trim()
-  if (!hex.startsWith('#')) return null
-  const v = hex.slice(1)
-  if (v.length === 3) {
-    const r = parseInt(v[0] + v[0], 16)
-    const g = parseInt(v[1] + v[1], 16)
-    const b = parseInt(v[2] + v[2], 16)
-    return { r, g, b }
-  }
-  if (v.length === 6) {
-    const r = parseInt(v.slice(0, 2), 16)
-    const g = parseInt(v.slice(2, 4), 16)
-    const b = parseInt(v.slice(4, 6), 16)
-    return { r, g, b }
-  }
-  return null
-}
-
-function toRgba(rgb: RGB, alpha: number) {
-  const a = clamp01(alpha)
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`
-}
-
-function isTransparent(color: string) {
-  const v = color.trim().toLowerCase()
-  return v === 'transparent' || v === 'rgba(0, 0, 0, 0)' || v === 'rgba(0,0,0,0)'
-}
-
-function pickNodeAccentColor(nodeEl: HTMLElement): string | null {
-  try {
-    const style = getComputedStyle(nodeEl)
-    const vars = [
-      '--node-color',
-      '--comfy-node-color',
-      '--lg-node-color',
-      '--node-accent',
-      '--node-accent-color'
-    ]
-    for (const key of vars) {
-      const v = style.getPropertyValue(key).trim()
-      if (v) return v
-    }
-
-    const header =
-      (nodeEl.querySelector('.lg-node-header') as HTMLElement | null) ??
-      (nodeEl.querySelector('.lg-node-titlebar') as HTMLElement | null) ??
-      (nodeEl.querySelector('.lg-node-title') as HTMLElement | null)
-    if (header) {
-      const bg = getComputedStyle(header).backgroundColor
-      if (bg && !isTransparent(bg)) return bg
-    }
-
-    const border = style.borderTopColor || style.borderColor
-    if (border && !isTransparent(border)) return border
-  } catch {
-    // ignore
-  }
-  return null
-}
-
+/** Raw accent color string extracted from the current node element. */
 const accentRaw = ref<string | null>(null)
+/** Parsed RGB value of `accentRaw` when possible. */
 const accentRgb = computed<RGB | null>(() => {
   const c = accentRaw.value
   if (!c) return null
   return parseRgb(c) ?? parseHex(c)
 })
 
+/** Root panel style; uses the node accent color when available. */
 const rootStyle = computed<Record<string, string>>(() => {
   const rgb = accentRgb.value
   const border = rgb ? toRgba(rgb, 0.65) : 'rgba(255, 255, 255, 0.08)'
@@ -183,6 +127,7 @@ const rootStyle = computed<Record<string, string>>(() => {
   }
 })
 
+/** Header style; uses a translucent version of the accent color. */
 const headerStyle = computed<Record<string, string>>(() => {
   const rgb = accentRgb.value
   const bg = rgb ? toRgba(rgb, 0.22) : 'rgba(255, 255, 255, 0.06)'
@@ -193,6 +138,10 @@ const headerStyle = computed<Record<string, string>>(() => {
   }
 })
 
+/**
+ * Reserved for future picker panel styling (currently unused).
+ * Kept so we can add a richer picker UI later without reworking accent logic.
+ */
 const panelStyle = computed<Record<string, string>>(() => {
   const rgb = accentRgb.value
   const border = rgb ? toRgba(rgb, 0.55) : 'rgba(255, 255, 255, 0.12)'
@@ -201,6 +150,7 @@ const panelStyle = computed<Record<string, string>>(() => {
   }
 })
 
+/** Validate JSON and expose an error string for UI; does not parse schema deeply. */
 const parseError = computed<string | null>(() => {
   const raw = String(props.loraJsonRef?.value ?? '').trim()
   if (!raw) return null
@@ -212,11 +162,18 @@ const parseError = computed<string | null>(() => {
   }
 })
 
-function coerceNumber(v: any, fallback: number) {
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
+/**
+ * Normalize various JSON shapes into rows for display.
+ *
+ * Supported inputs:
+ * - Array form: `[ { ... } ]`
+ * - Document form: `{ LoRAs: [...] }` or `{ LoRAList: [...] }` (legacy key)
+ * - Legacy form: `{ loras: [...] }`
+ *
+ * Field compatibility:
+ * - strengths: `strength_model/strength_clip` or `MStrength/CStrength`
+ * - enabled: `enabled` or `toggleOn`
+ */
 function normalizeRows(parsed: any): LoraRow[] {
   const entries = Array.isArray(parsed)
     ? parsed
@@ -248,6 +205,7 @@ function normalizeRows(parsed: any): LoraRow[] {
   return rows
 }
 
+/** Reactive table rows derived from `loraJsonRef`. */
 const rows = computed<LoraRow[]>(() => {
   const raw = String(props.loraJsonRef?.value ?? '').trim()
   if (!raw) return []
@@ -259,22 +217,29 @@ const rows = computed<LoraRow[]>(() => {
   }
 })
 
+/**
+ * Placeholder for an interactive picker (file dialog / database view / etc).
+ * Currently unused; kept as a future integration point.
+ */
 function openPicker() {
   console.debug("placeholder openPicker")
 }
 
+/** Write the placeholder document into the node widget (persisted to workflow JSON). */
 function writePlaceholderJson() {
   props.commitJson(JSON.stringify(PLACEHOLDER_DOC, null, 2))
 }
 
 let observer: MutationObserver | null = null
 
+/**
+ * Refresh accent color from the current node element (best-effort).
+ * Called on mount and when node style/class changes.
+ */
 function refreshAccent() {
   const nodeId = props.nodeId
   if (nodeId == null) return
-  const nodeEl = document.querySelector(
-    `.lg-node[data-node-id="${nodeId}"]`
-  ) as HTMLElement | null
+  const nodeEl = getVueNodeElement(nodeId)
   if (!nodeEl) return
 
   const accent = pickNodeAccentColor(nodeEl)
@@ -282,21 +247,22 @@ function refreshAccent() {
 }
 
 onMounted(() => {
+  // Initial accent computation (DOM should exist in VueNodes mode).
   refreshAccent()
 
   const nodeId = props.nodeId
   if (nodeId == null) return
 
-  const nodeEl = document.querySelector(
-    `.lg-node[data-node-id="${nodeId}"]`
-  ) as HTMLElement | null
+  const nodeEl = getVueNodeElement(nodeId)
   if (!nodeEl) return
 
+  // Observe node DOM for color/theme changes so our overlay stays visually consistent.
   observer = new MutationObserver(() => refreshAccent())
   observer.observe(nodeEl, { attributes: true, attributeFilter: ['style', 'class'] })
 })
 
 onUnmounted(() => {
+  // Cleanup observer to avoid leaking references after graph switches.
   if (observer) {
     try {
       observer.disconnect()

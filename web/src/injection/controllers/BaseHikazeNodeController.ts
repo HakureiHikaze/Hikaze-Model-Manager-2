@@ -1,6 +1,18 @@
+/**
+ * Base controller for Hikaze nodes (front-end injection layer).
+ *
+ * A controller is created per LiteGraph node instance. It is responsible for:
+ * - VueNodes mode: mounting a Vue overlay host and rendering overlays/components
+ * - Legacy mode: optionally patching widget interactions (pointer handlers)
+ *
+ * Subclasses typically override:
+ * - `getVueBodyOverlays` / `getVueWidgetOverlays`
+ * - `onInjectLegacy`
+ */
 import { createApp, type App as VueApp } from 'vue'
 
 import HikazeNodeOverlay from '../../components/HikazeNodeOverlay.vue'
+import { getVueNodeWidgetBodyElement } from '../../util/dom'
 import type {
   InjectionContext,
   InjectionMode,
@@ -9,8 +21,11 @@ import type {
 } from '../types'
 
 type UnknownNode = {
+  /** LiteGraph node id. */
   id?: string | number
+  /** Node type name (legacy). */
   type?: string
+  /** Node type name (ComfyUI-specific alias). */
   comfyClass?: string
   widgets?: Array<any>
   onResize?: () => void
@@ -31,12 +46,18 @@ export type HikazeNodeControllerConstructor = new (
 ) => BaseHikazeNodeController
 
 export class BaseHikazeNodeController {
+  /**
+   * Global registry: node type -> controller constructor.
+   * Controllers are registered via side-effect imports (see `registerControllers.ts`).
+   */
   static readonly registry = new Map<string, HikazeNodeControllerConstructor>()
 
+  /** Register a controller implementation for a given node type. */
   static register(nodeType: string, ctor: HikazeNodeControllerConstructor) {
     this.registry.set(nodeType, ctor)
   }
 
+  /** Resolve the controller implementation for a node type (if registered). */
   static resolve(nodeType: string): HikazeNodeControllerConstructor | undefined {
     return this.registry.get(nodeType)
   }
@@ -57,10 +78,15 @@ export class BaseHikazeNodeController {
 
   private legacyWidgetPointerDownOriginal = new WeakMap<object, any>()
 
+  /** Bind this controller to a specific node instance. */
   constructor(node: UnknownNode) {
     this.node = node
   }
 
+  /**
+   * Perform injection for the given context.
+   * If mode changes (legacy <-> vue), prior resources are disposed first.
+   */
   inject(ctx: InjectionContext) {
     if (this.injectedMode && this.injectedMode !== ctx.mode) {
       this.dispose()
@@ -75,11 +101,17 @@ export class BaseHikazeNodeController {
     this.injectedMode = ctx.mode
   }
 
+  /** Dispose and inject again for the given context. */
   reinject(ctx: InjectionContext) {
     this.dispose()
     this.inject(ctx)
   }
 
+  /**
+   * Dispose any UI/hooks created by this controller.
+   *
+   * This should be idempotent: safe to call multiple times.
+   */
   dispose() {
     if (this.vueMountRetryTimer != null) {
       try {
@@ -104,24 +136,43 @@ export class BaseHikazeNodeController {
     this.legacyWidgetPointerDownOriginal = new WeakMap<object, any>()
   }
 
+  /**
+   * VueNodes mode: overlays that attach to a specific schema widget input.
+   * Useful for "click to open picker" while keeping the value persisted in widget.value.
+   */
   protected getVueWidgetOverlays(_ctx: InjectionContext): WidgetOverlayDefinition[] {
     return []
   }
 
+  /**
+   * VueNodes mode: overlays that cover the node body area (usually `.lg-node-widgets`).
+   * Can be a transparent click-catcher or a full Vue component.
+   */
   protected getVueBodyOverlays(_ctx: InjectionContext): NodeBodyOverlayDefinition[] {
     return []
   }
 
+  /** Legacy mode injection hook. Default: no changes. */
   protected onInjectLegacy(_ctx: InjectionContext) {
     // Default: no legacy behavior modifications.
   }
 
+  /** Find a widget by schema input id (widget.name). */
   protected findWidget(widgetName: string) {
     const widgets = this.node?.widgets
     if (!Array.isArray(widgets)) return null
     return widgets.find((w) => w?.name === widgetName) ?? null
   }
 
+  /**
+   * Update a widget value while keeping ComfyUI/LiteGraph state consistent.
+   *
+   * This method tries to:
+   * - call widget.setValue(...) when available (legacy path)
+   * - invoke widget.callback to let ComfyUI update internal state
+   * - call node.onWidgetChanged so other listeners can sync
+   * - bump graph version and mark canvas dirty so changes persist to workflow JSON
+   */
   protected setWidgetValue(
     widget: any,
     next: any,
@@ -134,6 +185,7 @@ export class BaseHikazeNodeController {
     const e = options?.e
     const canvas = options?.canvas
 
+    // Prefer widget.setValue(...) when we have a LiteGraph canvas reference.
     if (canvas && typeof widget?.setValue === 'function') {
       try {
         widget.setValue(next, { e, node, canvas })
@@ -142,6 +194,7 @@ export class BaseHikazeNodeController {
       }
     }
 
+    // If setValue didn't take effect (or not available), do a best-effort manual update.
     if (widget?.value !== next) {
       try {
         widget.value = next
@@ -169,6 +222,7 @@ export class BaseHikazeNodeController {
       }
     }
 
+    // If caller also knows the DOM input element, keep it in sync to avoid UI mismatch.
     try {
       if (options?.inputEl) options.inputEl.value = String(next ?? '')
     } catch {
@@ -187,6 +241,11 @@ export class BaseHikazeNodeController {
     }
   }
 
+  /**
+   * Legacy mode helper: turn a text widget into a "click to pick" widget.
+   *
+   * Example: clicking a text input opens `window.prompt(...)` and commits the result.
+   */
   protected hookLegacyTextWidgetClick(
     widgetName: string,
     onPick: (current: string) => string | null
@@ -258,6 +317,10 @@ export class BaseHikazeNodeController {
     })
   }
 
+  /**
+   * Schedule a single retry for Vue overlay mounting.
+   * Prevents multiple overlapping timeouts.
+   */
   private scheduleVueMountRetry(fn: () => void, delayMs: number) {
     if (this.vueMountRetryTimer != null) return
     this.vueMountRetryTimer = window.setTimeout(() => {
@@ -270,18 +333,13 @@ export class BaseHikazeNodeController {
     }, delayMs)
   }
 
-  private getVueNodeElement(nodeId: string | number) {
-    return document.querySelector(
-      `.lg-node[data-node-id="${nodeId}"]`
-    ) as HTMLElement | null
-  }
-
-  private getVueNodeWidgetBodyElement(nodeId: string | number) {
-    const nodeEl = this.getVueNodeElement(nodeId)
-    if (!nodeEl) return null
-    return nodeEl.querySelector('.lg-node-widgets') as HTMLElement | null
-  }
-
+  /**
+   * VueNodes mode: mount the overlay host element for this node and render `HikazeNodeOverlay`.
+   *
+   * Notes:
+   * - Node DOM may not exist immediately after graph load; this method retries briefly.
+   * - The host itself is pointer-events:none; individual overlays can opt into pointer events.
+   */
   private ensureVueOverlayMounted(ctx: InjectionContext, attemptsRemaining = 50) {
     const nodeId = this.node?.id
     if (nodeId == null) {
@@ -293,7 +351,7 @@ export class BaseHikazeNodeController {
       return
     }
 
-    const bodyEl = this.getVueNodeWidgetBodyElement(nodeId)
+    const bodyEl = getVueNodeWidgetBodyElement(nodeId)
     if (!bodyEl) {
       if (attemptsRemaining <= 0) return
       this.scheduleVueMountRetry(
@@ -316,6 +374,7 @@ export class BaseHikazeNodeController {
 
     bodyEl.style.position = bodyEl.style.position || 'relative'
 
+    // Absolute layer that acts as Teleport host for overlays.
     const host = document.createElement('div')
     host.dataset.hikazeNodeOverlayHost = '1'
     host.dataset.hikazeNodeId = String(nodeId)
@@ -326,6 +385,7 @@ export class BaseHikazeNodeController {
 
     bodyEl.appendChild(host)
 
+    // Overlays are provided by the controller subclass.
     const bodyOverlays = this.getVueBodyOverlays(ctx)
     const widgetOverlays = this.getVueWidgetOverlays(ctx)
     const app = createApp(HikazeNodeOverlay, {
@@ -337,6 +397,7 @@ export class BaseHikazeNodeController {
 
     this.vueOverlay = { host, app }
 
+    // Cleanup on dispose.
     this.cleanupFns.push(() => {
       try {
         app.unmount()

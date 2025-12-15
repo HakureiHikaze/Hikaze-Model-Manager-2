@@ -1,3 +1,15 @@
+/**
+ * Hikaze front-end injection manager.
+ *
+ * This module runs inside ComfyUI's browser UI as a registered extension.
+ * It reacts to:
+ * - node creation / workflow load
+ * - graph switching
+ * - VueNodes mode switching
+ *
+ * Then it delegates per-node UI work to `BaseHikazeNodeController` (or a
+ * node-specific subclass from the controller registry).
+ */
 import type { InjectionContext, InjectionMode, InjectionReason } from './types'
 import {
   HIKAZE_NODE_TYPE_PREFIX,
@@ -5,22 +17,33 @@ import {
   VUE_NODES_SETTING_ID
 } from './types'
 import { BaseHikazeNodeController } from './controllers/BaseHikazeNodeController'
+import { defineHiddenFlag, hasOwn } from '../util/object'
 
 type UnknownApp = any
 type UnknownNode = any
 
 type ManagerOptions = {
+  /**
+   * Extension name for logging.
+   */
   extName: string
+  /**
+   * Getter for the ComfyUI app instance (global differs across builds).
+   */
   getComfyApp: () => UnknownApp
 }
 
-const HAS_OWN: (obj: any, key: string) => boolean =
-  Object.hasOwn ?? ((obj, key) => Object.prototype.hasOwnProperty.call(obj, key))
-
+/**
+ * Internal flags added onto ComfyUI objects to avoid double-hooking.
+ * These are defined as non-enumerable properties.
+ */
 const ON_ADDED_HOOK_FLAG = '__hikazeOnAddedHooked'
 const COLLAPSE_HOOK_FLAG = '__hikazeCollapseHooked'
 const SETTINGS_HOOK_FLAG = '__hikazeVueNodesSettingHooked'
 
+/**
+ * Coordinates injection across all Hikaze nodes in the active graph.
+ */
 export class HikazeInjectionManager {
   private readonly extName: string
   private readonly getComfyApp: () => UnknownApp
@@ -30,31 +53,50 @@ export class HikazeInjectionManager {
   private graphChangeListenerInstalled = false
   private collapseReinjectTimers = new WeakMap<object, number>()
 
+  /**
+   * Create the manager; call `install()` once ComfyUI app exists.
+   */
   constructor(options: ManagerOptions) {
     this.extName = options.extName
     this.getComfyApp = options.getComfyApp
   }
 
+  /**
+   * Install global event listeners (mode switches + graph switches).
+   */
   install() {
     this.installVueNodesSettingListener()
     this.installGraphChangeListener()
   }
 
+  /**
+   * ComfyUI callback: user created a node (context menu / paste / etc).
+   */
   onNodeCreated(node: UnknownNode) {
     if (!this.isHikazeNode(node)) return
     this.ensureOnAddedHook(node)
     this.injectNode(node, 'node-created')
   }
 
+  /**
+   * ComfyUI callback: node created while loading a workflow/graph.
+   */
   onLoadedGraphNode(node: UnknownNode) {
     if (!this.isHikazeNode(node)) return
     this.injectNode(node, 'loaded-graph-node')
   }
 
+  /**
+   * Reinject all Hikaze nodes in the active graph (debug/manual reload).
+   */
   reinjectAll(reason: InjectionReason = 'manual-reload') {
     this.reinjectAllForMode(this.getCurrentMode(), reason)
   }
 
+  /**
+   * Reinject all Hikaze nodes for a specific UI mode.
+   * Retries briefly if graph is not ready yet (startup / mode switching).
+   */
   reinjectAllForMode(
     mode: InjectionMode,
     reason: InjectionReason,
@@ -81,6 +123,9 @@ export class HikazeInjectionManager {
     }
   }
 
+  /**
+   * Inject a single node by creating a context snapshot and delegating to its controller.
+   */
   private injectNode(node: UnknownNode, reason: InjectionReason) {
     const app = this.getComfyApp()
     const graph = this.getActiveGraph(app)
@@ -95,11 +140,17 @@ export class HikazeInjectionManager {
     controller.inject(ctx)
   }
 
+  /**
+   * Force re-injection of a node for an existing context.
+   */
   private reinjectNode(node: UnknownNode, ctx: InjectionContext) {
     const controller = this.getOrCreateController(node)
     controller.reinject(ctx)
   }
 
+  /**
+   * Reinject a single node by constructing a fresh context snapshot.
+   */
   private reinjectSingleNode(node: UnknownNode, reason: InjectionReason) {
     const app = this.getComfyApp()
     const graph = this.getActiveGraph(app)
@@ -113,6 +164,9 @@ export class HikazeInjectionManager {
     this.reinjectNode(node, ctx)
   }
 
+  /**
+   * If a node already has a controller, dispose it and release resources/DOM.
+   */
   private disposeControllerIfExists(node: UnknownNode) {
     if (!node || typeof node !== 'object') return
     const controller = this.controllersByNode.get(node)
@@ -124,6 +178,11 @@ export class HikazeInjectionManager {
     }
   }
 
+  /**
+   * Schedule a reinjection on the next tick (debounced per-node).
+   *
+   * Used after un-collapsing a node: ComfyUI recreates DOM, then we mount overlays again.
+   */
   private scheduleReinjectSingleNode(node: UnknownNode, reason: InjectionReason) {
     if (!node || typeof node !== 'object') return
 
@@ -148,6 +207,10 @@ export class HikazeInjectionManager {
     this.collapseReinjectTimers.set(node, timer)
   }
 
+  /**
+   * Resolve (and memoize) the controller for a node instance.
+   * Controller type is looked up by node type name (`node.type` / `node.comfyClass`).
+   */
   private getOrCreateController(node: UnknownNode) {
     this.ensureCollapseHook(node)
 
@@ -169,6 +232,9 @@ export class HikazeInjectionManager {
     return controller
   }
 
+  /**
+   * Dispose every controller and clear the registry for the active graph.
+   */
   private disposeAllControllers() {
     for (const controller of this.controllers) {
       try {
@@ -190,6 +256,9 @@ export class HikazeInjectionManager {
     }
   }
 
+  /**
+   * Listen to VueNodes setting changes and reinject nodes after mode switches.
+   */
   private installVueNodesSettingListener(attemptsRemaining = 40) {
     const app = this.getComfyApp()
     const settings = app?.ui?.settings
@@ -202,8 +271,8 @@ export class HikazeInjectionManager {
       return
     }
 
-    if (HAS_OWN(settings, SETTINGS_HOOK_FLAG)) return
-    this.defineHiddenFlag(settings, SETTINGS_HOOK_FLAG)
+    if (hasOwn(settings, SETTINGS_HOOK_FLAG)) return
+    defineHiddenFlag(settings, SETTINGS_HOOK_FLAG)
 
     settings.addEventListener(VUE_NODES_SETTING_EVENT, (event: any) => {
       const enabled = !!event?.detail?.value
@@ -224,6 +293,9 @@ export class HikazeInjectionManager {
     })
   }
 
+  /**
+   * Listen to LiteGraph "graph changed" event and reinject for the new graph.
+   */
   private installGraphChangeListener(attemptsRemaining = 40) {
     const app = this.getComfyApp()
     const canvasEl = app?.canvas?.canvas
@@ -249,10 +321,13 @@ export class HikazeInjectionManager {
     )
   }
 
+  /**
+   * Ensure `node.onAdded` triggers injection (covers additional creation paths).
+   */
   private ensureOnAddedHook(node: UnknownNode) {
     if (!node || typeof node !== 'object') return
-    if (HAS_OWN(node, ON_ADDED_HOOK_FLAG)) return
-    this.defineHiddenFlag(node, ON_ADDED_HOOK_FLAG)
+    if (hasOwn(node, ON_ADDED_HOOK_FLAG)) return
+    defineHiddenFlag(node, ON_ADDED_HOOK_FLAG)
 
     const originalOnAdded = node.onAdded
     node.onAdded = (graph: any) => {
@@ -266,14 +341,19 @@ export class HikazeInjectionManager {
     }
   }
 
+  /**
+   * Ensure collapse/un-collapse transitions are handled:
+   * - on collapse: dispose overlays so we don't hold stale DOM references
+   * - on un-collapse: schedule a reinject for the next tick
+   */
   private ensureCollapseHook(node: UnknownNode) {
     if (!node || typeof node !== 'object') return
-    if (HAS_OWN(node, COLLAPSE_HOOK_FLAG)) return
+    if (hasOwn(node, COLLAPSE_HOOK_FLAG)) return
 
     const originalCollapse = node.collapse
     if (typeof originalCollapse !== 'function') return
 
-    this.defineHiddenFlag(node, COLLAPSE_HOOK_FLAG)
+    defineHiddenFlag(node, COLLAPSE_HOOK_FLAG)
 
     node.collapse = (...args: any[]) => {
       const wasCollapsed = !!node?.flags?.collapsed
@@ -294,45 +374,42 @@ export class HikazeInjectionManager {
     }
   }
 
-  private defineHiddenFlag(obj: any, key: string) {
-    try {
-      Object.defineProperty(obj, key, {
-        value: true,
-        enumerable: false,
-        configurable: true
-      })
-      return
-    } catch {
-      // ignore
-    }
-
-    try {
-      obj[key] = true
-    } catch {
-      // ignore
-    }
-  }
-
+  /**
+   * Detect current rendering mode (VueNodes vs legacy).
+   */
   private getCurrentMode(): InjectionMode {
     const mode = (globalThis as any)?.LiteGraph?.vueNodesMode
     if (typeof mode === 'boolean') return mode ? 'vue' : 'legacy'
     return document.querySelector("[data-testid='transform-pane']") ? 'vue' : 'legacy'
   }
 
+  /**
+   * Best-effort resolve the currently active graph.
+   */
   private getActiveGraph(app: UnknownApp) {
     return app?.canvas?.graph ?? app?.graph ?? (globalThis as any)?.graph ?? null
   }
 
+  /**
+   * Return node list for the given graph (LiteGraph uses different internal fields).
+   */
   private getGraphNodes(graph: any): UnknownNode[] | null {
     const nodes = graph?._nodes ?? graph?.nodes
     return Array.isArray(nodes) ? nodes : null
   }
 
+  /**
+   * Resolve node type name. ComfyUI may set `comfyClass` or `type` depending on the path.
+   */
   private getNodeType(node: UnknownNode): string | null {
     const t = node?.comfyClass ?? node?.type
     return typeof t === 'string' && t.length ? t : null
   }
 
+  /**
+   * Whether this node is managed by our injection system.
+   * Convention: node type starts with `HIKAZE_NODE_TYPE_PREFIX`.
+   */
   private isHikazeNode(node: UnknownNode): boolean {
     const nodeType = this.getNodeType(node)
     return !!nodeType && nodeType.startsWith(HIKAZE_NODE_TYPE_PREFIX)
