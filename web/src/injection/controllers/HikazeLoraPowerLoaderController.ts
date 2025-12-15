@@ -10,9 +10,8 @@ import { BaseHikazeNodeController } from './BaseHikazeNodeController'
  * Behavior:
  * - VueNodes mode: render `HikazeLoraPowerLoaderOverlay` over the node body and keep the grid synced
  *   with the schema widget `lora_json` (persisted to workflow JSON).
+ * - Legacy mode: TODO: replace prompt-based editing with a proper UI (e.g., table/picker/editor).
  */
-//TODO: - Legacy mode:  render `HikazeLoraPowerLoaderOverlay` over the legacy node body and keep it synced
-//        with the schema widget `lora_json` (persisted to workflow JSON).
 const NODE_TYPE = 'HikazeLoraPowerLoader'
 const JSON_WIDGET = 'lora_json'
 
@@ -26,16 +25,24 @@ export class HikazeLoraPowerLoaderController extends BaseHikazeNodeController {
   private onWidgetChangedWrapper: any = null
 
   /**
+   * Hydration sync timers for VueNodes mode.
+   * Some ComfyUI flows update widget values after the initial injection callback.
+   */
+  private hydrationSyncTimers: number[] = []
+
+  /**
    * Inject lifecycle: hook widget changes, sync initial value, then mount overlays.
    */
   override inject(ctx: InjectionContext) {
     this.ensureWidgetChangeHook()
     this.syncFromWidget()
+    this.scheduleHydrationSync(ctx)
     super.inject(ctx)
   }
 
   /** Dispose lifecycle: unhook widget changes and let base class cleanup overlays. */
   override dispose() {
+    this.clearHydrationSync()
     this.unhookWidgetChange()
     super.dispose()
   }
@@ -56,6 +63,10 @@ export class HikazeLoraPowerLoaderController extends BaseHikazeNodeController {
         component: HikazeLoraPowerLoaderOverlay,
         props: () => ({
           nodeId: this.node?.id ?? null,
+          nodeWidth:
+            typeof (this.node as any)?.size?.[0] === 'number'
+              ? (this.node as any).size[0]
+              : null,
           loraJsonRef: this.loraJsonRef,
           commitJson: (next: string) => this.commitJson(next)
         })
@@ -63,7 +74,6 @@ export class HikazeLoraPowerLoaderController extends BaseHikazeNodeController {
     ]
   }
 
-  // TODO(legacy): replace prompt-based editing with a proper UI (e.g., table/picker/editor).
   protected override onInjectLegacy(_ctx: InjectionContext) {
     this.hookLegacyTextWidgetClick(JSON_WIDGET, (current) =>
       window.prompt('Edit LoRA JSON', current)
@@ -122,6 +132,42 @@ export class HikazeLoraPowerLoaderController extends BaseHikazeNodeController {
   private syncFromWidget() {
     const widget = this.findWidget(JSON_WIDGET)
     this.loraJsonRef.value = String(widget?.value ?? '')
+  }
+
+  /**
+   * VueNodes mode: schedule a few sync attempts to catch late widget hydration.
+   *
+   * This keeps the overlay rendered state consistent when:
+   * - loading workflows
+   * - switching graphs
+   * - un-collapsing nodes
+   */
+  private scheduleHydrationSync(ctx: InjectionContext) {
+    this.clearHydrationSync()
+    if (ctx.mode !== 'vue') return
+
+    const delays = [0, 50, 150, 400, 800]
+    for (const delay of delays) {
+      const timer = window.setTimeout(() => {
+        try {
+          this.syncFromWidget()
+        } catch {
+          // ignore
+        }
+      }, delay)
+      this.hydrationSyncTimers.push(timer)
+    }
+  }
+
+  private clearHydrationSync() {
+    for (const timer of this.hydrationSyncTimers) {
+      try {
+        window.clearTimeout(timer)
+      } catch {
+        // ignore
+      }
+    }
+    this.hydrationSyncTimers = []
   }
 
   /**

@@ -8,29 +8,61 @@
     </div>
 
     <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th class="col-name">LoRA</th>
-            <th class="col-num">Model</th>
-            <th class="col-num">CLIP</th>
-            <th class="col-flag">On</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(row, idx) in rows" :key="idx">
-            <td class="col-name" :title="row.name">{{ row.name }}</td>
-            <td class="col-num">{{ row.strengthModel }}</td>
-            <td class="col-num">{{ row.strengthClip }}</td>
-            <td class="col-flag">{{ row.enabled ? 'Y' : 'N' }}</td>
-          </tr>
-          <tr v-if="rows.length === 0">
-            <td class="empty" colspan="4">
-              No LoRAs. Click "Select..." to write placeholder JSON.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <HikazeGrid
+        :rows="doc.LoRAs"
+        :columns="gridColumns"
+        empty-text='No LoRAs. Click "Select..." to paste JSON.'
+        :get-row-key="getRowKey"
+      >
+        <template #cell="{ row, column, index }">
+          <template v-if="column.key === '__delete__'">
+            <button
+              type="button"
+              class="cell-delete"
+              @click="onDeletePlaceholder(row, index)"
+            >
+              X
+            </button>
+          </template>
+
+          <template v-else-if="column.key === 'lora'">
+            <span class="cell-lora" :title="row.name || row.full_path">
+              {{ row.name || row.full_path || '(unnamed)' }}
+            </span>
+          </template>
+
+          <template v-else-if="column.key === 'MStrength'">
+            <input
+              v-model.number="row.MStrength"
+              class="cell-num"
+              type="number"
+              step="0.01"
+              @change="scheduleCommit"
+            />
+          </template>
+
+          <template v-else-if="column.key === 'CStrength'">
+            <input
+              v-model.number="row.CStrength"
+              class="cell-num"
+              type="number"
+              step="0.01"
+              @change="scheduleCommit"
+            />
+          </template>
+
+          <template v-else-if="column.key === 'toggleOn'">
+            <div class="cell-square">
+              <input
+                v-model="row.toggleOn"
+                class="cell-check"
+                type="checkbox"
+                @change="commitNow"
+              />
+            </div>
+          </template>
+        </template>
+      </HikazeGrid>
     </div>
 
     <div class="actions">
@@ -43,12 +75,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 
+import HikazeGrid from './HikazeGrid.vue'
 import type { LoRAListDocument } from '../injection/types'
 import { pickNodeAccentColor, parseHex, parseRgb, toRgba, type RGB } from '../util/colors'
 import { getVueNodeElement } from '../util/dom'
-import { coerceNumber } from '../util/numbers'
+import {
+  createEmptyLoRAListDocument,
+  parseLoRAListJson,
+  stringifyLoRAListDocument
+} from '../util/lora'
 
 /**
  * Node body overlay UI for `HikazeLoraPowerLoader`.
@@ -59,16 +96,14 @@ import { coerceNumber } from '../util/numbers'
  * - Any edits must be committed via `commitJson(...)` so the widget value (and workflow JSON)
  *   stays in sync.
  */
-type LoraRow = {
-  name: string
-  strengthModel: number
-  strengthClip: number
-  enabled: boolean
-}
-
 /** Props are provided by the controller (`HikazeLoraPowerLoaderController`). */
 const props = defineProps<{
   nodeId: string | number | null
+  /**
+   * Node width forwarded by the overlay/controller.
+   * Currently unused (kept for future layout tuning).
+   */
+  nodeWidth: number | null
   loraJsonRef: Ref<string>
   commitJson: (next: string) => void
 }>()
@@ -99,6 +134,29 @@ const PLACEHOLDER_DOC: LoRAListDocument = {
   ]
 }
 
+const doc = ref<LoRAListDocument>(createEmptyLoRAListDocument())
+const parseError = ref<string | null>(null)
+
+const lastCommittedJson = ref<string | null>(null)
+let commitTimer: number | null = null
+
+const gridColumns = [
+  { key: '__delete__', label: '', align: 'center', width: 'var(--hikaze-cell-size)' },
+  {
+    key: 'lora',
+    label: 'LoRA',
+    align: 'left',
+    getValue: (row: any) => String(row?.name ?? row?.full_path ?? ''),
+  },
+  { key: 'MStrength', label: 'Model', align: 'right', width: 'var(--hikaze-num-col-width)' },
+  { key: 'CStrength', label: 'CLIP', align: 'right', width: 'var(--hikaze-num-col-width)' },
+  { key: 'toggleOn', label: '', align: 'center', width: 'var(--hikaze-cell-size)' },
+] as const
+
+function getRowKey(row: any, index: number) {
+  return row?.sha256 ?? row?.full_path ?? index
+}
+
 /** Raw accent color string extracted from the current node element. */
 const accentRaw = ref<string | null>(null)
 /** Parsed RGB value of `accentRaw` when possible. */
@@ -123,7 +181,9 @@ const rootStyle = computed<Record<string, string>>(() => {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    '--hikaze-cell-size': '22px',
+    '--hikaze-num-col-width': '5ch',
   }
 })
 
@@ -138,10 +198,7 @@ const headerStyle = computed<Record<string, string>>(() => {
   }
 })
 
-/**
- * Reserved for future picker panel styling (currently unused).
- * Kept so we can add a richer picker UI later without reworking accent logic.
- */
+/** Reserved for future picker panel styling (currently unused). */
 const panelStyle = computed<Record<string, string>>(() => {
   const rgb = accentRgb.value
   const border = rgb ? toRgba(rgb, 0.55) : 'rgba(255, 255, 255, 0.12)'
@@ -150,84 +207,81 @@ const panelStyle = computed<Record<string, string>>(() => {
   }
 })
 
-/** Validate JSON and expose an error string for UI; does not parse schema deeply. */
-const parseError = computed<string | null>(() => {
-  const raw = String(props.loraJsonRef?.value ?? '').trim()
-  if (!raw) return null
-  try {
-    JSON.parse(raw)
-    return null
-  } catch (e: any) {
-    return String(e?.message ?? e ?? 'Invalid JSON')
-  }
-})
-
 /**
- * Normalize various JSON shapes into rows for display.
- *
- * Supported inputs:
- * - Array form: `[ { ... } ]`
- * - Document form: `{ LoRAs: [...] }` or `{ LoRAList: [...] }` (legacy key)
- * - Legacy form: `{ loras: [...] }`
- *
- * Field compatibility:
- * - strengths: `strength_model/strength_clip` or `MStrength/CStrength`
- * - enabled: `enabled` or `toggleOn`
+ * Keep `doc` synced from the canonical widget text (`loraJsonRef`).
+ * The controller is responsible for keeping `loraJsonRef` in sync with widget.value.
  */
-function normalizeRows(parsed: any): LoraRow[] {
-  const entries = Array.isArray(parsed)
-    ? parsed
-    : Array.isArray(parsed?.LoRAs)
-      ? parsed.LoRAs
-      : Array.isArray(parsed?.LoRAList)
-        ? parsed.LoRAList
-        : parsed?.loras
-  if (!Array.isArray(entries)) return []
+watch(
+  () => String(props.loraJsonRef?.value ?? ''),
+  (raw) => {
+    if (lastCommittedJson.value != null && raw === lastCommittedJson.value) {
+      parseError.value = null
+      return
+    }
 
-  const rows: LoraRow[] = []
-  for (const item of entries) {
-    if (!item || typeof item !== 'object') continue
-    const name =
-      String((item as any).name ?? (item as any).full_path ?? '').trim() ||
-      '(unnamed)'
-    const strengthModel = coerceNumber(
-      (item as any).strength_model ?? (item as any).MStrength,
-      1
-    )
-    const strengthClip = coerceNumber(
-      (item as any).strength_clip ?? (item as any).CStrength,
-      1
-    )
-    const enabledRaw = (item as any).enabled ?? (item as any).toggleOn
-    const enabled = typeof enabledRaw === 'boolean' ? enabledRaw : enabledRaw !== false
-    rows.push({ name, strengthModel, strengthClip, enabled })
-  }
-  return rows
-}
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      doc.value = createEmptyLoRAListDocument()
+      parseError.value = null
+      return
+    }
 
-/** Reactive table rows derived from `loraJsonRef`. */
-const rows = computed<LoraRow[]>(() => {
-  const raw = String(props.loraJsonRef?.value ?? '').trim()
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    return normalizeRows(parsed)
-  } catch {
-    return []
-  }
-})
+    try {
+      doc.value = parseLoRAListJson(trimmed)
+      parseError.value = null
+    } catch (e: any) {
+      parseError.value = String(e?.message ?? e ?? 'Invalid JSON')
+    }
+  },
+  { immediate: true }
+)
 
 /**
  * Placeholder for an interactive picker (file dialog / database view / etc).
  * Currently unused; kept as a future integration point.
  */
 function openPicker() {
-  console.debug("placeholder openPicker")
+  const current = String(props.loraJsonRef?.value ?? '').trim()
+  const defaultValue =
+    current.length > 0 ? current : stringifyLoRAListDocument(PLACEHOLDER_DOC)
+  const next = window.prompt('Paste LoRA JSON', defaultValue)
+  if (next == null) return
+  props.commitJson(next)
 }
 
 /** Write the placeholder document into the node widget (persisted to workflow JSON). */
 function writePlaceholderJson() {
-  props.commitJson(JSON.stringify(PLACEHOLDER_DOC, null, 2))
+  doc.value = {
+    version: PLACEHOLDER_DOC.version,
+    LoRAs: PLACEHOLDER_DOC.LoRAs.map((item) => ({ ...item })),
+  }
+  commitNow()
+}
+
+function commitNow() {
+  const next = stringifyLoRAListDocument(doc.value)
+  lastCommittedJson.value = next
+  parseError.value = null
+  props.commitJson(next)
+}
+
+function scheduleCommit() {
+  if (commitTimer != null) {
+    try {
+      window.clearTimeout(commitTimer)
+    } catch {
+      // ignore
+    }
+  }
+
+  commitTimer = window.setTimeout(() => {
+    commitTimer = null
+    commitNow()
+  }, 200)
+}
+
+function onDeletePlaceholder(_row: any, _index: number) {
+  console.debug('TODO: delete LoRA row (placeholder)')
 }
 
 let observer: MutationObserver | null = null
@@ -262,6 +316,15 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (commitTimer != null) {
+    try {
+      window.clearTimeout(commitTimer)
+    } catch {
+      // ignore
+    }
+    commitTimer = null
+  }
+
   // Cleanup observer to avoid leaking references after graph switches.
   if (observer) {
     try {
@@ -293,6 +356,7 @@ onUnmounted(() => {
   font-size: 12px;
   letter-spacing: 0.2px;
   user-select: none;
+  white-space: nowrap;
 }
 
 .header__error {
@@ -313,53 +377,85 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.table {
+.cell-square {
+  width: var(--hikaze-cell-size);
+  height: var(--hikaze-cell-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-delete {
+  width: var(--hikaze-cell-size);
+  height: var(--hikaze-cell-size);
+  border-radius: 8px;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8ecf2;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+}
+
+.cell-delete:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cell-lora {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.table thead th {
-  position: sticky;
-  top: 0;
-  background: rgba(15, 17, 23, 0.92);
-  color: #aab3c4;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.45px;
-  font-size: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 8px 8px;
-  text-align: left;
-  user-select: none;
-}
-
-.table tbody td {
-  padding: 7px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.col-name {
-  max-width: 220px;
+  padding: 0 8px;
+  line-height: var(--hikaze-cell-size);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.col-num,
-.col-flag {
-  width: 52px;
-  text-align: right;
+.cell-num {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: var(--hikaze-cell-size);
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8ecf2;
+  border-radius: 8px;
+  padding: 0 2px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
-.col-flag {
-  width: 34px;
+.cell-check {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
-.empty {
-  color: #aab3c4;
-  padding: 12px 10px;
+:deep(.hikaze-grid tbody td) {
+  height: var(--hikaze-cell-size);
+  padding: 0;
+}
+
+:deep(.hikaze-grid th[data-col-key="__delete__"]),
+:deep(.hikaze-grid td[data-col-key="__delete__"]),
+:deep(.hikaze-grid th[data-col-key="toggleOn"]),
+:deep(.hikaze-grid td[data-col-key="toggleOn"]) {
+  padding: 0;
+}
+
+:deep(.hikaze-grid th[data-col-key="MStrength"]),
+:deep(.hikaze-grid th[data-col-key="CStrength"]) {
+  padding: 0 4px;
+}
+
+:deep(.hikaze-grid td[data-col-key="MStrength"]),
+:deep(.hikaze-grid td[data-col-key="CStrength"]) {
+  padding: 0;
 }
 
 .actions {
@@ -388,64 +484,5 @@ onUnmounted(() => {
   background: transparent;
 }
 
-.picker {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 10px;
-}
 
-.picker__panel {
-  width: min(560px, 92%);
-  height: min(420px, 92%);
-  background: rgba(15, 17, 23, 0.98);
-  border-radius: 14px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-}
-
-.picker__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.picker__title {
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.25px;
-}
-
-.picker__close {
-  appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: #e8ecf2;
-  border-radius: 10px;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-}
-
-.picker__iframe {
-  flex: 1;
-  width: 100%;
-  border: 0;
-  background: #0f1117;
-}
-
-.picker__actions {
-  padding: 10px 12px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
 </style>

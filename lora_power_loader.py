@@ -44,7 +44,7 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
                     default="[]",
                     multiline=True,
                     socketless=True,
-                    placeholder='[{"name":"lora.safetensors","strength_model":1.0,"strength_clip":1.0,"enabled":true}]',
+                    placeholder='{"version":1,"LoRAs":[{"name":"lora.safetensors","full_path":"/abs/path/lora.safetensors","MStrength":1.0,"CStrength":1.0,"toggleOn":true}]}',
                     tooltip="JSON describing LoRA entries; the front-end UI writes this field.",
                 ),
             ],
@@ -68,19 +68,43 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
                 raise ValueError(f"Invalid LoRA JSON: {exc}") from exc
 
         # Placeholder: log the intended operations; do not modify model/clip yet.
-        entries = parsed.get("loras") if isinstance(parsed, dict) else parsed
+        if isinstance(parsed, list):
+            entries = parsed
+        elif isinstance(parsed, dict):
+            entries = (
+                parsed.get("LoRAs")
+                or parsed.get("LoRAList")
+                or parsed.get("loras")
+                or []
+            )
+        else:
+            entries = []
+
         if isinstance(entries, list):
             for index, item in enumerate(entries):
                 if not isinstance(item, dict):
                     continue
                 name = item.get("name")
+                full_path = item.get("full_path") or item.get("fullPath") or item.get("path") or name
+
                 strength_model = item.get("strength_model")
+                if strength_model is None:
+                    strength_model = item.get("MStrength")
+
                 strength_clip = item.get("strength_clip")
-                enabled = item.get("enabled", True)
+                if strength_clip is None:
+                    strength_clip = item.get("CStrength")
+
+                enabled = item.get("enabled")
+                if enabled is None:
+                    enabled = item.get("toggleOn")
+                if enabled is None:
+                    enabled = True
                 LOGGER.info(
-                    "HikazeLoraPowerLoader[%s]: %s model=%s clip=%s enabled=%s",
+                    "HikazeLoraPowerLoader[%s]: %s (%s) model=%s clip=%s enabled=%s",
                     index,
                     name,
+                    full_path,
                     strength_model,
                     strength_clip,
                     enabled,
