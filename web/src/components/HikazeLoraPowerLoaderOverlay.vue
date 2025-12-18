@@ -1,12 +1,9 @@
 <template>
-  <div class="hikaze-lora-power-loader" :style="rootStyle">
-    <div class="header" :style="headerStyle">
-      <div class="header__title">Hikaze LoRA Power Loader</div>
-      <div v-if="parseError" class="header__error" :title="parseError">
-        Invalid JSON
-      </div>
-    </div>
-
+  <HikazeNodeShell
+    :node-id="nodeId"
+    title="Hikaze LoRA Power Loader"
+    :error="parseError"
+  >
     <div class="table-wrap">
       <HikazeGrid
         :rows="doc.LoRAs"
@@ -57,22 +54,21 @@
       </HikazeGrid>
     </div>
 
-    <div class="actions">
+    <template #actions>
       <button type="button" class="btn" @click="openPicker">Select...</button>
       <button type="button" class="btn btn--ghost" @click="writePlaceholderJson">
         Write JSON
       </button>
-    </div>
-  </div>
+    </template>
+  </HikazeNodeShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { onUnmounted, ref, watch, type Ref } from 'vue'
 
 import HikazeGrid from './HikazeGrid.vue'
+import HikazeNodeShell from './HikazeNodeShell.vue'
 import type { LoRAListDocument } from '../injection/types'
-import { pickNodeAccentColor, parseHex, parseRgb, toRgba, type RGB } from '../util/colors'
-import { getVueNodeElement } from '../util/dom'
 import {
   createEmptyLoRAListDocument,
   parseLoRAListJson,
@@ -88,13 +84,8 @@ import {
  * - Any edits must be committed via `commitJson(...)` so the widget value (and workflow JSON)
  *   stays in sync.
  */
-/** Props are provided by the controller (`HikazeLoraPowerLoaderController`). */
 const props = defineProps<{
   nodeId: string | number | null
-  /**
-   * Node width forwarded by the overlay/controller.
-   * Currently unused (kept for future layout tuning).
-   */
   nodeWidth: number | null
   loraJsonRef: Ref<string>
   commitJson: (next: string) => void
@@ -148,56 +139,6 @@ const gridColumns = [
 function getRowKey(row: any, index: number) {
   return row?.sha256 ?? row?.full_path ?? index
 }
-
-/** Raw accent color string extracted from the current node element. */
-const accentRaw = ref<string | null>(null)
-/** Parsed RGB value of `accentRaw` when possible. */
-const accentRgb = computed<RGB | null>(() => {
-  const c = accentRaw.value
-  if (!c) return null
-  return parseRgb(c) ?? parseHex(c)
-})
-
-/** Root panel style; uses the node accent color when available. */
-const rootStyle = computed<Record<string, string>>(() => {
-  const rgb = accentRgb.value
-  const border = rgb ? toRgba(rgb, 0.65) : 'rgba(255, 255, 255, 0.08)'
-  return {
-    width: '100%',
-    height: '100%',
-    boxSizing: 'border-box',
-    padding: '8px',
-    borderRadius: '10px',
-    background: 'rgba(15, 17, 23, 0.92)',
-    border: `1px solid ${border}`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    overflow: 'hidden',
-    '--hikaze-cell-size': '22px',
-    '--hikaze-num-col-width': '5ch',
-  }
-})
-
-/** Header style; uses a translucent version of the accent color. */
-const headerStyle = computed<Record<string, string>>(() => {
-  const rgb = accentRgb.value
-  const bg = rgb ? toRgba(rgb, 0.22) : 'rgba(255, 255, 255, 0.06)'
-  const border = rgb ? toRgba(rgb, 0.35) : 'rgba(255, 255, 255, 0.1)'
-  return {
-    background: bg,
-    border: `1px solid ${border}`
-  }
-})
-
-/** Reserved for future picker panel styling (currently unused). */
-const panelStyle = computed<Record<string, string>>(() => {
-  const rgb = accentRgb.value
-  const border = rgb ? toRgba(rgb, 0.55) : 'rgba(255, 255, 255, 0.12)'
-  return {
-    border: `1px solid ${border}`
-  }
-})
 
 /**
  * Keep `doc` synced from the canonical widget text (`loraJsonRef`).
@@ -257,21 +198,6 @@ function commitNow() {
   props.commitJson(next)
 }
 
-function scheduleCommit() {
-  if (commitTimer != null) {
-    try {
-      window.clearTimeout(commitTimer)
-    } catch {
-      // ignore
-    }
-  }
-
-  commitTimer = window.setTimeout(() => {
-    commitTimer = null
-    commitNow()
-  }, 200)
-}
-
 function formatStrength(value: unknown) {
   const num = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(num)) return ''
@@ -282,37 +208,6 @@ function onDeletePlaceholder(_row: any, _index: number) {
   console.debug('TODO: delete LoRA row (placeholder)')
 }
 
-let observer: MutationObserver | null = null
-
-/**
- * Refresh accent color from the current node element (best-effort).
- * Called on mount and when node style/class changes.
- */
-function refreshAccent() {
-  const nodeId = props.nodeId
-  if (nodeId == null) return
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return
-
-  const accent = pickNodeAccentColor(nodeEl)
-  accentRaw.value = accent
-}
-
-onMounted(() => {
-  // Initial accent computation (DOM should exist in VueNodes mode).
-  refreshAccent()
-
-  const nodeId = props.nodeId
-  if (nodeId == null) return
-
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return
-
-  // Observe node DOM for color/theme changes so our overlay stays visually consistent.
-  observer = new MutationObserver(() => refreshAccent())
-  observer.observe(nodeEl, { attributes: true, attributeFilter: ['style', 'class'] })
-})
-
 onUnmounted(() => {
   if (commitTimer != null) {
     try {
@@ -322,50 +217,10 @@ onUnmounted(() => {
     }
     commitTimer = null
   }
-
-  // Cleanup observer to avoid leaking references after graph switches.
-  if (observer) {
-    try {
-      observer.disconnect()
-    } catch {
-      // ignore
-    }
-    observer = null
-  }
 })
 </script>
 
 <style scoped>
-.hikaze-lora-power-loader {
-  color: #e8ecf2;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 10px;
-  padding: 6px 10px;
-  gap: 10px;
-}
-
-.header__title {
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.2px;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.header__error {
-  font-size: 11px;
-  color: #ffb2b2;
-  border: 1px solid rgba(255, 178, 178, 0.35);
-  background: rgba(255, 178, 178, 0.08);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
 .table-wrap {
   flex: 1;
   width: 100%;
@@ -464,12 +319,6 @@ onUnmounted(() => {
   contain: paint;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .btn {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -489,6 +338,4 @@ onUnmounted(() => {
 .btn--ghost {
   background: transparent;
 }
-
-
 </style>
