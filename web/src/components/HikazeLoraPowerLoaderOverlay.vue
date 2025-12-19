@@ -1,9 +1,6 @@
 <template>
-  <HikazeNodeShell
-    :node-id="nodeId"
-    title="Hikaze LoRA Power Loader"
-    :error="parseError"
-  >
+  <!-- No Shell wrapper here, HikazeNodeFrame handles it. -->
+  <div class="hikaze-lora-content">
     <div class="table-wrap">
       <HikazeGrid
         :rows="doc.LoRAs"
@@ -54,20 +51,19 @@
       </HikazeGrid>
     </div>
 
-    <template #actions>
+    <div class="actions">
       <button type="button" class="btn" @click="openPicker">Select...</button>
       <button type="button" class="btn btn--ghost" @click="writePlaceholderJson">
         Write JSON
       </button>
-    </template>
-  </HikazeNodeShell>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { onUnmounted, ref, watch, type Ref } from 'vue'
 
 import HikazeGrid from './HikazeGrid.vue'
-import HikazeNodeShell from './HikazeNodeShell.vue'
 import type { LoRAListDocument } from '../injection/types'
 import {
   createEmptyLoRAListDocument,
@@ -75,26 +71,12 @@ import {
   stringifyLoRAListDocument
 } from '../util/lora'
 
-/**
- * Node body overlay UI for `HikazeLoraPowerLoader`.
- *
- * Data flow:
- * - `loraJsonRef` is the authoritative text value (backed by the schema widget value).
- * - This component parses it and renders a simple table.
- * - Any edits must be committed via `commitJson(...)` so the widget value (and workflow JSON)
- *   stays in sync.
- */
 const props = defineProps<{
-  nodeId: string | number | null
-  nodeWidth: number | null
-  loraJsonRef: Ref<string>
-  commitJson: (next: string) => void
+  nodeId: string | number
+  payload: Ref<string>
+  commit: (next: string) => void
 }>()
 
-/**
- * Placeholder document for development/testing.
- * "Write JSON" will serialize this object into the node's `lora_json` widget.
- */
 const PLACEHOLDER_DOC: LoRAListDocument = {
   version: 1,
   LoRAs: [
@@ -140,12 +122,8 @@ function getRowKey(row: any, index: number) {
   return row?.sha256 ?? row?.full_path ?? index
 }
 
-/**
- * Keep `doc` synced from the canonical widget text (`loraJsonRef`).
- * The controller is responsible for keeping `loraJsonRef` in sync with widget.value.
- */
 watch(
-  () => String(props.loraJsonRef?.value ?? ''),
+  () => String(props.payload?.value ?? ''),
   (raw) => {
     if (lastCommittedJson.value != null && raw === lastCommittedJson.value) {
       parseError.value = null
@@ -169,20 +147,15 @@ watch(
   { immediate: true }
 )
 
-/**
- * Placeholder for an interactive picker (file dialog / database view / etc).
- * Currently unused; kept as a future integration point.
- */
 function openPicker() {
-  const current = String(props.loraJsonRef?.value ?? '').trim()
+  const current = String(props.payload?.value ?? '').trim()
   const defaultValue =
     current.length > 0 ? current : stringifyLoRAListDocument(PLACEHOLDER_DOC)
   const next = window.prompt('Paste LoRA JSON', defaultValue)
   if (next == null) return
-  props.commitJson(next)
+  props.commit(next)
 }
 
-/** Write the placeholder document into the node widget (persisted to workflow JSON). */
 function writePlaceholderJson() {
   doc.value = {
     version: PLACEHOLDER_DOC.version,
@@ -195,7 +168,7 @@ function commitNow() {
   const next = stringifyLoRAListDocument(doc.value)
   lastCommittedJson.value = next
   parseError.value = null
-  props.commitJson(next)
+  props.commit(next)
 }
 
 function formatStrength(value: unknown) {
@@ -221,6 +194,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.hikaze-lora-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
 .table-wrap {
   flex: 1;
   width: 100%;
@@ -317,6 +297,14 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   contain: paint;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding-top: 4px;
 }
 
 .btn {

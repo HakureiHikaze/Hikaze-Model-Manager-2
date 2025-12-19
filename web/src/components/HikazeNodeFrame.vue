@@ -1,37 +1,49 @@
 <template>
-  <div class="hikaze-node-shell" :style="rootStyle">
-    <!-- Header Area -->
-    <div class="header" :style="headerStyle" v-if="title || $slots.header">
-      <div class="header__title">
-        <slot name="header">{{ title }}</slot>
+  <Teleport v-if="target" :to="target">
+    <div
+      class="hikaze-node-frame"
+      :style="rootStyle"
+      @pointerdown.stop
+      @pointermove.stop
+      @pointerup.stop
+      @contextmenu.stop
+    >
+      <!-- Header -->
+      <div class="header" :style="headerStyle" v-if="title">
+        <div class="header__title">{{ title }}</div>
+        <div v-if="error" class="header__error" :title="error">{{ error }}</div>
       </div>
-      <div v-if="error" class="header__error" :title="error">
-        {{ error }}
+
+      <!-- Body Component -->
+      <div class="body-wrap">
+        <component
+          v-if="component"
+          :is="component"
+          v-bind="componentProps"
+          :node-id="nodeId"
+        />
       </div>
     </div>
-
-    <!-- Main Content Area -->
-    <div class="body-wrap" :class="{ 'has-actions': $slots.actions }">
-      <slot />
-    </div>
-
-    <!-- Actions/Footer Area -->
-    <div class="actions" v-if="$slots.actions">
-      <slot name="actions" />
-    </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, type CSSProperties } from 'vue'
+
+import { getVueNodeWidgetBodyElement, getVueNodeElement } from '../util/dom'
 import { pickNodeAccentColor, parseHex, parseRgb, toRgba, type RGB } from '../util/colors'
-import { getVueNodeElement } from '../util/dom'
 
 const props = defineProps<{
-  nodeId?: string | number | null
+  nodeId: string | number
   title?: string
   error?: string | null
+  component: any
+  componentProps?: Record<string, any>
 }>()
+
+const target = ref<HTMLElement | null>(null)
+let retryTimer: number | null = null
+let observer: MutationObserver | null = null
 
 /** Raw accent color string extracted from the current node element. */
 const accentRaw = ref<string | null>(null)
@@ -48,13 +60,16 @@ const rootStyle = computed<CSSProperties>(() => {
   const rgb = accentRgb.value
   const border = rgb ? toRgba(rgb, 0.65) : 'rgba(255, 255, 255, 0.08)'
   return {
+    position: 'absolute',
+    inset: '0',
+    zIndex: '60',
     width: '100%',
     height: '100%',
     boxSizing: 'border-box',
     padding: '8px',
     borderRadius: '10px',
-    background: 'rgb(38 39 41)',
-    border: 'none',
+    background: 'rgba(15, 17, 23, 0.92)',
+    border: `1px solid ${border}`,
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
@@ -62,7 +77,8 @@ const rootStyle = computed<CSSProperties>(() => {
     '--hikaze-cell-size': '22px',
     '--hikaze-num-col-width': '5ch',
     color: '#e8ecf2',
-    pointerEvents: 'auto'
+    pointerEvents: 'auto',
+    cursor: 'default'
   }
 })
 
@@ -77,53 +93,51 @@ const headerStyle = computed<CSSProperties>(() => {
   }
 })
 
-let observer: MutationObserver | null = null
-
 /**
- * Refresh accent color from the current node element (best-effort).
- * Called on mount and when node style/class changes.
+ * Resolve the target DOM element to teleport into.
+ * In VueNodes mode, this is `.lg-node-widgets`.
  */
-function refreshAccent() {
-  const nodeId = props.nodeId
-  if (nodeId == null) return
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return
+function resolveTarget(attempts = 100) {
+  const el = getVueNodeWidgetBodyElement(props.nodeId)
+  if (el) {
+    // Ensure the container is positioned correctly
+    el.style.position = el.style.position || 'relative'
+    el.style.width = '100%'
+    el.style.height = '100%' // Ensure it fills the space
+    target.value = el
+    refreshAccent()
+    return
+  }
 
-  const accent = pickNodeAccentColor(nodeEl)
-  accentRaw.value = accent
+  if (attempts > 0) {
+    retryTimer = window.setTimeout(() => resolveTarget(attempts - 1), 100)
+  }
+}
+
+function refreshAccent() {
+  const nodeEl = getVueNodeElement(props.nodeId)
+  if (!nodeEl) return
+  accentRaw.value = pickNodeAccentColor(nodeEl)
+  
+  // Setup observer if not already done
+  if (!observer) {
+    observer = new MutationObserver(() => refreshAccent())
+    observer.observe(nodeEl, { attributes: true, attributeFilter: ['style', 'class'] })
+  }
 }
 
 onMounted(() => {
-  // Initial accent computation (DOM should exist in VueNodes mode).
-  refreshAccent()
-
-  const nodeId = props.nodeId
-  if (nodeId == null) return
-
-  const nodeEl = getVueNodeElement(nodeId)
-  if (!nodeEl) return
-
-  // Observe node DOM for color/theme changes so our overlay stays visually consistent.
-  observer = new MutationObserver(() => refreshAccent())
-  observer.observe(nodeEl, { attributes: true, attributeFilter: ['style', 'class'] })
+  resolveTarget()
 })
 
 onUnmounted(() => {
-  // Cleanup observer to avoid leaking references after graph switches.
-  if (observer) {
-    try {
-      observer.disconnect()
-    } catch {
-      // ignore
-    }
-    observer = null
-  }
+  if (retryTimer) clearTimeout(retryTimer)
+  if (observer) observer.disconnect()
 })
 </script>
 
 <style scoped>
-.hikaze-node-shell {
-  /* Default font settings */
+.hikaze-node-frame {
   font-family: sans-serif;
   font-size: 13px;
 }
@@ -167,14 +181,5 @@ onUnmounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  padding-top: 4px;
-  /* Slight separation from body */
 }
 </style>

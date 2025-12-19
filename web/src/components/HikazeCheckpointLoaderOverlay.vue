@@ -1,43 +1,54 @@
 <template>
-  <HikazeNodeShell
-    :node-id="nodeId"
-    title="Hikaze Checkpoint Loader"
-  >
-    <div class="path-display" :title="ckptPathRef.value">
+  <div class="hikaze-checkpoint-content">
+    <div class="path-display" :title="currentPath">
       <div class="label">Current Path:</div>
       <div class="value">
-        {{ ckptPathRef.value || '(No path selected)' }}
+        {{ currentPath || '(No path selected)' }}
       </div>
     </div>
 
-    <template #actions>
+    <div class="actions">
       <button type="button" class="btn" @click="selectPath">
         Select Checkpoint...
       </button>
-    </template>
-  </HikazeNodeShell>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import HikazeNodeShell from './HikazeNodeShell.vue'
+import { computed, type Ref } from 'vue'
 
 const props = defineProps<{
-  nodeId: string | number | null
-  ckptPathRef: Ref<string>
-  commitPath: (next: string) => void
+  nodeId: string | number
+  payload: Ref<string>
+  commit: (next: string) => void
 }>()
 
+const currentPath = computed(() => {
+  try {
+    const parsed = JSON.parse(props.payload.value || '{}')
+    return parsed.ckpt_path || ''
+  } catch {
+    return ''
+  }
+})
+
 function selectPath() {
-  const current = props.ckptPathRef.value
+  const current = currentPath.value
   const next = window.prompt('Enter absolute checkpoint path', current)
   if (next != null && next !== current) {
-    props.commitPath(next)
+    props.commit(JSON.stringify({ ckpt_path: next }))
   }
 }
 </script>
 
 <style scoped>
+.hikaze-checkpoint-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .path-display {
   display: flex;
   flex-direction: column;
@@ -62,6 +73,11 @@ function selectPath() {
   color: #e8ecf2;
   word-break: break-all;
   line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .btn {

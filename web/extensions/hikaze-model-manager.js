@@ -38,12 +38,28 @@ function registerExtension() {
 
   app.registerExtension({
     name: EXT_NAME,
+
+    /**
+     * Called when the app is initialized and ready.
+     * This is the best place to perform initial injection.
+     */
+    async setup(app) {
+      console.info(`[${EXT_NAME}] setup() called`);
+      manager.install();
+      // Give DOM a moment to settle (e.g. VueNodes initialization)
+      setTimeout(() => manager.reinjectAll("setup"), 200);
+    },
+
     nodeCreated(node) {
       manager.onNodeCreated(node);
     },
+    
+    // We can rely on manager's graph hook or onConfigure for full loads,
+    // but keeping this doesn't hurt.
     loadedGraphNode(node) {
       manager.onLoadedGraphNode(node);
     },
+
     getCanvasMenuItems() {
       return [
         {
@@ -54,10 +70,6 @@ function registerExtension() {
       ];
     },
   });
-
-  // Install global listeners and inject all nodes in the current graph.
-  manager.install();
-  manager.reinjectAll("startup");
 
   console.info(`[${EXT_NAME}] registered`);
 }

@@ -1,30 +1,23 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from comfy_api.latest import io
 
-from .base_nodes import HikazeBaseNode
+from .base_nodes import HikazeBaseNode, PAYLOAD_WIDGET_NAME
 
 LOGGER = logging.getLogger(__name__)
 
 
 class HikazeLoraPowerLoader(HikazeBaseNode):
     """
-    Placeholder node: apply multiple LoRAs (with per-model/per-CLIP strengths) to a Model/CLIP.
-
-    - Inputs:
+    Apply multiple LoRAs (with per-model/per-CLIP strengths) to a Model/CLIP.
+    
+    Inputs:
       - model (socket)
       - clip  (socket)
-      - lora_json (socketless widget): JSON string describing LoRA entries
-    - Outputs:
-      - model
-      - clip
-
-    Actual LoRA application logic will be implemented later; for now this node is a pass-through
-    that validates/parses JSON and logs the requested operations.
+      - hikaze_payload (socketless widget): JSON string describing LoRA entries
     """
 
     @classmethod
@@ -38,15 +31,7 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
             inputs=[
                 io.Model.Input(id="model", display_name="Model"),
                 io.Clip.Input(id="clip", display_name="CLIP"),
-                io.String.Input(
-                    id="lora_json",
-                    display_name="LoRA JSON",
-                    default="[]",
-                    multiline=True,
-                    socketless=True,
-                    placeholder='{"version":1,"LoRAs":[{"name":"lora.safetensors","full_path":"/abs/path/lora.safetensors","MStrength":1.0,"CStrength":1.0,"toggleOn":true}]}',
-                    tooltip="JSON describing LoRA entries; the front-end UI writes this field.",
-                ),
+                cls.create_payload_input(default="[]"),
             ],
             outputs=[
                 io.Model.Output(display_name="Model"),
@@ -55,22 +40,16 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
         )
 
     @classmethod
-    def execute(cls, model: Any, clip: Any, lora_json: str) -> io.NodeOutput:
-        parsed: Any
-        raw = (lora_json or "").strip()
+    def execute(cls, model: Any, clip: Any, **kwargs) -> io.NodeOutput:
+        # Use kwargs to catch the payload by name, in case the variable name changes.
+        hikaze_payload = kwargs.get(PAYLOAD_WIDGET_NAME, "[]")
+        parsed = cls.parse_payload(hikaze_payload)
 
-        if not raw:
-            parsed = []
-        else:
-            try:
-                parsed = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"Invalid LoRA JSON: {exc}") from exc
-
-        # Placeholder: log the intended operations; do not modify model/clip yet.
+        # Logic to iterate over LoRAs
         if isinstance(parsed, list):
             entries = parsed
         elif isinstance(parsed, dict):
+            # Support various legacy formats if needed, or standard format
             entries = (
                 parsed.get("LoRAs")
                 or parsed.get("LoRAList")
@@ -100,6 +79,7 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
                     enabled = item.get("toggleOn")
                 if enabled is None:
                     enabled = True
+                    
                 LOGGER.info(
                     "HikazeLoraPowerLoader[%s]: %s (%s) model=%s clip=%s enabled=%s",
                     index,

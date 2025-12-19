@@ -20,6 +20,8 @@ export type InjectionReason =
   | 'collapse-changed'
   | 'mode-changed'
   | 'manual-reload'
+  | 'setup'
+  | 'graph-node-added'
 
 export interface InjectionContext {
   /** Current UI rendering mode. */
