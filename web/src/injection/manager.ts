@@ -96,27 +96,15 @@ export class HikazeInjectionManager {
 
   /**
    * Reinject all Hikaze nodes for a specific UI mode.
-   * Retries briefly if graph is not ready yet (startup / mode switching).
+   * Assumes graph is ready (called via setup/afterConfigureGraph).
    */
-  reinjectAllForMode(
-    mode: InjectionMode,
-    reason: InjectionReason,
-    attemptsRemaining = 20
-  ) {
+  reinjectAllForMode(mode: InjectionMode, reason: InjectionReason) {
     const app = this.getComfyApp()
     const graph = this.getActiveGraph(app)
     const ctx: InjectionContext = { mode, reason, app, graph }
 
     const nodes = this.getGraphNodes(graph)
-    if (!nodes) {
-      // Graph may not be ready yet (startup / mode switch). Retry briefly.
-      if (attemptsRemaining <= 0) return
-      window.setTimeout(
-        () => this.reinjectAllForMode(mode, reason, attemptsRemaining - 1),
-        150
-      )
-      return
-    }
+    if (!nodes) return
 
     // Ensure we are hooked into the active graph events
     this.hookGraphNodeAdded(graph)
@@ -263,16 +251,12 @@ export class HikazeInjectionManager {
   /**
    * Listen to VueNodes setting changes and reinject nodes after mode switches.
    */
-  private installVueNodesSettingListener(attemptsRemaining = 40) {
+  private installVueNodesSettingListener() {
     const app = this.getComfyApp()
     const settings = app?.ui?.settings
-    if (!settings || typeof settings.addEventListener !== 'function') {
-      if (attemptsRemaining <= 0) return
-      window.setTimeout(
-        () => this.installVueNodesSettingListener(attemptsRemaining - 1),
-        250
-      )
-      return
+    if (!settings) {
+        console.warn(`[${this.extName}] app.ui.settings missing, VueNodes listener skipped.`)
+        return
     }
 
     if (hasOwn(settings, SETTINGS_HOOK_FLAG)) return
@@ -300,16 +284,12 @@ export class HikazeInjectionManager {
   /**
    * Listen to LiteGraph "graph changed" event and reinject for the new graph.
    */
-  private installGraphChangeListener(attemptsRemaining = 40) {
+  private installGraphChangeListener() {
     const app = this.getComfyApp()
     const canvasEl = app?.canvas?.canvas
-    if (!canvasEl || typeof canvasEl.addEventListener !== 'function') {
-      if (attemptsRemaining <= 0) return
-      window.setTimeout(
-        () => this.installGraphChangeListener(attemptsRemaining - 1),
-        250
-      )
-      return
+    if (!canvasEl) {
+        console.warn(`[${this.extName}] app.canvas.canvas missing, graph listener skipped.`)
+        return
     }
 
     if (this.graphChangeListenerInstalled) return

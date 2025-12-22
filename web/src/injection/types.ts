@@ -22,6 +22,7 @@ export type InjectionReason =
   | 'manual-reload'
   | 'setup'
   | 'graph-node-added'
+  | 'graph-loaded'
 
 export interface InjectionContext {
   /** Current UI rendering mode. */

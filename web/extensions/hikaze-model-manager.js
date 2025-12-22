@@ -17,7 +17,12 @@ console.info(`[${EXT_NAME}] loaded`);
  * Different ComfyUI builds expose it under different globals.
  */
 function getComfyApp() {
-  return globalThis?.comfyAPI?.app?.app ?? globalThis?.app;
+  const ret = globalThis?.comfyAPI?.app?.app ?? globalThis?.app;
+  if (!ret) {
+    // Should be available by the time registerExtension runs.
+    console.warn(`[${EXT_NAME}] Failed to get app instance.`);
+  }
+  return ret;
 }
 
 const manager = new HikazeInjectionManager({
@@ -41,23 +46,26 @@ function registerExtension() {
 
     /**
      * Called when the app is initialized and ready.
-     * This is the best place to perform initial injection.
+     * We install our global event listeners here.
      */
     async setup(app) {
       console.info(`[${EXT_NAME}] setup() called`);
       manager.install();
-      // Give DOM a moment to settle (e.g. VueNodes initialization)
-      setTimeout(() => manager.reinjectAll("setup"), 200);
     },
 
+    /**
+     * Called after a workflow is loaded (from file, API, or tab switch).
+     * This is the ideal time to inject UI overlays for the entire graph.
+     */
+    async afterConfigureGraph(missingNodeTypes) {
+      manager.reinjectAll("graph-loaded");
+    },
+
+    /**
+     * Called when a new node is added (e.g. from menu).
+     */
     nodeCreated(node) {
       manager.onNodeCreated(node);
-    },
-    
-    // We can rely on manager's graph hook or onConfigure for full loads,
-    // but keeping this doesn't hurt.
-    loadedGraphNode(node) {
-      manager.onLoadedGraphNode(node);
     },
 
     getCanvasMenuItems() {

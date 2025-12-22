@@ -92,8 +92,10 @@ export class BaseHikazeNodeController {
     if (ctx.mode === 'vue') {
       this.ensureFrameMounted(ctx)
     } else {
-      // Legacy mode: TODO implement legacy overlay support if needed.
-      // For now we just sync data.
+      // Legacy mode: Hook widget click to open simplified editor placeholder
+      this.hookLegacyWidgetClick(PAYLOAD_WIDGET, (current) =>
+        window.prompt('Hikaze Payload (JSON)', current)
+      )
     }
 
     this.injectedMode = ctx.mode
@@ -138,6 +140,38 @@ export class BaseHikazeNodeController {
     const widgets = this.node?.widgets
     if (!Array.isArray(widgets)) return null
     return widgets.find((w) => w?.name === widgetName) ?? null
+  }
+
+  /**
+   * Hook a legacy widget's mouse interaction to trigger a custom callback.
+   * Returns true to prevent default behavior (e.g. preventing text edit mode).
+   */
+  protected hookLegacyWidgetClick(
+    widgetName: string,
+    onPick: (current: string) => string | null
+  ) {
+    const widget = this.findWidget(widgetName)
+    if (!widget) return
+
+    // Save original handler
+    const originalMouse = widget.mouse
+
+    // Override handler
+    widget.mouse = (event: any, pos: any, node: any) => {
+      if (event.type === 'pointerdown' || event.type === 'mousedown') {
+        const current = String(widget.value ?? '')
+        const next = onPick(current)
+        if (next !== null && next !== current) {
+          this.commitPayload(next)
+        }
+        return true // Prevent default behavior (e.g. entering text edit)
+      }
+      return originalMouse ? originalMouse.call(widget, event, pos, node) : undefined
+    }
+
+    this.cleanupFns.push(() => {
+      widget.mouse = originalMouse
+    })
   }
 
   protected setWidgetValue(widget: any, next: any) {
