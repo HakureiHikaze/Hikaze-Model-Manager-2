@@ -1,40 +1,65 @@
 <template>
-  <div class="hikaze-lora-content">
-    <table class="loRA-list-table">
-      <thead>
-        <th>Del?</th>
-        <th>Seq</th>
-        <th>LoRA</th>
-        <th>Mstr</th>
-        <th>Cstr</th>
-        <th>On</th>
-      </thead>
-      <tbody>
-        <HikazeLoraListElement
-          v-for="(row, index) in doc.LoRAs"
-          :key="index"
-          :seq="index"
-          :name="row.full_path"
-          :mstr="row.strength_model"
-          :cstr="row.strength_clip"
-          :on="row.enabled"
-          @update:mstr="onMStrInput"
-          @update:cstr="onCStrInput"
-          @update:on="onCheckboxInput"
-          @update:delete="onBtnDelete"
-        />
-      </tbody>
-    </table>
-    <div v-if="doc.LoRAs.length === 0" class="empty-tip">
-      No LoRAs loaded.
+  <HikazeNodeFrame :node-id="nodeId" title="Hikaze LoRA Power Loader">
+    <template #header-actions>
+      <button type="button" class="btn header-action-btn" @click="openPicker">
+        Select LoRAs...
+      </button>
+    </template>
+
+    <div class="hikaze-lora-content">
+      <table class="loRA-list-table">
+        <thead>
+          <th>
+            <button class="header-btn" @click="deleteAll" title="Delete All">&#128465;</button>
+          </th>
+          <th>Seq</th>
+          <th>LoRA</th>
+          <th>Mstr</th>
+          <th>Cstr</th>
+          <th>
+            <div class="header-chk-wrap" title="Toggle All">
+              On
+              <input
+                class="hikaze-reset-chk"
+                type="checkbox"
+                @change="toggleAll"
+              />
+            </div>
+          </th>
+        </thead>
+        <tbody>
+          <HikazeLoraListElement
+            v-for="(row, index) in doc.LoRAs"
+            :key="index"
+            :seq="index"
+            :name="row.full_path"
+            :mstr="row.strength_model"
+            :cstr="row.strength_clip"
+            :on="row.enabled"
+            @update:mstr="onMStrInput"
+            @update:cstr="onCStrInput"
+            @update:on="onCheckboxInput"
+            @update:delete="onBtnDelete"
+          />
+        </tbody>
+      </table>
+      <div v-if="doc.LoRAs.length === 0" class="empty-tip">
+        No LoRAs loaded.
+      </div>
     </div>
-  </div>
+  </HikazeNodeFrame>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, type Ref } from 'vue'
+import HikazeNodeFrame from './HikazeNodeFrame.vue'
 import HikazeLoraListElement from './HikazeLoraListElement.vue'
 import type { LoRAListDocument, LoRAEntry } from '../injection/types'
+import {
+  createEmptyLoRAListDocument,
+  parseLoRAListJson,
+  stringifyLoRAListDocument
+} from '../util/lora'
 
 const props = defineProps<{
   nodeId: string | number
@@ -122,6 +147,29 @@ function onCheckboxInput(seq: number, value: boolean) {
 function onBtnDelete(seq: number) {
   doc.value.LoRAs?.splice(seq, 1);
 }
+
+function deleteAll() {
+  if (confirm("Delete all LoRAs?")) {
+    doc.value.LoRAs = []
+  }
+}
+
+function toggleAll(event: Event) {
+  if (!doc.value.LoRAs) return
+  const checked = (event.target as HTMLInputElement).checked
+  doc.value.LoRAs.forEach((item) => {
+    item.enabled = checked
+  })
+}
+
+function openPicker() {
+  const current = String(props.payload?.value ?? '').trim()
+  const defaultValue =
+    current.length > 0 ? current : stringifyLoRAListDocument(PLACEHOLDER_DOC)
+  const next = window.prompt('Paste LoRA JSON', defaultValue)
+  if (next == null) return
+  props.commit(next)
+}
 </script>
 
 <style scoped>
@@ -157,5 +205,61 @@ function onBtnDelete(seq: number) {
   text-align: center;
   color: #888;
   font-style: italic;
+}
+
+.header-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #ff6666;
+  font-size: 14px;
+  padding: 0;
+}
+.header-btn:hover {
+  color: #ff3333;
+}
+
+.header-chk-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* Reusing Defensive CSS for Checkbox in Header */
+input.hikaze-reset-chk {
+  appearance: auto;
+  margin: 0 !important;
+  width: 14px !important;
+  height: 14px !important;
+  cursor: pointer !important;
+  filter: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8ecf2;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.header-action-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.header-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>

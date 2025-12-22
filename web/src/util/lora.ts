@@ -58,10 +58,10 @@ function normalizeEntry(value: unknown): LoRAEntry | null {
   return {
     name,
     full_path: fullPath,
-    MStrength: strengthModel,
-    CStrength: strengthClip,
+    strength_model: strengthModel,
+    strength_clip: strengthClip,
     sha256,
-    toggleOn: enabled
+    enabled: enabled
   }
 }
 
@@ -123,10 +123,10 @@ export function stringifyLoRAListDocument(doc: LoRAListDocument): string {
       LoRAs: doc.LoRAs.map((item) => ({
         ...(item.name ? { name: item.name } : {}),
         full_path: String(item.full_path ?? ''),
-        MStrength: Number(item.MStrength) || 0,
-        CStrength: Number(item.CStrength) || 0,
+        MStrength: Number(item.strength_model) || 0,
+        CStrength: Number(item.strength_clip) || 0,
         ...(item.sha256 ? { sha256: item.sha256 } : {}),
-        toggleOn: !!item.toggleOn
+        toggleOn: !!item.enabled
       }))
     },
     null,

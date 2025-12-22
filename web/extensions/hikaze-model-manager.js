@@ -8,6 +8,14 @@
 import "../src/injection/registerControllers";
 import { HikazeInjectionManager } from "../src/injection/manager";
 
+// Inject styles (Vite lib mode extracts CSS to a separate file)
+const cssUrl = new URL("./hikaze-model-manager-2.css", import.meta.url);
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.type = "text/css";
+link.href = cssUrl.href;
+document.head.appendChild(link);
+
 const EXT_NAME = "Hikaze.ModelManager2";
 
 console.info(`[${EXT_NAME}] loaded`);

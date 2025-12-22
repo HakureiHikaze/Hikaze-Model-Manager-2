@@ -12,16 +12,16 @@
       <div class="header" :style="headerStyle" v-if="title">
         <div class="header__title">{{ title }}</div>
         <div v-if="error" class="header__error" :title="error">{{ error }}</div>
+        
+        <!-- Header Actions Slot -->
+        <div class="header-actions" v-if="$slots['header-actions']">
+          <slot name="header-actions" />
+        </div>
       </div>
 
-      <!-- Body Component -->
+      <!-- Body Slot -->
       <div class="body-wrap">
-        <component
-          v-if="component"
-          :is="component"
-          v-bind="componentProps"
-          :node-id="nodeId"
-        />
+        <slot />
       </div>
     </div>
   </Teleport>
@@ -37,8 +37,6 @@ const props = defineProps<{
   nodeId: string | number
   title?: string
   error?: string | null
-  component: any
-  componentProps?: Record<string, any>
 }>()
 
 const target = ref<HTMLElement | null>(null)
@@ -170,6 +168,13 @@ onUnmounted(() => {
   padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .body-wrap {

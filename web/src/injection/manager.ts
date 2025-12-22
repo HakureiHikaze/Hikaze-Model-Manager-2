@@ -40,7 +40,6 @@ type ManagerOptions = {
 const ON_ADDED_HOOK_FLAG = '__hikazeOnAddedHooked'
 const COLLAPSE_HOOK_FLAG = '__hikazeCollapseHooked'
 const SETTINGS_HOOK_FLAG = '__hikazeVueNodesSettingHooked'
-const GRAPH_HOOK_FLAG = '__hikazeGraphHooked'
 
 /**
  * Coordinates injection across all Hikaze nodes in the active graph.
@@ -105,9 +104,6 @@ export class HikazeInjectionManager {
 
     const nodes = this.getGraphNodes(graph)
     if (!nodes) return
-
-    // Ensure we are hooked into the active graph events
-    this.hookGraphNodeAdded(graph)
 
     for (const node of nodes) {
       if (!this.isHikazeNode(node)) continue
@@ -295,17 +291,9 @@ export class HikazeInjectionManager {
     if (this.graphChangeListenerInstalled) return
     this.graphChangeListenerInstalled = true
 
-    // Try hooking current graph immediately
-    const graph = this.getActiveGraph(app)
-    if (graph) this.hookGraphNodeAdded(graph)
-
     canvasEl.addEventListener(
       'litegraph:set-graph',
       (e: any) => {
-        // Hook the new graph immediately
-        const newGraph = e.detail ?? this.getActiveGraph(app)
-        if (newGraph) this.hookGraphNodeAdded(newGraph)
-
         // Delay reinjection slightly to allow ComfyUI/Vue to swap the DOM layers.
         // This prevents querying "stale" DOM elements from the previous graph.
         window.setTimeout(() => {
@@ -315,28 +303,6 @@ export class HikazeInjectionManager {
       },
       { passive: true }
     )
-  }
-
-  /**
-   * Hook `graph.onNodeAdded` to catch dynamically added nodes (library/paste).
-   */
-  private hookGraphNodeAdded(graph: any) {
-    if (!graph || typeof graph !== 'object') return
-    if (hasOwn(graph, GRAPH_HOOK_FLAG)) return
-    defineHiddenFlag(graph, GRAPH_HOOK_FLAG)
-
-    const originalOnNodeAdded = graph.onNodeAdded
-    graph.onNodeAdded = (node: UnknownNode) => {
-        try {
-            if (typeof originalOnNodeAdded === 'function') {
-                originalOnNodeAdded.call(graph, node)
-            }
-        } finally {
-            if (this.isHikazeNode(node)) {
-                this.injectNode(node, 'graph-node-added')
-            }
-        }
-    }
   }
 
   /**

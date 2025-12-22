@@ -291,16 +291,14 @@ export class BaseHikazeNodeController {
     this.vueHost = host
 
     const app = createApp({
-        render: () => h(HikazeNodeFrame, {
-            nodeId: nodeId,
-            title: this.getTitle(),
-            component: this.getComponent(),
-            componentProps: {
-                ...this.getComponentProps(),
-                // Standard props passed to all child components
-                payload: this.payloadRef,
-                commit: (v: string) => this.commitPayload(v)
-            }
+      render: () =>
+        h(this.getComponent(), {
+          nodeId: nodeId,
+          title: this.getTitle(), // Pass title to Overlay if it wraps Frame
+          ...this.getComponentProps(),
+          // Standard props passed to all child components
+          payload: this.payloadRef,
+          commit: (v: string) => this.commitPayload(v)
         })
     })
     
