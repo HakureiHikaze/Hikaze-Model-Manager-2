@@ -2,26 +2,28 @@
 const props = defineProps<{
   seq: number;
   name: string;
-  mstr: number;
-  cstr: number;
-  on: boolean;
+  strength_model: number;
+  strength_clip: number;
+  enabled: boolean;
 }>()
+
 const emits = defineEmits<{
-  (e: 'update:mstr', seq: number, value: number): void
-  (e: 'update:cstr', seq: number, value: number): void
-  (e: 'update:on', seq: number, value: boolean): void
+  (e: 'update:strength_model', seq: number, value: number): void
+  (e: 'update:strength_clip', seq: number, value: number): void
+  (e: 'update:enabled', seq: number, value: boolean): void
   (e: 'update:delete', seq: number): void
 }>();
-function onMStrInput(event: Event) {
+
+function onModelStrengthInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  emits('update:mstr', props.seq, input.valueAsNumber);
+  emits('update:strength_model', props.seq, input.valueAsNumber);
 }
-function onCStrInput(event: Event) {
+function onClipStrengthInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  emits('update:cstr', props.seq, input.valueAsNumber);
+  emits('update:strength_clip', props.seq, input.valueAsNumber);
 }
-function onCheckboxInput(event: Event) {
-  emits('update:on', props.seq, (event.target as HTMLInputElement).checked);
+function onEnabledInput(event: Event) {
+  emits('update:enabled', props.seq, (event.target as HTMLInputElement).checked);
 }
 function onBtnDelete(event: Event) {
   emits('update:delete', props.seq);
@@ -33,13 +35,13 @@ function onBtnDelete(event: Event) {
     <td>{{ props.seq + 1 }}</td>
     <td :title="props.name" class="lora-name">{{ props.name }}</td>
     <td>
-      <input class="hikaze-reset-input" type="number" :value="props.mstr" step="0.05" @input="onMStrInput" />
+      <input class="hikaze-reset-input" type="number" :value="props.strength_model" step="0.05" @input="onModelStrengthInput" />
     </td>
     <td>
-      <input class="hikaze-reset-input" type="number" :value="props.cstr" step="0.05" @input="onCStrInput" />
+      <input class="hikaze-reset-input" type="number" :value="props.strength_clip" step="0.05" @input="onClipStrengthInput" />
     </td>
     <td class="center-chk">
-      <input class="hikaze-reset-chk" type="checkbox" :checked="props.on" @input="onCheckboxInput" />
+      <input class="hikaze-reset-chk" type="checkbox" :checked="props.enabled" @input="onEnabledInput" />
     </td>
   </tr>
 </template>
@@ -47,7 +49,7 @@ function onBtnDelete(event: Event) {
 td {
   padding: 4px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .lora-name {
@@ -106,6 +108,8 @@ input.hikaze-reset-chk {
 }
 
 .center-chk {
+  display: flex;
+  justify-content: center;
   align-items: center;
   height: 100%;
 }

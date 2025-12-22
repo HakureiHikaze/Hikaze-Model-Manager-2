@@ -28,19 +28,19 @@
           </th>
         </thead>
         <tbody>
-          <HikazeLoraListElement
-            v-for="(row, index) in doc.LoRAs"
-            :key="index"
-            :seq="index"
-            :name="row.full_path"
-            :mstr="row.strength_model"
-            :cstr="row.strength_clip"
-            :on="row.enabled"
-            @update:mstr="onMStrInput"
-            @update:cstr="onCStrInput"
-            @update:on="onCheckboxInput"
-            @update:delete="onBtnDelete"
-          />
+        <HikazeLoraListElement
+          v-for="(row, index) in doc.LoRAs"
+          :key="index"
+          :seq="index"
+          :name="row.full_path"
+          :strength_model="row.strength_model"
+          :strength_clip="row.strength_clip"
+          :enabled="row.enabled"
+          @update:strength_model="onMStrInput"
+          @update:strength_clip="onCStrInput"
+          @update:enabled="onCheckboxInput"
+          @update:delete="onBtnDelete"
+        />
         </tbody>
       </table>
       <div v-if="doc.LoRAs.length === 0" class="empty-tip">
