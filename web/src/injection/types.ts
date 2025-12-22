@@ -1,5 +1,16 @@
+/**
+ * Shared types for Hikaze injection layer.
+ *
+ * These types are used by:
+ * - injection manager (`manager.ts`)
+ * - controllers (`controllers/*`)
+ * - overlay renderer component (`components/HikazeNodeOverlay.vue`)
+ */
 export type InjectionMode = 'vue' | 'legacy'
 
+/**
+ * Why injection happened (used for debugging/logging; may affect controller behavior).
+ */
 export type InjectionReason =
   | 'startup'
   | 'node-created'
@@ -9,14 +20,22 @@ export type InjectionReason =
   | 'collapse-changed'
   | 'mode-changed'
   | 'manual-reload'
+  | 'setup'
+  | 'graph-node-added'
+  | 'graph-loaded'
 
 export interface InjectionContext {
+  /** Current UI rendering mode. */
   mode: InjectionMode
+  /** Why we are injecting right now. */
   reason: InjectionReason | (string & {})
+  /** ComfyUI app instance (best-effort; may be null during early startup). */
   app: any | null
+  /** Active graph instance (best-effort; may be null during early startup). */
   graph: any | null
 }
 
+/** Node type prefix used to decide whether a node should be handled by this plugin. */
 export const HIKAZE_NODE_TYPE_PREFIX = 'Hikaze'
 
 export const VUE_NODES_SETTING_ID = 'Comfy.VueNodes.Enabled'
@@ -29,8 +48,11 @@ export interface WidgetOverlayInputPatch {
 }
 
 export interface WidgetOverlayClickPayload {
+  /** LiteGraph node instance. */
   node: any
+  /** Matching widget object (by `widget.name`). */
   widget: any
+  /** DOM input element (schema widget), if found. */
   inputEl: HTMLInputElement | null
 }
 
@@ -82,20 +104,20 @@ export interface NodeBodyOverlayDefinition {
 
 export interface LoRAEntry {
   /**
-   * Defination of LoRA list element
+   * LoRA list element (Hikaze schema).
    */
   name?: string
   full_path: string
-  MStrength: number
-  CStrength: number
+  strength_model: number
+  strength_clip: number
   sha256?: string
-  toggleOn: boolean
+  enabled: boolean
 }
 
 export interface LoRAListDocument {
   /**
-   * Defination of LoRA list json
+   * LoRA list document shape (Hikaze schema).
    */
-  version: number
+  version: number | string
   LoRAs: Array<LoRAEntry>
 }

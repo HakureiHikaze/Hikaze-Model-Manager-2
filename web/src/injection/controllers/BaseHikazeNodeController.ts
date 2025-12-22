@@ -1,29 +1,27 @@
-import { createApp, type App as VueApp } from 'vue'
+/**
+ * Base controller for Hikaze nodes (front-end injection layer).
+ *
+ * This controller enforces a standardized architecture:
+ * - A single `HikazeNodeFrame` is mounted to the node.
+ * - State is synced via a standard `hikaze_payload` widget.
+ * - Subclasses provide the Vue component and optional props.
+ */
+import { createApp, h, ref, type App as VueApp, type Ref } from 'vue'
 
-import HikazeNodeOverlay from '../../components/HikazeNodeOverlay.vue'
-import type {
-  InjectionContext,
-  InjectionMode,
-  NodeBodyOverlayDefinition,
-  WidgetOverlayDefinition
-} from '../types'
+import HikazeNodeFrame from '../../components/HikazeNodeFrame.vue'
+import { getVueNodeWidgetBodyElement } from '../../util/dom'
+import type { InjectionContext, InjectionMode } from '../types'
+
+const PAYLOAD_WIDGET = 'hikaze_payload'
 
 type UnknownNode = {
   id?: string | number
   type?: string
-  comfyClass?: string
+  title?: string
   widgets?: Array<any>
   onResize?: () => void
-  graph?: {
-    _version?: number
-    setDirtyCanvas?: (fg: boolean, bg: boolean) => void
-  }
-  onWidgetChanged?: (
-    name: string,
-    value: any,
-    oldValue: any,
-    widget: any
-  ) => void
+  graph?: any
+  onWidgetChanged?: (name: string, value: any, oldValue: any, widget: any) => void
 }
 
 export type HikazeNodeControllerConstructor = new (
@@ -43,33 +41,67 @@ export class BaseHikazeNodeController {
 
   readonly node: UnknownNode
 
+  /** Reactive copy of the `hikaze_payload` widget value. */
+  protected readonly payloadRef = ref<string>('{}')
+
   private injectedMode: InjectionMode | null = null
   private cleanupFns: Array<() => void> = []
 
-  private vueOverlay:
-    | {
-        host: HTMLDivElement
-        app: VueApp
-      }
-    | null = null
-
+  private vueApp: VueApp | null = null
+  private vueHost: HTMLDivElement | null = null
   private vueMountRetryTimer: number | null = null
 
-  private legacyWidgetPointerDownOriginal = new WeakMap<object, any>()
+  private onWidgetChangedOriginal: any = null
+  private onWidgetChangedWrapper: any = null
+  private hydrationSyncTimers: number[] = []
 
   constructor(node: UnknownNode) {
     this.node = node
   }
 
+  /**
+   * Provide the Vue component to render inside the frame.
+   * Subclasses MUST implement this.
+   */
+  protected getComponent(): any {
+    return null
+  }
+
+  /**
+   * Provide additional props for the component.
+   * Default provides nothing; `nodeId`, `payload`, `commit` are passed automatically.
+   */
+  protected getComponentProps(): Record<string, any> {
+    return {}
+  }
+
+  /** Override title if needed. Default is node.title. */
+  protected getTitle(): string {
+    return this.node?.title ?? 'Hikaze Node'
+  }
+
   inject(ctx: InjectionContext) {
+    // Guard against uninitialized nodes (e.g. drag previews)
+    if (this.node.id == null || this.node.id === -1) {
+      setTimeout(() => this.inject(ctx), 200)
+      return
+    }
+
     if (this.injectedMode && this.injectedMode !== ctx.mode) {
       this.dispose()
     }
 
+    this.ensureWidgetChangeHook()
+    this.syncFromWidget()
+    this.scheduleHydrationSync(ctx)
+
     if (ctx.mode === 'vue') {
-      this.ensureVueOverlayMounted(ctx)
+      this.ensureFrameMounted(ctx)
     } else {
-      this.onInjectLegacy(ctx)
+      // Legacy mode: Hook widget click to open simplified editor placeholder
+      this.hookLegacyWidgetClick(PAYLOAD_WIDGET, (current) =>
+        window.prompt('Hikaze Payload (JSON)', current)
+      )
     }
 
     this.injectedMode = ctx.mode
@@ -81,39 +113,33 @@ export class BaseHikazeNodeController {
   }
 
   dispose() {
+    this.clearHydrationSync()
+    this.unhookWidgetChange()
+
     if (this.vueMountRetryTimer != null) {
-      try {
-        window.clearTimeout(this.vueMountRetryTimer)
-      } catch {
-        // ignore
-      }
+      window.clearTimeout(this.vueMountRetryTimer)
       this.vueMountRetryTimer = null
     }
 
-    for (let i = this.cleanupFns.length - 1; i >= 0; i--) {
+    if (this.vueApp) {
       try {
-        this.cleanupFns[i]?.()
-      } catch {
-        // ignore
-      }
+        this.vueApp.unmount()
+      } catch { /* ignore */ }
+      this.vueApp = null
     }
+
+    if (this.vueHost) {
+      try {
+        this.vueHost.remove()
+      } catch { /* ignore */ }
+      this.vueHost = null
+    }
+
+    this.cleanupFns.forEach((fn) => {
+        try { fn() } catch { /* ignore */ }
+    })
     this.cleanupFns = []
-
-    this.vueOverlay = null
     this.injectedMode = null
-    this.legacyWidgetPointerDownOriginal = new WeakMap<object, any>()
-  }
-
-  protected getVueWidgetOverlays(_ctx: InjectionContext): WidgetOverlayDefinition[] {
-    return []
-  }
-
-  protected getVueBodyOverlays(_ctx: InjectionContext): NodeBodyOverlayDefinition[] {
-    return []
-  }
-
-  protected onInjectLegacy(_ctx: InjectionContext) {
-    // Default: no legacy behavior modifications.
   }
 
   protected findWidget(widgetName: string) {
@@ -122,232 +148,167 @@ export class BaseHikazeNodeController {
     return widgets.find((w) => w?.name === widgetName) ?? null
   }
 
-  protected setWidgetValue(
-    widget: any,
-    next: any,
-    options?: { inputEl?: HTMLInputElement | null; e?: any; canvas?: any }
-  ) {
-    const oldValue = widget?.value
-    if (next === oldValue) return
-
-    const node = this.node
-    const e = options?.e
-    const canvas = options?.canvas
-
-    if (canvas && typeof widget?.setValue === 'function') {
-      try {
-        widget.setValue(next, { e, node, canvas })
-      } catch {
-        // fall back
-      }
-    }
-
-    if (widget?.value !== next) {
-      try {
-        widget.value = next
-      } catch {
-        // ignore
-      }
-
-      try {
-        const pos = canvas?.graph_mouse
-        widget.callback?.(widget.value, canvas, node, pos, e)
-      } catch {
-        // ignore
-      }
-
-      try {
-        node?.onWidgetChanged?.(widget.name ?? '', widget.value, oldValue, widget)
-      } catch {
-        // ignore
-      }
-
-      try {
-        if (node?.graph) node.graph._version = (node.graph._version ?? 0) + 1
-      } catch {
-        // ignore
-      }
-    }
-
-    try {
-      if (options?.inputEl) options.inputEl.value = String(next ?? '')
-    } catch {
-      // ignore
-    }
-
-    try {
-      node?.onResize?.()
-    } catch {
-      // ignore
-    }
-    try {
-      node?.graph?.setDirtyCanvas?.(true, true)
-    } catch {
-      // ignore
-    }
-  }
-
-  protected hookLegacyTextWidgetClick(
+  /**
+   * Hook a legacy widget's mouse interaction to trigger a custom callback.
+   * Returns true to prevent default behavior (e.g. preventing text edit mode).
+   */
+  protected hookLegacyWidgetClick(
     widgetName: string,
     onPick: (current: string) => string | null
   ) {
     const widget = this.findWidget(widgetName)
-    if (!widget || typeof widget !== 'object') return
-    if (this.legacyWidgetPointerDownOriginal.has(widget)) return
+    if (!widget) return
 
-    const originalOnPointerDown = widget.onPointerDown
-    this.legacyWidgetPointerDownOriginal.set(widget, originalOnPointerDown)
+    // Save original handler
+    const originalMouse = widget.mouse
 
-    widget.onPointerDown = (pointer: any, nodeFromCanvas: any, canvas: any) => {
-      if (typeof originalOnPointerDown === 'function') {
-        try {
-          const handled = originalOnPointerDown.call(
-            widget,
-            pointer,
-            nodeFromCanvas,
-            canvas
-          )
-          if (handled) return true
-        } catch {
-          // ignore
-        }
-      }
-
-      const effectiveNode = nodeFromCanvas ?? this.node
-
-      const priorFinally = pointer?.finally
-      if (pointer && canvas) {
-        pointer.finally = () => {
-          try {
-            if (typeof priorFinally === 'function') priorFinally()
-          } finally {
-            try {
-              canvas.node_widget = null
-            } catch {
-              // ignore
-            }
-          }
-        }
-      }
-
-      const handlePick = () => {
+    // Override handler
+    widget.mouse = (event: any, pos: any, node: any) => {
+      if (event.type === 'pointerdown' || event.type === 'mousedown') {
         const current = String(widget.value ?? '')
         const next = onPick(current)
-        if (next != null && next !== current) {
-          const e = pointer?.eUp ?? pointer?.eDown ?? null
-          this.setWidgetValue(widget, next, { e, canvas })
+        if (next !== null && next !== current) {
+          this.commitPayload(next)
         }
+        return true // Prevent default behavior (e.g. entering text edit)
       }
-
-      if (pointer) {
-        pointer.onClick = handlePick
-      } else {
-        handlePick()
-      }
-
-      return true
+      return originalMouse ? originalMouse.call(widget, event, pos, node) : undefined
     }
 
     this.cleanupFns.push(() => {
-      try {
-        widget.onPointerDown = originalOnPointerDown
-      } catch {
-        // ignore
-      }
-      this.legacyWidgetPointerDownOriginal.delete(widget)
+      widget.mouse = originalMouse
     })
   }
 
-  private scheduleVueMountRetry(fn: () => void, delayMs: number) {
-    if (this.vueMountRetryTimer != null) return
-    this.vueMountRetryTimer = window.setTimeout(() => {
-      this.vueMountRetryTimer = null
-      try {
-        fn()
-      } catch {
-        // ignore
+  protected setWidgetValue(widget: any, next: any) {
+    const oldValue = widget?.value
+    if (next === oldValue) return
+
+    widget.value = next
+    try {
+      widget.callback?.(widget.value)
+    } catch { /* ignore */ }
+    try {
+      this.node?.onWidgetChanged?.(widget.name ?? '', widget.value, oldValue, widget)
+    } catch { /* ignore */ }
+    try {
+        // Trigger graph save
+        if(this.node.graph) this.node.graph.setDirtyCanvas(true, true)
+    } catch { /* ignore */ }
+  }
+
+  /**
+   * Commit a new JSON string to the payload widget.
+   */
+  protected commitPayload(next: string) {
+    const widget = this.findWidget(PAYLOAD_WIDGET)
+    if (!widget) return
+    
+    // Basic validation to ensure it's string
+    const val = String(next ?? '{}')
+    this.setWidgetValue(widget, val)
+    this.payloadRef.value = val
+  }
+
+  // --- Widget Sync Logic ---
+
+  private ensureWidgetChangeHook() {
+    const node: any = this.node
+    if (!node || typeof node !== 'object') return
+    if (this.onWidgetChangedWrapper) return
+
+    this.onWidgetChangedOriginal = node.onWidgetChanged
+    this.onWidgetChangedWrapper = (
+      name: string,
+      value: any,
+      oldValue: any,
+      widget: any
+    ) => {
+      if (name === PAYLOAD_WIDGET) {
+        this.payloadRef.value = String(value ?? '{}')
       }
-    }, delayMs)
+
+      const original = this.onWidgetChangedOriginal
+      if (typeof original === 'function') {
+        try {
+          return original.call(node, name, value, oldValue, widget)
+        } catch { /* ignore */ }
+      }
+    }
+    node.onWidgetChanged = this.onWidgetChangedWrapper
   }
 
-  private getVueNodeElement(nodeId: string | number) {
-    return document.querySelector(
-      `.lg-node[data-node-id="${nodeId}"]`
-    ) as HTMLElement | null
+  private unhookWidgetChange() {
+    const node: any = this.node
+    if (!node || typeof node !== 'object') return
+    if (node.onWidgetChanged === this.onWidgetChangedWrapper) {
+      node.onWidgetChanged = this.onWidgetChangedOriginal
+    }
+    this.onWidgetChangedOriginal = null
+    this.onWidgetChangedWrapper = null
   }
 
-  private getVueNodeWidgetBodyElement(nodeId: string | number) {
-    const nodeEl = this.getVueNodeElement(nodeId)
-    if (!nodeEl) return null
-    return nodeEl.querySelector('.lg-node-widgets') as HTMLElement | null
+  private syncFromWidget() {
+    const widget = this.findWidget(PAYLOAD_WIDGET)
+    if (widget) {
+        this.payloadRef.value = String(widget.value ?? '{}')
+    }
   }
 
-  private ensureVueOverlayMounted(ctx: InjectionContext, attemptsRemaining = 50) {
+  private scheduleHydrationSync(ctx: InjectionContext) {
+    this.clearHydrationSync()
+    const delays = [0, 50, 150, 400, 800]
+    for (const delay of delays) {
+      const timer = window.setTimeout(() => this.syncFromWidget(), delay)
+      this.hydrationSyncTimers.push(timer)
+    }
+  }
+
+  private clearHydrationSync() {
+    this.hydrationSyncTimers.forEach((t) => clearTimeout(t))
+    this.hydrationSyncTimers = []
+  }
+
+  // --- Frame Mounting Logic ---
+
+  private ensureFrameMounted(ctx: InjectionContext, attemptsRemaining = 50) {
     const nodeId = this.node?.id
     if (nodeId == null) {
-      if (attemptsRemaining <= 0) return
-      this.scheduleVueMountRetry(
-        () => this.ensureVueOverlayMounted(ctx, attemptsRemaining - 1),
-        50
-      )
+      if (attemptsRemaining > 0) {
+          this.vueMountRetryTimer = window.setTimeout(
+            () => this.ensureFrameMounted(ctx, attemptsRemaining - 1), 50
+          )
+      }
       return
     }
 
-    const bodyEl = this.getVueNodeWidgetBodyElement(nodeId)
-    if (!bodyEl) {
-      if (attemptsRemaining <= 0) return
-      this.scheduleVueMountRetry(
-        () => this.ensureVueOverlayMounted(ctx, attemptsRemaining - 1),
-        100
-      )
-      return
-    }
-
-    if (this.vueOverlay?.host?.isConnected) return
-
-    // Remove orphaned hosts for this node, if any.
-    try {
-      bodyEl
-        .querySelectorAll("[data-hikaze-node-overlay-host='1']")
-        .forEach((el) => el.remove())
-    } catch {
-      // ignore
-    }
-
-    bodyEl.style.position = bodyEl.style.position || 'relative'
+    // In VueNodes mode, we mount to a dummy host, and Frame teleports itself.
+    // We attach the dummy host to body or somewhere stable, or just create it in memory?
+    // Vue 3 requires the host to be in DOM for some features, but Teleport works from anywhere usually.
+    // To be safe, let's append our host to the node body if possible, or document.body.
+    // Actually, getting the node body is what Frame does.
+    // So we can just create a host div, append it to document.body (hidden), and mount.
+    
+    if (this.vueApp) return
 
     const host = document.createElement('div')
-    host.dataset.hikazeNodeOverlayHost = '1'
-    host.dataset.hikazeNodeId = String(nodeId)
-    host.style.position = 'absolute'
-    host.style.inset = '0'
-    host.style.zIndex = '50'
-    host.style.pointerEvents = 'none'
+    host.style.display = 'none' // Hidden host
+    document.body.appendChild(host)
+    this.vueHost = host
 
-    bodyEl.appendChild(host)
-
-    const bodyOverlays = this.getVueBodyOverlays(ctx)
-    const widgetOverlays = this.getVueWidgetOverlays(ctx)
-    const app = createApp(HikazeNodeOverlay, {
-      node: this.node,
-      bodyOverlays,
-      widgetOverlays
+    const app = createApp({
+      render: () =>
+        h(this.getComponent(), {
+          nodeId: nodeId,
+          title: this.getTitle(), // Pass title to Overlay if it wraps Frame
+          ...this.getComponentProps(),
+          // Standard props passed to all child components
+          payload: this.payloadRef,
+          commit: (v: string) => this.commitPayload(v)
+        })
     })
+    
     app.mount(host)
-
-    this.vueOverlay = { host, app }
-
-    this.cleanupFns.push(() => {
-      try {
-        app.unmount()
-      } catch {
-        // ignore
-      }
-      try {
-        host.remove()
-      } catch {
-        // ignore
-      }
-    })
+    this.vueApp = app
   }
 }
