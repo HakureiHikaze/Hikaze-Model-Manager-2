@@ -37,7 +37,6 @@ type ManagerOptions = {
  * Internal flags added onto ComfyUI objects to avoid double-hooking.
  * These are defined as non-enumerable properties.
  */
-const ON_ADDED_HOOK_FLAG = '__hikazeOnAddedHooked'
 const COLLAPSE_HOOK_FLAG = '__hikazeCollapseHooked'
 const SETTINGS_HOOK_FLAG = '__hikazeVueNodesSettingHooked'
 
@@ -73,9 +72,14 @@ export class HikazeInjectionManager {
    * ComfyUI callback: user created a node (context menu / paste / etc).
    */
   onNodeCreated(node: UnknownNode) {
-    if (!this.isHikazeNode(node)) return
-    this.ensureOnAddedHook(node)
-    this.injectNode(node, 'node-created')
+    try {
+      if (!this.isHikazeNode(node)) return
+      // We rely on the official hook and our own DOM retry logic.
+      // No need to monkey-patch node.onAdded anymore.
+      this.injectNode(node, 'node-created')
+    } catch (e) {
+      console.error('[Hikaze] Error in onNodeCreated:', e)
+    }
   }
 
   /**
@@ -303,26 +307,6 @@ export class HikazeInjectionManager {
       },
       { passive: true }
     )
-  }
-
-  /**
-   * Ensure `node.onAdded` triggers injection (covers additional creation paths).
-   */
-  private ensureOnAddedHook(node: UnknownNode) {
-    if (!node || typeof node !== 'object') return
-    if (hasOwn(node, ON_ADDED_HOOK_FLAG)) return
-    defineHiddenFlag(node, ON_ADDED_HOOK_FLAG)
-
-    const originalOnAdded = node.onAdded
-    node.onAdded = (graph: any) => {
-      try {
-        return typeof originalOnAdded === 'function'
-          ? originalOnAdded.call(node, graph)
-          : undefined
-      } finally {
-        this.injectNode(node, 'node-added')
-      }
-    }
   }
 
   /**

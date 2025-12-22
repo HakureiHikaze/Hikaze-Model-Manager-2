@@ -81,6 +81,12 @@ export class BaseHikazeNodeController {
   }
 
   inject(ctx: InjectionContext) {
+    // Guard against uninitialized nodes (e.g. drag previews)
+    if (this.node.id == null || this.node.id === -1) {
+      setTimeout(() => this.inject(ctx), 200)
+      return
+    }
+
     if (this.injectedMode && this.injectedMode !== ctx.mode) {
       this.dispose()
     }
