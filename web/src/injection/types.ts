@@ -108,16 +108,16 @@ export interface LoRAEntry {
    */
   name?: string
   full_path: string
-  MStrength: number
-  CStrength: number
+  strength_model: number
+  strength_clip: number
   sha256?: string
-  toggleOn: boolean
+  enabled: boolean
 }
 
 export interface LoRAListDocument {
   /**
    * LoRA list document shape (Hikaze schema).
    */
-  version: number
+  version: number | string
   LoRAs: Array<LoRAEntry>
 }
