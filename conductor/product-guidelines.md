@@ -7,12 +7,20 @@
 
 ## Visual Hierarchy & Layout
 - **Image-First Exploration:** The main library view (left pane) must prioritize high-quality preview cards. The visual weight should be on the image, followed by the model name and a limited set of primary tags.
+- **Responsive Grid & Density:** The library grid must support dynamic column scaling (2-100 columns). When density increases (e.g., >6 columns), model titles should be hidden to reduce visual noise, relying on tooltips for identification.
+- **Synchronized Tooltips:** Tooltips in the grid view must overlay the card image, synchronized to the parent card's full width (100%), ensuring no horizontal overflow or scrolling artifacts.
 - **Clear Selection States:** Active/Selected items must be instantly recognizable via distinct borders (e.g., blue for focus, green for selection) without obscuring the preview content.
-- **Segregated Detail View:** All technical metadata (SHA256 hashes, full file paths, extensive descriptions) must be strictly confined to the right-side "Model Preview/Details" sidebar. This keeps the browsing experience clean and uncluttered.
+- **Segregated Detail View:** All technical metadata (SHA256 hashes, full file paths, extensive descriptions) must be strictly confined to the right-side "Model Preview/Details" sidebar.
+
+## Detail View Strategy
+- **Dual-Name Architecture:** The UI must clearly distinguish between the "Display Name" (editable database alias) and the "Physical Path" (read-only filesystem name).
+- **Interactive Preview:** The detail image preview should serve as a control surface, offering overlay actions for "Open in New Tab" and "Upload Image" on hover.
+- **Hash-Centric Validation:** A prominent "Calculate Hash" action should be available next to the SHA256 field, triggering a non-blocking background verification process.
 
 ## Interaction Principles
-- **Low-Latency & Direct:** Interactions should feel immediate. Minimize decorative animations in favor of raw speed and responsiveness, catering to power users managing large libraries.
-- **Click-to-Action:** Primary actions (selecting a model, switching tabs) should execute on a single click without unnecessary confirmation steps, unless data loss is a risk.
+- **Low-Latency & Direct:** Interactions should feel immediate. Minimize decorative animations in favor of raw speed.
+- **Chip Input Pattern:** Tag and trigger word inputs should utilize a "Chip" pattern. Users create chips via `Space` or `Comma` delimiters. Chips must support hover-to-delete interactions (`x` icon).
+- **Click-to-Action:** Primary actions (selecting a model, switching tabs) should execute on a single click without unnecessary confirmation steps.
 
 ## Localization (i18n) Strategy
 - **Manager Interface:** The full-screen manager UI must be fully localized using a standard i18n JSON solution (e.g., `en-US`, `zh-CN`).

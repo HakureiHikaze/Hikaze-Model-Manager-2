@@ -18,14 +18,24 @@ This track implements the dedicated web interface and backend server for the Hik
 ### 2. Frontend Application (`model_manager_frontend/`)
 *   **Stack:** Vue 3, Vite, TypeScript.
 *   **Structure:**
-    *   `src/components/HikazeManagerLayout.vue`: The main shell.
-    *   `src/components/ModelLibrary.vue`: Left pane (Grid/List of models).
-    *   `src/components/ModelDetails.vue`: Right pane (Metadata).
-    *   `src/components/ManagerHeader.vue`: Top bar (Tabs, Search).
+    *   `src/components/HikazeManagerLayout.vue`: The main shell using a CSS Grid layout (Header + Library Pane + Details Pane).
+    *   `src/components/ModelLibrary.vue`: Left pane handling model browsing.
+        *   **View Modes:** Toggle between Card Grid and List View.
+        *   **Grid Control:** Dynamic column count (2-100) with `align-content: start` to prevent vertical spacing issues.
+        *   **Density Strategy:** Hides card titles when columns > 6.
+        *   **Tooltips:** Full-width, absolute positioned overlays on cards showing full name and 2-column tag grid.
+        *   **Filtering:** Placeholder "Tags Filter" dropdown adjacent to view controls.
+    *   `src/components/ModelDetails.vue`: Right pane handling metadata.
+        *   **Image Preview:** Hover overlay with "Open New Tab" and "Upload" actions.
+        *   **Identity:** Editable "Display Name" vs Read-only "Physical Path".
+        *   **Validation:** SHA256 field with background calculation trigger button.
+        *   **Metadata:** Base Model selector, Notes textarea.
+        *   **Tags/Triggers:** Chip-based input system (Space/Comma delimiter) with hover-delete.
 *   **Context Mode:**
-    *   Accepts a prop/attribute `embedded_mode` (boolean).
-    *   If `true` (e.g., opened from a "Load Checkpoint" node), the Category Tabs are hidden, and the view is locked to the specific category passed via prop (e.g., `category="checkpoints"`).
-*   **Build:** configuring Vite to output to a specific `dist` folder that the backend server serves.
+    *   Accepts props `embedded` (boolean) and `initialTab` (string).
+    *   **Embedded Logic:** If `embedded=true` OR `initialTab` is set, the top-level Category Navigation Bar is hidden.
+    *   **Initial Tab:** If `initialTab` is provided, the library defaults to that category.
+*   **Build:** configuring Vite to output to a specific `dist` folder (`web/dist/manager`) that the backend server serves.
 
 ### 3. Integration Hook (`__init__.py`)
 *   **Initialization:**
