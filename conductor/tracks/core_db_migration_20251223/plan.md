@@ -32,7 +32,7 @@
 
 ## Phase 2: Legacy Migration Service (Async with Staging)
 
-- [ ] Task: Implement Synchronous Import (Stage 1)
+- [x] Task: Implement Synchronous Import (Stage 1) 474a9c0
   - Sub-tasks:
     - [ ] Create `backend/migration/importer.py`.
     - [ ] Implement `import_legacy_data(legacy_db_path)`:
