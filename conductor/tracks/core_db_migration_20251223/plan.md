@@ -15,7 +15,7 @@
     - [ ] Implement `DatabaseManager` class with `init_db()` method.
     - [ ] Write tests to verify table creation and correct schema (indexes, FKs).
 
-- [ ] Task: Implement Model CRUD Operations
+- [x] Task: Implement Model CRUD Operations 05b25a9
   - Sub-tasks:
     - [ ] Add `upsert_model(model_data)` method to `DatabaseManager`.
     - [ ] Add `get_model(hash)` and `get_model_by_path(path)` methods.
