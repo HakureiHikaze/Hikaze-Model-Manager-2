@@ -16,8 +16,8 @@ export default defineConfig({
     // IMPORTANT: ComfyUI will auto-import *every* .js under the registered web root.
     // This build outputs a single, side-effectful ComfyUI extension module (NOT an SPA),
     // so we must avoid extra JS chunks/assets that would be imported as well.
-    outDir: "dist",
-    emptyOutDir: true,
+    outDir: resolve(__dirname, "../dist"),
+    emptyOutDir: false,
     cssCodeSplit: false,
     sourcemap: true,
     lib: {

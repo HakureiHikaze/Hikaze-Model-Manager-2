@@ -3,6 +3,7 @@ import logging
 import asyncio
 import threading
 import time
+import os
 from aiohttp import web
 from typing import Optional
 
@@ -44,7 +45,21 @@ class HikazeServer(threading.Thread):
     def create_app(self) -> web.Application:
         app = web.Application()
         app.router.add_get("/api/hello", self.handle_hello)
-        # Add CORS placeholder here later if needed
+        
+        # Serve static files
+        # backend/server.py -> ../web/dist/manager
+        static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "dist", "manager")
+        
+        if os.path.exists(static_path):
+             # Serve index.html for root
+             async def index(request):
+                 return web.FileResponse(os.path.join(static_path, "index.html"))
+             
+             app.router.add_get("/", index)
+             app.router.add_static("/", static_path, show_index=True)
+        else:
+            logger.warning(f"Static path not found: {static_path}")
+
         return app
 
     async def handle_hello(self, request):

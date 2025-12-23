@@ -25,28 +25,28 @@
 
 ## Phase 2: Frontend Scaffold & Basic UI
 
-- [ ] Task: Scaffold Vue Project
+- [x] Task: Scaffold Vue Project
   - Sub-tasks:
-    - [ ] Initialize `model_manager_frontend` using `npm create vite@latest` (via shell commands).
-    - [ ] Configure `vite.config.ts` for output dir `dist`.
-    - [ ] Install dependencies (Vue, TS, etc.).
+    - [x] Initialize `model_manager_frontend` using `npm create vite@latest` (via shell commands).
+    - [x] Configure `vite.config.ts` for output dir `dist`.
+    - [x] Install dependencies (Vue, TS, etc.).
 
-- [ ] Task: Implement Core Layout Components
+- [x] Task: Implement Core Layout Components
   - Sub-tasks:
-    - [ ] Create `HikazeManagerLayout.vue`.
-    - [ ] Create placeholder `ModelLibrary.vue` and `ModelDetails.vue`.
-    - [ ] Implement 3-pane CSS grid layout (matching `product-guidelines.md`).
+    - [x] Create `HikazeManagerLayout.vue`.
+    - [x] Create placeholder `ModelLibrary.vue` and `ModelDetails.vue`.
+    - [x] Implement 3-pane CSS grid layout (matching `product-guidelines.md`).
 
-- [ ] Task: Implement Embedded Mode Logic
+- [x] Task: Implement Embedded Mode Logic
   - Sub-tasks:
-    - [ ] Add `embedded` prop to Layout.
-    - [ ] Implement conditional rendering for Header/Tabs based on prop.
-    - [ ] Write unit test for `HikazeManagerLayout.vue`.
+    - [x] Add `embedded` prop to Layout.
+    - [x] Implement conditional rendering for Header/Tabs based on prop.
+    - [x] Write unit test for `HikazeManagerLayout.vue`.
 
-- [ ] Task: Connect Frontend Build to Backend
+- [x] Task: Connect Frontend Build to Backend
   - Sub-tasks:
-    - [ ] Update `backend/server.py` to serve static files from `model_manager_frontend/dist`.
-    - [ ] Add a root route `/` returning `index.html`.
+    - [x] Update `backend/server.py` to serve static files from `model_manager_frontend/dist`.
+    - [x] Add a root route `/` returning `index.html`.
 
 - [ ] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md)
 
