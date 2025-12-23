@@ -41,7 +41,7 @@
         - Writes unhashed models to `pending_import` (serializing tags to JSON).
     - [ ] Write tests using a mock legacy DB with mixed (hashed/unhashed) data.
 
-- [ ] Task: Implement Async Migration Worker (Stage 2)
+- [x] Task: Implement Async Migration Worker (Stage 2) 8924dd8
   - Sub-tasks:
     - [ ] Create `backend/migration/worker.py`.
     - [ ] Implement `MigrationWorker` thread.
