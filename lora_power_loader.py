@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
+import comfy.sd
+import comfy.utils
+import folder_paths
 from comfy_api.latest import io
 
 from .base_nodes import HikazeBaseNode, PAYLOAD_WIDGET_NAME
@@ -58,39 +62,56 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
             )
         else:
             entries = []
+            
+        current_model = model
+        current_clip = clip
 
         if isinstance(entries, list):
             for index, item in enumerate(entries):
                 if not isinstance(item, dict):
                     continue
+                
+                # Check enabled status (defaulting to True if missing)
+                enabled = item.get("enabled", True)
+                if enabled is False:
+                    continue
+
+                # Resolve Name / Path
                 name = item.get("name")
-                full_path = item.get("full_path") or item.get("fullPath") or item.get("path") or name
+                full_path = item.get("full_path") or item.get("path") or name
+                
+                if not full_path:
+                    raise ValueError(f"HikazeLoraPowerLoader: Item at index {index} missing 'full_path' or 'name'")
 
-                strength_model = item.get("strength_model")
-                if strength_model is None:
-                    strength_model = item.get("MStrength")
+                lora_path = None
+                # 1. Try standard ComfyUI resolution
+                lora_path = folder_paths.get_full_path("loras", full_path)
+                
+                # 2. Try absolute path if resolution failed
+                if lora_path is None and os.path.exists(full_path):
+                    lora_path = full_path
+                        
+                if not lora_path:
+                    raise ValueError(f"HikazeLoraPowerLoader: LoRA file not found: {full_path}")
 
-                strength_clip = item.get("strength_clip")
-                if strength_clip is None:
-                    strength_clip = item.get("CStrength")
+                # Resolve Strengths
+                strength_model = float(item.get("strength_model", 1.0))
+                strength_clip = float(item.get("strength_clip", 1.0))
 
-                enabled = item.get("enabled")
-                if enabled is None:
-                    enabled = item.get("toggleOn")
-                if enabled is None:
-                    enabled = True
-                    
-                LOGGER.info(
-                    "HikazeLoraPowerLoader[%s]: %s (%s) model=%s clip=%s enabled=%s",
-                    index,
-                    name,
-                    full_path,
-                    strength_model,
-                    strength_clip,
-                    enabled,
-                )
+                # Load and Apply
+                try:
+                    lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+                    current_model, current_clip = comfy.sd.load_lora_for_models(
+                        current_model, current_clip, lora, strength_model, strength_clip
+                    )
+                    LOGGER.info(
+                        "HikazeLoraPowerLoader[%s]: Applied %s (M:%.2f, C:%.2f)",
+                        index, full_path, strength_model, strength_clip
+                    )
+                except Exception as exc:
+                    LOGGER.error(f"HikazeLoraPowerLoader: Failed to apply {full_path}: {exc}")
 
-        return io.NodeOutput(model, clip)
+        return io.NodeOutput(current_model, current_clip)
 
 
 LOGGER.info("Imported %s from %s", __name__, __file__)

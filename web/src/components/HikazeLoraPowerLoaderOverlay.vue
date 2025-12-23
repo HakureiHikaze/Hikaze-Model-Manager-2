@@ -103,16 +103,6 @@ watch(
       const parsed = JSON.parse(raw || '{}')
       // Basic validation/migration
       if (Array.isArray(parsed.LoRAs)) {
-        // Map old keys if necessary (though backend supports alias, frontend UI needs strict keys)
-        // Since we changed types.ts, we assume data matches or we fix it.
-        // For now, assume data is correct or empty.
-        // If data is from old version (MStrength), we might need migration here?
-        // Let's implement a simple migration for robustness.
-        parsed.LoRAs.forEach((item: any) => {
-            if (item.MStrength !== undefined && item.strength_model === undefined) item.strength_model = item.MStrength
-            if (item.CStrength !== undefined && item.strength_clip === undefined) item.strength_clip = item.CStrength
-            if (item.toggleOn !== undefined && item.enabled === undefined) item.enabled = item.toggleOn
-        })
         doc.value = parsed
       } else {
         // Init with placeholder if empty/invalid structure
@@ -127,9 +117,9 @@ watch(
 )
 
 watch(doc, () => {
-    const next = JSON.stringify(doc.value)
-    lastCommittedJson.value = next
-    props.commit(next)
+  const next = JSON.stringify(doc.value)
+  lastCommittedJson.value = next
+  props.commit(next)
 }, { deep: true })
 
 function onMStrInput(seq: number, value: number) {
@@ -215,6 +205,7 @@ function openPicker() {
   font-size: 14px;
   padding: 0;
 }
+
 .header-btn:hover {
   color: #ff3333;
 }
@@ -259,6 +250,7 @@ input.hikaze-reset-chk {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
 }
+
 .header-action-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }

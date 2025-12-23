@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 const props = defineProps<{
   seq: number;
   name: string;
@@ -6,7 +8,11 @@ const props = defineProps<{
   strength_clip: number;
   enabled: boolean;
 }>()
-
+const loRAName = computed(() => {
+  if (!props.name) return '';
+  return props.name.split(/[\\/]/).pop()?.replace(".safetensors", "") || '';
+}
+);
 const emits = defineEmits<{
   (e: 'update:strength_model', seq: number, value: number): void
   (e: 'update:strength_clip', seq: number, value: number): void
@@ -33,7 +39,7 @@ function onBtnDelete(event: Event) {
   <tr>
     <td> <button class="del-btn" @click="onBtnDelete">&#128465;</button></td>
     <td>{{ props.seq + 1 }}</td>
-    <td :title="props.name" class="lora-name">{{ props.name }}</td>
+    <td :title="loRAName" class="lora-name">{{ loRAName }}</td>
     <td>
       <input class="hikaze-reset-input" type="number" :value="props.strength_model" step="0.05" @input="onModelStrengthInput" />
     </td>
