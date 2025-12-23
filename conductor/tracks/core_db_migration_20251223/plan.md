@@ -50,7 +50,7 @@
     - [ ] Implement `stop_event` for graceful pausing.
     - [ ] Write unit tests for the worker consuming the staging table.
 
-- [ ] Task: Implement Migration Controller API
+- [x] Task: Implement Migration Controller API b4e81c5
   - Sub-tasks:
     - [ ] Create `backend/migration/manager.py` (Singleton).
     - [ ] Integrate Importer and Worker.
