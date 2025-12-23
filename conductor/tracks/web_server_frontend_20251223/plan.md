@@ -17,7 +17,7 @@
     - [ ] Implement `run()` loop and `stop()` method.
     - [ ] Write tests: Start server, fetch health endpoint, stop server.
 
-- [ ] Task: Implement Standalone Entrypoint
+- [x] Task: Implement Standalone Entrypoint 7dce7ce
   - Sub-tasks:
     - [ ] Add `if __name__ == "__main__":` block to `backend/server.py` to allow independent execution.
 
