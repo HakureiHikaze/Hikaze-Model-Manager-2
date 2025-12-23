@@ -22,7 +22,7 @@
     - [ ] Add `get_pending_imports()` and `remove_pending_import(path)` for staging table management.
     - [ ] Write unit tests for inserting, updating, and retrieving models from both tables.
 
-- [ ] Task: Implement Tag CRUD Operations
+- [x] Task: Implement Tag CRUD Operations c579a99
   - Sub-tasks:
     - [ ] Add `create_tag(name, color)` and `get_tag(name)` methods.
     - [ ] Add `tag_model(hash, tag_id)` and `untag_model(hash, tag_id)` methods.
