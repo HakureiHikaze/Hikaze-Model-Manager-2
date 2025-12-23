@@ -1,4 +1,5 @@
 import sys
+import pytest
 from unittest.mock import MagicMock
 
 # Mock torch
@@ -17,3 +18,10 @@ folder_paths.folder_names_and_paths = {
     "vae": (["/path/to/vae"],)
 }
 sys.modules["folder_paths"] = folder_paths
+
+@pytest.fixture(autouse=True)
+def reset_database_manager():
+    """Reset the DatabaseManager singleton before each test."""
+    from backend.database import DatabaseManager
+    DatabaseManager._instance = None
+    yield

@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Core Data Foundation & Legacy Migration Engine
-*Link: [./conductor/tracks/core_db_migration_20251223/](./conductor/tracks/core_db_migration_20251223/)*
+## [~] Track: Web Server & Frontend Entrypoint
+*Link: [./conductor/tracks/web_server_frontend_20251223/](./conductor/tracks/web_server_frontend_20251223/)*

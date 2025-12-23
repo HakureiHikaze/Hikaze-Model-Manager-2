@@ -19,6 +19,14 @@ The new SQLite schema must prioritize data integrity and hash-based lookups.
     *   `last_used_at` (INTEGER): Timestamp (ms) for LRU logic.
     *   `meta_json` (TEXT): JSON blob for flexible metadata.
 
+*   **`pending_import` Table (Staging Area):**
+    *   Stores legacy models that lack a SHA256 hash.
+    *   `path` (TEXT, PRIMARY KEY): The file path (legacy ID).
+    *   `name` (TEXT)
+    *   `type` (TEXT)
+    *   `created_at` (INTEGER)
+    *   `legacy_tags_json` (TEXT): Serialized list of tags to apply once hashed.
+
 *   **`tags` Table:**
     *   `id` (INTEGER, PRIMARY KEY AUTOINCREMENT)
     *   `name` (TEXT, UNIQUE, NOT NULL)
@@ -39,6 +47,8 @@ The new SQLite schema must prioritize data integrity and hash-based lookups.
     *   `add_model(model_data)`: Insert or update model.
     *   `add_tag(name, color)`: Create tag.
     *   `tag_model(hash, tag_name)`: Associate tag with model.
+    *   `get_pending_imports()`: Fetch uncalculated models.
+    *   `remove_pending_import(path)`: Cleanup after processing.
 
 ### 3. Legacy Migration Service (Async & Resumable)
 A dedicated, asynchronous module to handle the import of legacy data without blocking the main thread.
@@ -46,31 +56,29 @@ A dedicated, asynchronous module to handle the import of legacy data without blo
 *   **Architecture:**
     *   **MigrationManager:** The main controller (Singleton). Handles starting, stopping, and querying status.
     *   **MigrationWorker:** A background thread (daemon) that performs the actual processing.
-    *   **MigrationState:** A persistent tracking mechanism (e.g., a specific table in the DB or a JSON state file) to record:
-        *   `status`: (IDLE, RUNNING, PAUSED, COMPLETED, ERROR)
-        *   `total_items`: Total number of models to migrate.
-        *   `processed_items`: Number of models successfully migrated or skipped.
-        *   `current_item`: The file currently being hashed (for UI feedback).
+    *   **MigrationState:** A persistent tracking mechanism.
 
 *   **Process Flow:**
-    1.  **Initialization:**
+    1.  **Immediate Import (Synchronous):**
         *   Connect to legacy DB (read-only).
-        *   Identify all legacy models.
-        *   Populate a `migration_queue` (in-memory or DB-backed) with items that are *not* yet in the new DB.
-    2.  **Execution (Background Thread):**
-        *   Fetch next item from queue.
-        *   **Check Resumability:** Verify if the item is already processed.
-        *   **Hash Calculation:** If `hash_hex` is missing, calculate SHA256 in chunks (to allow interruption).
-        *   **Upsert:** Write to new DB.
-        *   **Update State:** detailed progress is saved.
+        *   **Group A (Hashed):** Models with a valid `hash_hex` are inserted directly into the v3 `models` table. Their tags are migrated immediately.
+        *   **Group B (Unhashed):** Models missing a hash are inserted into `pending_import`. Their tags are serialized into `legacy_tags_json`.
+        *   *Result:* User sees all "Clean" models immediately. "Pending" models await processing.
+    2.  **Processing (Background Worker):**
+        *   Polls `pending_import` for the next item.
+        *   Calculates SHA256 for the file at `path`.
+        *   **Upsert:** Inserts the new record into `models`.
+        *   **Restore Tags:** Deserializes `legacy_tags_json` and creates entries in `model_tags`.
+        *   **Cleanup:** Deletes the row from `pending_import`.
     3.  **Interruption:**
-        *   The worker checks a `stop_event` flag between file chunks or after each file.
-        *   If paused/stopped, the current state is saved to disk so it can be resumed later.
+        *   Since the `pending_import` table *is* the queue, no separate state file is needed for the list.
+        *   The worker simply stops polling when paused.
 
 *   **API Interface:**
-    *   `start_migration(legacy_db_path: str)`: Spawns the worker.
-    *   `pause_migration()`: Signals worker to stop after current operation (or chunk).
-    *   `get_migration_status()`: Returns `{ status, progress: %, current_file, stats }`.
+    *   `start_migration(legacy_db_path: str)`: Trigger the Sync import then spawn Worker.
+    *   `start_processing_pending()`: Resume worker if there are left-over pending items.
+    *   `pause_processing()`: Stop worker.
+    *   `get_status()`: Returns counts (Processed vs Pending).
 
 
 ## Testing Strategy

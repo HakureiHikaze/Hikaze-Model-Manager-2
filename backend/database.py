@@ -2,7 +2,7 @@ import sqlite3
 import threading
 import time
 from typing import Optional, Dict, List, Any
-from .config import DB_PATH
+from . import config
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS models (
@@ -59,7 +59,7 @@ class DatabaseManager:
         if self._initialized:
             return
         self._initialized = True
-        self.db_path = DB_PATH
+        self.db_path = config.DB_PATH
         self.local = threading.local()
 
     def get_connection(self) -> sqlite3.Connection:

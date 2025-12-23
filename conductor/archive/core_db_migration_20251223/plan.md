@@ -57,4 +57,4 @@
     - [ ] Implement `start_full_migration()`, `pause_processing()`, `resume_processing()`.
     - [ ] Write integration tests: Full flow from Legacy DB -> Staging -> Final DB.
 
-- [ ] Task: Conductor - User Manual Verification 'Legacy Migration Service (Async with Staging)' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Legacy Migration Service (Async with Staging)' (Protocol in workflow.md)
