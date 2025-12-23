@@ -28,7 +28,7 @@
     - [ ] Add `tag_model(hash, tag_id)` and `untag_model(hash, tag_id)` methods.
     - [ ] Write unit tests for tag management and model-tag associations.
 
-- [ ] Task: Conductor - User Manual Verification 'Database Infrastructure (v3 Schema)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Database Infrastructure (v3 Schema)' (Protocol in workflow.md) [checkpoint: 26ffdf8]
 
 ## Phase 2: Legacy Migration Service (Async with Staging)
 
