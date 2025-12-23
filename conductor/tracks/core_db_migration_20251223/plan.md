@@ -8,7 +8,7 @@
     - [ ] Implement environment variable overrides for testing configuration.
     - [ ] Write tests to verify configuration loading.
 
-- [ ] Task: Implement Database Manager and Schema Initialization
+- [x] Task: Implement Database Manager and Schema Initialization 2ab44fb
   - Sub-tasks:
     - [ ] Create `backend/database.py`.
     - [ ] Define the SQL schema for `models`, `tags`, `model_tags`, and the new `pending_import` table.
