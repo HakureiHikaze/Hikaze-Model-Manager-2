@@ -23,7 +23,7 @@
 
 - [ ] Task: Conductor - User Manual Verification 'Backend Server Implementation' (Protocol in workflow.md)
 
-## Phase 2: Frontend Scaffold & Basic UI
+## Phase 2: Frontend Scaffold & Basic UI [checkpoint: 30cfabf]
 
 - [x] Task: Scaffold Vue Project
   - Sub-tasks:
@@ -48,7 +48,7 @@
     - [x] Update `backend/server.py` to serve static files from `model_manager_frontend/dist`.
     - [x] Add a root route `/` returning `index.html`.
 
-- [ ] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md) 30cfabf
 
 ## Phase 3: ComfyUI Integration Hook
 
