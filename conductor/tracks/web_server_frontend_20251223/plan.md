@@ -8,7 +8,7 @@
     - [ ] Implement `PortFinder` class to handle "Port + N" logic.
     - [ ] Write tests for port selection.
 
-- [ ] Task: Implement aiohttp Server Logic
+- [x] Task: Implement aiohttp Server Logic 7ebcec6
   - Sub-tasks:
     - [ ] Implement `HikazeServer` class (inherits `threading.Thread`).
     - [ ] Setup `aiohttp.web.Application`.
