@@ -2,7 +2,7 @@
 
 ## Phase 1: Database Infrastructure (v3 Schema)
 
-- [ ] Task: Create database configuration module
+- [x] Task: Create database configuration module 62312c3
   - Sub-tasks:
     - [ ] Create `backend/config.py` to define DB path and constants.
     - [ ] Implement environment variable overrides for testing configuration.
@@ -11,7 +11,7 @@
 - [ ] Task: Implement Database Manager and Schema Initialization
   - Sub-tasks:
     - [ ] Create `backend/database.py`.
-    - [ ] Define the SQL schema for `models`, `tags`, and `model_tags` (v3).
+    - [ ] Define the SQL schema for `models`, `tags`, `model_tags`, and the new `pending_import` table.
     - [ ] Implement `DatabaseManager` class with `init_db()` method.
     - [ ] Write tests to verify table creation and correct schema (indexes, FKs).
 
@@ -19,45 +19,42 @@
   - Sub-tasks:
     - [ ] Add `upsert_model(model_data)` method to `DatabaseManager`.
     - [ ] Add `get_model(hash)` and `get_model_by_path(path)` methods.
-    - [ ] Write unit tests for inserting, updating, and retrieving models.
-    - [ ] Write tests for handling duplicate paths (should fail or update depending on logic) and duplicate hashes (should merge).
+    - [ ] Add `get_pending_imports()` and `remove_pending_import(path)` for staging table management.
+    - [ ] Write unit tests for inserting, updating, and retrieving models from both tables.
 
 - [ ] Task: Implement Tag CRUD Operations
   - Sub-tasks:
     - [ ] Add `create_tag(name, color)` and `get_tag(name)` methods.
     - [ ] Add `tag_model(hash, tag_id)` and `untag_model(hash, tag_id)` methods.
-    - [ ] Add `get_tags_for_model(hash)` method.
     - [ ] Write unit tests for tag management and model-tag associations.
 
 - [ ] Task: Conductor - User Manual Verification 'Database Infrastructure (v3 Schema)' (Protocol in workflow.md)
 
-## Phase 2: Legacy Migration Service (Async)
+## Phase 2: Legacy Migration Service (Async with Staging)
 
-- [ ] Task: Implement Migration State & Queue
+- [ ] Task: Implement Synchronous Import (Stage 1)
   - Sub-tasks:
-    - [ ] Create `backend/migration/state.py`.
-    - [ ] Define `MigrationState` dataclass/structure (status, counts, current file).
-    - [ ] Implement state persistence (save/load to JSON or DB).
-    - [ ] Create `MigrationQueue` class to manage the list of pending items.
+    - [ ] Create `backend/migration/importer.py`.
+    - [ ] Implement `import_legacy_data(legacy_db_path)`:
+        - Reads legacy DB.
+        - Writes hashed models to `models`.
+        - Writes unhashed models to `pending_import` (serializing tags to JSON).
+    - [ ] Write tests using a mock legacy DB with mixed (hashed/unhashed) data.
 
-- [ ] Task: Implement Async Migration Worker
+- [ ] Task: Implement Async Migration Worker (Stage 2)
   - Sub-tasks:
     - [ ] Create `backend/migration/worker.py`.
-    - [ ] Implement `MigrationWorker` class (inheriting from `threading.Thread`).
-    - [ ] Implement chunked SHA256 calculation with `stop_event` checks for interruptibility.
-    - [ ] Implement the main processing loop: fetch item -> calc hash (if needed) -> upsert DB -> update state.
-    - [ ] Write unit tests for the worker (mocking the hashing to test pause/resume logic).
+    - [ ] Implement `MigrationWorker` thread.
+    - [ ] Logic: Loop through `pending_import` items.
+    - [ ] Logic: Calculate Hash -> Move to `models` -> Deserialize tags -> Link tags -> Delete from `pending_import`.
+    - [ ] Implement `stop_event` for graceful pausing.
+    - [ ] Write unit tests for the worker consuming the staging table.
 
 - [ ] Task: Implement Migration Controller API
   - Sub-tasks:
     - [ ] Create `backend/migration/manager.py` (Singleton).
-    - [ ] Implement `start()`, `pause()`, `resume()` methods.
-    - [ ] Connect `legacy_connector` to fetch initial data and populate the queue.
-    - [ ] Write integration tests: Start migration, pause it, resume it, verify completion.
+    - [ ] Integrate Importer and Worker.
+    - [ ] Implement `start_full_migration()`, `pause_processing()`, `resume_processing()`.
+    - [ ] Write integration tests: Full flow from Legacy DB -> Staging -> Final DB.
 
-- [ ] Task: Implement Tag Migration (Integration)
-  - Sub-tasks:
-    - [ ] Integrate tag migration into the worker flow (or as a separate quick step before/after model migration).
-    - [ ] Ensure `model_tags` are correctly rebuilt using the resolved SHA256 hashes.
-
-- [ ] Task: Conductor - User Manual Verification 'Legacy Migration Service (Async)' (Protocol in workflow.md)
+- [ ] Task: Conductor - User Manual Verification 'Legacy Migration Service (Async with Staging)' (Protocol in workflow.md)
