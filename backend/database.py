@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+import time
 from typing import Optional, Dict, List, Any
 from .config import DB_PATH
 
@@ -122,3 +123,55 @@ class DatabaseManager:
         conn = self.get_connection()
         with conn:
             conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
+
+    def create_tag(self, name: str, color: Optional[str] = None) -> sqlite3.Row:
+        """Create a new tag."""
+        conn = self.get_connection()
+        created_at = int(time.time() * 1000)
+        with conn:
+            cur = conn.execute(
+                "INSERT INTO tags (name, color, created_at) VALUES (?, ?, ?)",
+                (name, color, created_at)
+            )
+            tag_id = cur.lastrowid
+        return self.get_tag_by_id(tag_id)
+
+    def get_tag(self, name: str) -> Optional[sqlite3.Row]:
+        """Retrieve a tag by name."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM tags WHERE name = ?", (name,))
+        return cur.fetchone()
+    
+    def get_tag_by_id(self, tag_id: int) -> Optional[sqlite3.Row]:
+        """Retrieve a tag by ID."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM tags WHERE id = ?", (tag_id,))
+        return cur.fetchone()
+
+    def tag_model(self, model_hash: str, tag_id: int):
+        """Associate a tag with a model."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO model_tags (model_hash, tag_id) VALUES (?, ?)",
+                (model_hash, tag_id)
+            )
+
+    def untag_model(self, model_hash: str, tag_id: int):
+        """Remove a tag association from a model."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "DELETE FROM model_tags WHERE model_hash = ? AND tag_id = ?",
+                (model_hash, tag_id)
+            )
+
+    def get_tags_for_model(self, model_hash: str) -> List[sqlite3.Row]:
+        """Get all tags associated with a model."""
+        conn = self.get_connection()
+        cur = conn.execute("""
+            SELECT t.* FROM tags t
+            JOIN model_tags mt ON t.id = mt.tag_id
+            WHERE mt.model_hash = ?
+        """, (model_hash,))
+        return cur.fetchall()
