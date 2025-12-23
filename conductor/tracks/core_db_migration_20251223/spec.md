@@ -40,20 +40,38 @@ The new SQLite schema must prioritize data integrity and hash-based lookups.
     *   `add_tag(name, color)`: Create tag.
     *   `tag_model(hash, tag_name)`: Associate tag with model.
 
-### 3. Legacy Migration Service
-A dedicated module to handle the one-time (or on-demand) import of legacy data.
+### 3. Legacy Migration Service (Async & Resumable)
+A dedicated, asynchronous module to handle the import of legacy data without blocking the main thread.
 
-*   **Input:** Path to the legacy `db.sqlite3` file.
-*   **Process:**
-    1.  Connect to legacy DB (read-only).
-    2.  Fetch all rows from legacy `models`.
-    3.  For each legacy model:
-        *   **Validation:** Check if `hash_hex` is a valid SHA256. If missing, attempt to calculate from the file at `path` (if it exists). If file is missing, log warning and skip.
-        *   **Upsert:** Insert into new DB. If SHA256 exists, update `path` and merge metadata.
-    4.  Fetch all legacy `tags` and `model_tags`.
-    5.  **Tag Migration:** Ensure all tags exist in the new DB.
-    6.  **Association:** Recreate the links between models (by SHA256) and tags.
-*   **Output:** A detailed report (JSON/Object) containing counts of processed, migrated, merged, and failed items.
+*   **Architecture:**
+    *   **MigrationManager:** The main controller (Singleton). Handles starting, stopping, and querying status.
+    *   **MigrationWorker:** A background thread (daemon) that performs the actual processing.
+    *   **MigrationState:** A persistent tracking mechanism (e.g., a specific table in the DB or a JSON state file) to record:
+        *   `status`: (IDLE, RUNNING, PAUSED, COMPLETED, ERROR)
+        *   `total_items`: Total number of models to migrate.
+        *   `processed_items`: Number of models successfully migrated or skipped.
+        *   `current_item`: The file currently being hashed (for UI feedback).
+
+*   **Process Flow:**
+    1.  **Initialization:**
+        *   Connect to legacy DB (read-only).
+        *   Identify all legacy models.
+        *   Populate a `migration_queue` (in-memory or DB-backed) with items that are *not* yet in the new DB.
+    2.  **Execution (Background Thread):**
+        *   Fetch next item from queue.
+        *   **Check Resumability:** Verify if the item is already processed.
+        *   **Hash Calculation:** If `hash_hex` is missing, calculate SHA256 in chunks (to allow interruption).
+        *   **Upsert:** Write to new DB.
+        *   **Update State:** detailed progress is saved.
+    3.  **Interruption:**
+        *   The worker checks a `stop_event` flag between file chunks or after each file.
+        *   If paused/stopped, the current state is saved to disk so it can be resumed later.
+
+*   **API Interface:**
+    *   `start_migration(legacy_db_path: str)`: Spawns the worker.
+    *   `pause_migration()`: Signals worker to stop after current operation (or chunk).
+    *   `get_migration_status()`: Returns `{ status, progress: %, current_file, stats }`.
+
 
 ## Testing Strategy
 *   **Unit Tests:**

@@ -31,30 +31,33 @@
 
 - [ ] Task: Conductor - User Manual Verification 'Database Infrastructure (v3 Schema)' (Protocol in workflow.md)
 
-## Phase 2: Legacy Migration Service
+## Phase 2: Legacy Migration Service (Async)
 
-- [ ] Task: Create Legacy Database Connector
+- [ ] Task: Implement Migration State & Queue
   - Sub-tasks:
-    - [ ] Create `backend/migration/legacy_connector.py`.
-    - [ ] Implement a read-only connection to an arbitrary SQLite file path.
-    - [ ] Implement methods to fetch raw `models` and `tags` data from the legacy schema (v2).
-    - [ ] Write tests using a temporary SQLite file representing a v2 DB.
+    - [ ] Create `backend/migration/state.py`.
+    - [ ] Define `MigrationState` dataclass/structure (status, counts, current file).
+    - [ ] Implement state persistence (save/load to JSON or DB).
+    - [ ] Create `MigrationQueue` class to manage the list of pending items.
 
-- [ ] Task: Implement Migration Logic (Models)
+- [ ] Task: Implement Async Migration Worker
   - Sub-tasks:
-    - [ ] Create `backend/migration/service.py`.
-    - [ ] Implement `migrate_models(legacy_conn, new_db_manager)` function.
-    - [ ] Logic: Iterates legacy models, validates/calculates SHA256, upserts to new DB.
-    - [ ] Write tests:
-        - Test with valid legacy model (has hash).
-        - Test with legacy model missing hash (should calculate if file exists).
-        - Test with missing file (should skip).
+    - [ ] Create `backend/migration/worker.py`.
+    - [ ] Implement `MigrationWorker` class (inheriting from `threading.Thread`).
+    - [ ] Implement chunked SHA256 calculation with `stop_event` checks for interruptibility.
+    - [ ] Implement the main processing loop: fetch item -> calc hash (if needed) -> upsert DB -> update state.
+    - [ ] Write unit tests for the worker (mocking the hashing to test pause/resume logic).
 
-- [ ] Task: Implement Migration Logic (Tags)
+- [ ] Task: Implement Migration Controller API
   - Sub-tasks:
-    - [ ] Add `migrate_tags(legacy_conn, new_db_manager)` to service.
-    - [ ] Logic: Syncs tags preserving colors.
-    - [ ] Logic: Rebuilds `model_tags` associations based on the migrated model hashes.
-    - [ ] Write integration test: Full migration flow from a populated v2 DB to a clean v3 DB.
+    - [ ] Create `backend/migration/manager.py` (Singleton).
+    - [ ] Implement `start()`, `pause()`, `resume()` methods.
+    - [ ] Connect `legacy_connector` to fetch initial data and populate the queue.
+    - [ ] Write integration tests: Start migration, pause it, resume it, verify completion.
 
-- [ ] Task: Conductor - User Manual Verification 'Legacy Migration Service' (Protocol in workflow.md)
+- [ ] Task: Implement Tag Migration (Integration)
+  - Sub-tasks:
+    - [ ] Integrate tag migration into the worker flow (or as a separate quick step before/after model migration).
+    - [ ] Ensure `model_tags` are correctly rebuilt using the resolved SHA256 hashes.
+
+- [ ] Task: Conductor - User Manual Verification 'Legacy Migration Service (Async)' (Protocol in workflow.md)
