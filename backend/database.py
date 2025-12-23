@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+from typing import Optional, Dict, List, Any
 from .config import DB_PATH
 
 SCHEMA_SQL = """
@@ -60,7 +61,7 @@ class DatabaseManager:
         self.db_path = DB_PATH
         self.local = threading.local()
 
-    def get_connection(self):
+    def get_connection(self) -> sqlite3.Connection:
         if not hasattr(self.local, "conn"):
              self.local.conn = sqlite3.connect(self.db_path)
              self.local.conn.row_factory = sqlite3.Row
@@ -72,3 +73,52 @@ class DatabaseManager:
         conn = self.get_connection()
         with conn:
             conn.executescript(SCHEMA_SQL)
+
+    def upsert_model(self, data: Dict[str, Any]):
+        """Insert or update a model."""
+        conn = self.get_connection()
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join(["?"] * len(data))
+        # Update all fields except sha256 on conflict
+        updates = ", ".join([f"{k}=excluded.{k}" for k in data.keys() if k != "sha256"])
+        
+        sql = f"""
+        INSERT INTO models ({columns}) VALUES ({placeholders})
+        ON CONFLICT(sha256) DO UPDATE SET {updates}
+        """
+        with conn:
+            conn.execute(sql, list(data.values()))
+
+    def get_model(self, sha256: str) -> Optional[sqlite3.Row]:
+        """Retrieve a model by SHA256."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM models WHERE sha256 = ?", (sha256,))
+        return cur.fetchone()
+
+    def get_model_by_path(self, path: str) -> Optional[sqlite3.Row]:
+        """Retrieve a model by file path."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM models WHERE path = ?", (path,))
+        return cur.fetchone()
+
+    def add_pending_import(self, data: Dict[str, Any]):
+        """Add a model to the pending import staging table."""
+        conn = self.get_connection()
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join(["?"] * len(data))
+        # Replace if path exists
+        sql = f"INSERT OR REPLACE INTO pending_import ({columns}) VALUES ({placeholders})"
+        with conn:
+            conn.execute(sql, list(data.values()))
+
+    def get_pending_imports(self) -> List[sqlite3.Row]:
+        """Get all pending imports sorted by creation time."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM pending_import ORDER BY created_at")
+        return cur.fetchall()
+
+    def remove_pending_import(self, path: str):
+        """Remove a model from the pending import staging table."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
