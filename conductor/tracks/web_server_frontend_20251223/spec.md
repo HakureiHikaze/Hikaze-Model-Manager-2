@@ -43,13 +43,3 @@ This track implements the dedicated web interface and backend server for the Hik
     *   Start `MigrationManager` (if needed/configured).
     *   Start the `aiohttp` Server Thread.
 *   **Configuration:** Read ComfyUI args to determine the base port.
-
-## Testing Strategy
-*   **Backend Tests:**
-    *   Test port selection logic (mocking socket bind).
-    *   Test static file serving (requesting index.html).
-    *   Test server start/stop lifecycle.
-*   **Frontend Tests:**
-    *   Unit tests for Layout components (verifying `embedded_mode` hides tabs).
-*   **Integration Tests:**
-    *   Verify the server thread starts when `__init__` is mocked.
