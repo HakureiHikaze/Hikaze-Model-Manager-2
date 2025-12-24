@@ -47,7 +47,7 @@
 
 - [x] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md) 30cfabf
 
-## Phase 3: ComfyUI Integration Hook
+## Phase 3: ComfyUI Integration Hook [checkpoint: e1c4133]
 
 - [x] Task: Update Initialization Logic b5466af
   - Sub-tasks:
@@ -57,4 +57,4 @@
     - [x] Ensure clean shutdown on ComfyUI exit (atexit or similar).
     - [x] Fix `ModuleNotFoundError: No module named 'backend'` by converting absolute imports to relative imports.
 
-- [ ] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md) e1c4133
