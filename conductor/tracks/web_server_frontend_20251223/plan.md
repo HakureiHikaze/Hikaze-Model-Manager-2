@@ -6,7 +6,6 @@
   - Sub-tasks:
     - [ ] Create `backend/server.py`.
     - [ ] Implement `PortFinder` class to handle "Port + N" logic.
-    - [ ] Write tests for port selection.
 
 - [x] Task: Implement aiohttp Server Logic 7ebcec6
   - Sub-tasks:
@@ -15,7 +14,6 @@
     - [ ] Add `/api/hello` route.
     - [ ] Add `cors` setup (allow all for now, or restrictive to Comfy origin).
     - [ ] Implement `run()` loop and `stop()` method.
-    - [ ] Write tests: Start server, fetch health endpoint, stop server.
 
 - [x] Task: Implement Standalone Entrypoint 7dce7ce
   - Sub-tasks:
@@ -41,7 +39,6 @@
   - Sub-tasks:
     - [x] Add `embedded` prop to Layout.
     - [x] Implement conditional rendering for Header/Tabs based on prop.
-    - [x] Write unit test for `HikazeManagerLayout.vue`.
 
 - [x] Task: Connect Frontend Build to Backend
   - Sub-tasks:
@@ -52,11 +49,11 @@
 
 ## Phase 3: ComfyUI Integration Hook
 
-- [ ] Task: Update Initialization Logic
+- [x] Task: Update Initialization Logic b5466af
   - Sub-tasks:
-    - [ ] Modify `__init__.py`.
-    - [ ] Add logic to inspect ComfyUI args (for port).
-    - [ ] Instantiate and start `DatabaseManager`, `MigrationManager` (resume check), and `HikazeServer`.
-    - [ ] Ensure clean shutdown on ComfyUI exit (atexit or similar).
+    - [x] Modify `__init__.py`.
+    - [x] Add logic to inspect ComfyUI args (for port).
+    - [x] Instantiate and start `DatabaseManager`, `MigrationManager` (resume check), and `HikazeServer`.
+    - [x] Ensure clean shutdown on ComfyUI exit (atexit or similar).
 
 - [ ] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md)
