@@ -55,5 +55,6 @@
     - [x] Add logic to inspect ComfyUI args (for port).
     - [x] Instantiate and start `DatabaseManager`, `MigrationManager` (resume check), and `HikazeServer`.
     - [x] Ensure clean shutdown on ComfyUI exit (atexit or similar).
+    - [x] Fix `ModuleNotFoundError: No module named 'backend'` by converting absolute imports to relative imports.
 
 - [ ] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md)

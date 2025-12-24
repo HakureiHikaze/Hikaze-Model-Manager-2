@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import os
-from backend.database import DatabaseManager
+from ..database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

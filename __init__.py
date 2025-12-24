@@ -16,9 +16,9 @@ from comfy_api.latest import ComfyExtension, io
 from .checkpoint_loader import HikazeCheckpointLoader
 from .lora_power_loader import HikazeLoraPowerLoader
 
-from backend.database import DatabaseManager
-from backend.migration.manager import MigrationManager
-from backend.server import HikazeServer
+from .backend.database import DatabaseManager
+from .backend.migration.manager import MigrationManager
+from .backend.server import HikazeServer
 
 LOGGER = logging.getLogger(__name__)
 
