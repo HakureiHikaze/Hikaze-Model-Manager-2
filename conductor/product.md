@@ -11,7 +11,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 ## Primary Goals
 - **Unified Management Interface:** Introduce a dedicated manager page accessible via integrated buttons within custom nodes, facilitating seamless data feedback.
 - **Overlay-Driven Interaction:** Implement a Vue-based overlay system that sits atop native ComfyUI node regions, mapping complex UI form data to JSON strings within standard text inputs for backend consumption.
-- **Global Manager Accessibility:** Provide a full-screen modal manager accessible from the ComfyUI sidebar or a similar high-level API entry point.
+- **Global Manager Accessibility:** Provide a full-screen, dedicated web interface (served on a separate port) for stable and immersive model management, accessible from the ComfyUI sidebar or directly via browser.
 - **Data Integrity & Evolution:** Transition the core data model from path-based identification to SHA256-prioritized indexing to ensure robust references even when files move.
 
 ## Key Features

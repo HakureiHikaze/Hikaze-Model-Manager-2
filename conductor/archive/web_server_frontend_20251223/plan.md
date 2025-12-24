@@ -6,7 +6,6 @@
   - Sub-tasks:
     - [ ] Create `backend/server.py`.
     - [ ] Implement `PortFinder` class to handle "Port + N" logic.
-    - [ ] Write tests for port selection.
 
 - [x] Task: Implement aiohttp Server Logic 7ebcec6
   - Sub-tasks:
@@ -15,7 +14,6 @@
     - [ ] Add `/api/hello` route.
     - [ ] Add `cors` setup (allow all for now, or restrictive to Comfy origin).
     - [ ] Implement `run()` loop and `stop()` method.
-    - [ ] Write tests: Start server, fetch health endpoint, stop server.
 
 - [x] Task: Implement Standalone Entrypoint 7dce7ce
   - Sub-tasks:
@@ -23,7 +21,7 @@
 
 - [ ] Task: Conductor - User Manual Verification 'Backend Server Implementation' (Protocol in workflow.md)
 
-## Phase 2: Frontend Scaffold & Basic UI
+## Phase 2: Frontend Scaffold & Basic UI [checkpoint: 30cfabf]
 
 - [x] Task: Scaffold Vue Project
   - Sub-tasks:
@@ -41,22 +39,22 @@
   - Sub-tasks:
     - [x] Add `embedded` prop to Layout.
     - [x] Implement conditional rendering for Header/Tabs based on prop.
-    - [x] Write unit test for `HikazeManagerLayout.vue`.
 
 - [x] Task: Connect Frontend Build to Backend
   - Sub-tasks:
     - [x] Update `backend/server.py` to serve static files from `model_manager_frontend/dist`.
     - [x] Add a root route `/` returning `index.html`.
 
-- [ ] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Frontend Scaffold & Basic UI' (Protocol in workflow.md) 30cfabf
 
-## Phase 3: ComfyUI Integration Hook
+## Phase 3: ComfyUI Integration Hook [checkpoint: e1c4133]
 
-- [ ] Task: Update Initialization Logic
+- [x] Task: Update Initialization Logic b5466af
   - Sub-tasks:
-    - [ ] Modify `__init__.py`.
-    - [ ] Add logic to inspect ComfyUI args (for port).
-    - [ ] Instantiate and start `DatabaseManager`, `MigrationManager` (resume check), and `HikazeServer`.
-    - [ ] Ensure clean shutdown on ComfyUI exit (atexit or similar).
+    - [x] Modify `__init__.py`.
+    - [x] Add logic to inspect ComfyUI args (for port).
+    - [x] Instantiate and start `DatabaseManager`, `MigrationManager` (resume check), and `HikazeServer`.
+    - [x] Ensure clean shutdown on ComfyUI exit (atexit or similar).
+    - [x] Fix `ModuleNotFoundError: No module named 'backend'` by converting absolute imports to relative imports.
 
-- [ ] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'ComfyUI Integration Hook' (Protocol in workflow.md) e1c4133

@@ -33,6 +33,35 @@ def test_server_hello_endpoint(tmp_path):
         server.stop()
         server.join(timeout=2)
 
+def test_server_serves_static_index(tmp_path):
+    from backend.server import HikazeServer
+    import os
+    
+    # Create a dummy index.html in the expected location
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "dist", "manager")
+    os.makedirs(static_dir, exist_ok=True)
+    index_file = os.path.join(static_dir, "index.html")
+    with open(index_file, "w") as f:
+        f.write("<html><body>Hikaze Test</body></html>")
+    
+    server = HikazeServer(host="127.0.0.1", port=0)
+    server.start()
+    
+    # Wait for server
+    timeout = 5
+    start_time = time.time()
+    while not server.running and time.time() - start_time < timeout:
+        time.sleep(0.1)
+    
+    try:
+        port = server.port
+        response = requests.get(f"http://127.0.0.1:{port}/")
+        assert response.status_code == 200
+        assert "Hikaze Test" in response.text
+    finally:
+        server.stop()
+        server.join(timeout=2)
+
 def test_server_stop():
     from backend.server import HikazeServer
     server = HikazeServer(host="127.0.0.1", port=0)
