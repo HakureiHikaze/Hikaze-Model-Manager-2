@@ -2,8 +2,8 @@
 
 ## Backend
 - **Language:** Python (>= 3.10)
-- **Framework:** ComfyUI Custom Node API (V3/V2 hybrid)
-- **Data Persistence:** SQLite (planned for SHA256-based model indexing and legacy migration).
+- **Framework:** ComfyUI Custom Node API (V3/V2 hybrid) + **aiohttp** (Dedicated Manager Server)
+- **Data Persistence:** SQLite (SHA256-based model indexing and legacy migration).
 - **Schema Management:** Versioned JSON schemas for node-to-backend communication.
 
 ## Frontend
