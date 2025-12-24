@@ -9,16 +9,24 @@ HikazeModelManagerExtension.get_node_list().
 import logging
 import atexit
 import threading
+import os
+import sys
 from typing import Optional
+
+# Add the current directory to sys.path to allow absolute imports of internal packages (like 'backend')
+# This is necessary because ComfyUI's dynamic loader doesn't add custom node roots to sys.path.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 from comfy_api.latest import ComfyExtension, io
 
 from .checkpoint_loader import HikazeCheckpointLoader
 from .lora_power_loader import HikazeLoraPowerLoader
 
-from .backend.database import DatabaseManager
-from .backend.migration.manager import MigrationManager
-from .backend.server import HikazeServer
+from backend.database import DatabaseManager
+from backend.migration.manager import MigrationManager
+from backend.server import HikazeServer
 
 LOGGER = logging.getLogger(__name__)
 
