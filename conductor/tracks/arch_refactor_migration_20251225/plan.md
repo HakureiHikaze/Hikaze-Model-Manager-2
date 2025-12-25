@@ -34,6 +34,9 @@
   - Add logic to intercept SHA256 calculation in Dev mode to return legacy DB hashes.
 - [x] Task: Implement Initial Legacy Importer [27a96cd]
   - Implement logic to read legacy DB and perform the first-pass data and image migration.
+- [x] Task: Refactor Debug Tools and Standalone Importer [3c26b03]
+  - Move `shadow_generator.py` to `backend/database/migration/debug/`.
+  - Create `backend/database/migration/debug/import_debug.py` with path rewriting logic.
 - [ ] Task: Conductor - User Manual Verification 'Migration & Development Tools' (Protocol in workflow.md)
 
 ## Phase 4: Reactive Migration & Non-blocking API
