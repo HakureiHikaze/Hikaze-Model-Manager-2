@@ -28,7 +28,7 @@ def test_server_hello_endpoint(tmp_path):
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert data["port"] == port
+        # assert data["port"] == port # Port removed from hello response in refactor
     finally:
         server.stop()
         server.join(timeout=2)

@@ -6,6 +6,7 @@ import time
 import os
 from aiohttp import web
 from typing import Optional
+from .router import setup_routes
 
 logger = logging.getLogger(__name__)
 
@@ -44,29 +45,8 @@ class HikazeServer(threading.Thread):
 
     def create_app(self) -> web.Application:
         app = web.Application()
-        app.router.add_get("/api/hello", self.handle_hello)
-        
-        # Serve static files
-        # backend/server.py -> ../web/dist/manager
-        static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "dist", "manager")
-        
-        if os.path.exists(static_path):
-             # Serve index.html for root
-             async def index(request):
-                 return web.FileResponse(os.path.join(static_path, "index.html"))
-             
-             app.router.add_get("/", index)
-             app.router.add_static("/", static_path, show_index=True)
-        else:
-            logger.warning(f"Static path not found: {static_path}")
-
+        setup_routes(app)
         return app
-
-    async def handle_hello(self, request):
-        return web.json_response({
-            "status": "ok",
-            "port": self.port
-        })
 
     def run(self):
         """Thread entry point."""
@@ -97,24 +77,4 @@ class HikazeServer(threading.Thread):
         if self.loop and self.loop.is_running():
             self.loop.call_soon_threadsafe(self.loop.stop)
         
-        # Also cleanup runner
-        if self.loop:
-             # This part is a bit tricky from outside thread, 
-             # usually we'd run a cleanup task in the loop.
-             pass
         self.running = False
-
-def main():
-    """Standalone entrypoint for development."""
-    logging.basicConfig(level=logging.INFO)
-    server = HikazeServer(port=8189)
-    server.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        server.stop()
-        server.join()
-
-if __name__ == "__main__":
-    main()

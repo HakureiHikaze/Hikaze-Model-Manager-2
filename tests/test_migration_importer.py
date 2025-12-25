@@ -52,9 +52,9 @@ def test_import_legacy_data(tmp_path):
     
     new_db_path = tmp_path / "new.db"
     
-    with patch("backend.config.DB_PATH", str(new_db_path)):
+    with patch("backend.util.config.DB_PATH", str(new_db_path)):
         from backend.database import DatabaseManager
-        from backend.migration.importer import import_legacy_data
+        from backend.database.migration.importer import import_legacy_data
         
         # Init new DB
         db = DatabaseManager()

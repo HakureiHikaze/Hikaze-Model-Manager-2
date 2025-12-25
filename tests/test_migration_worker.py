@@ -22,8 +22,8 @@ def test_migration_worker_processing(tmp_path):
     model_path = tmp_path / "model.ckpt"
     model_path.write_bytes(b"dummy content")
     
-    with patch("backend.config.DB_PATH", str(db_file)):
-        from backend.migration.worker import MigrationWorker
+    with patch("backend.util.config.DB_PATH", str(db_file)):
+        from backend.database.migration.worker import MigrationWorker
         
         db = DatabaseManager()
         db.init_db()

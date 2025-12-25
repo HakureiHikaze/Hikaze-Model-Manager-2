@@ -6,13 +6,13 @@ def test_migration_manager_flow(tmp_path):
     db_file = tmp_path / "test_db.sqlite"
     legacy_file = tmp_path / "legacy.db" # Mocked inside importer
 
-    with patch("backend.config.DB_PATH", str(db_file)):
-        from backend.migration.manager import MigrationManager
+    with patch("backend.util.config.DB_PATH", str(db_file)):
+        from backend.database.migration.manager import MigrationManager
         
         manager = MigrationManager()
         
         # Mock importer
-        with patch("backend.migration.manager.import_legacy_data") as mock_import:
+        with patch("backend.database.migration.manager.import_legacy_data") as mock_import:
             mock_import.return_value = {"migrated": 5, "pending": 10}
             
             # Start Full Migration
@@ -37,8 +37,8 @@ def test_migration_manager_flow(tmp_path):
             manager.pause_processing()
 
 def test_singleton(tmp_path):
-    with patch("backend.config.DB_PATH", str(tmp_path / "db")):
-        from backend.migration.manager import MigrationManager
+    with patch("backend.util.config.DB_PATH", str(tmp_path / "db")):
+        from backend.database.migration.manager import MigrationManager
         m1 = MigrationManager()
         m2 = MigrationManager()
         assert m1 is m2

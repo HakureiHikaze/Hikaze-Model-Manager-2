@@ -25,7 +25,7 @@ from .checkpoint_loader import HikazeCheckpointLoader
 from .lora_power_loader import HikazeLoraPowerLoader
 
 from backend.database import DatabaseManager
-from backend.migration.manager import MigrationManager
+from backend.database.migration.manager import MigrationManager
 from backend.server import HikazeServer
 
 LOGGER = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ import pytest
 def test_database_init_creates_tables(tmp_path):
     db_file = tmp_path / "test_db.sqlite"
     
-    with patch("backend.config.DB_PATH", str(db_file)):
+    with patch("backend.util.config.DB_PATH", str(db_file)):
         from backend.database import DatabaseManager
         
         db = DatabaseManager()
