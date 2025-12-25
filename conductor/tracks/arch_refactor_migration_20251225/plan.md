@@ -20,7 +20,7 @@
 - [x] Task: Implement Image Processor [ebf36bf]
   - Create `backend/util/image_processor.py`.
   - Implement WebP conversion and 2MP resizing logic using Pillow.
-- [ ] Task: Implement Image API Handlers
+- [x] Task: Implement Image API Handlers [040be21]
   - Create handlers in `router.py` for serving images from `data/images/` and `data/images/pending/`.
   - Implement image upload handler (SHA256 based).
 - [ ] Task: Verify Image Pipeline
