@@ -1,6 +1,6 @@
 # Track Plan: Frontend Model Manager Integration
 
-## Phase 1: Global Modal Service
+## Phase 1: Global Modal Service [checkpoint: 0705c63]
 
 - [x] Task: Implement Provide/Inject Modal Service [249cee4]
   - Sub-tasks:
