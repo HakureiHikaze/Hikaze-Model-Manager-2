@@ -1,5 +1,8 @@
 import os
 
+# Development Mode
+DEV_MODE = os.environ.get("HIKAZE_DEV_MODE", "false").lower() == "true"
+
 # Base Directories
 # This file is in backend/util/config.py
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
