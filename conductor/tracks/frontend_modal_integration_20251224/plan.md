@@ -2,7 +2,7 @@
 
 ## Phase 1: Global Modal Service
 
-- [ ] Task: Implement Provide/Inject Modal Service
+- [x] Task: Implement Provide/Inject Modal Service [249cee4]
   - Sub-tasks:
     - [ ] Update `web/src/injection/manager.ts` or a new root component to provide `openManager`.
     - [ ] Create a modal state manager (ref-based) to handle visibility and options.
