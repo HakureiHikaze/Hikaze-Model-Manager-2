@@ -27,7 +27,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: Migration & Development Tools
-- [ ] Task: Implement Shadow File Generator
+- [x] Task: Implement Shadow File Generator [41aff96]
   - Create `backend/database/migration/shadow_generator.py`.
   - Implement dummy file creation with structural mirroring and random salting.
 - [ ] Task: Implement Mock Hasher for Dev Mode
