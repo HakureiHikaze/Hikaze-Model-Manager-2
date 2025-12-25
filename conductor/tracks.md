@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Frontend Model Manager Integration
+## [~] Track: Frontend Model Manager Integration
 *Link: [./conductor/tracks/frontend_modal_integration_20251224/](./conductor/tracks/frontend_modal_integration_20251224/)*
