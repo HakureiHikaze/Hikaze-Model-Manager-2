@@ -16,7 +16,7 @@
   - Add `data/` to `.gitignore`.
 - [ ] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md)
 
-## Phase 2: Image Processing Infrastructure
+## Phase 2: Image Processing Infrastructure [checkpoint: de0a368]
 - [x] Task: Implement Image Processor [ebf36bf]
 - [x] Task: Implement Image API Handlers [040be21]
 - [x] Task: Verify Image Pipeline [040be21]
