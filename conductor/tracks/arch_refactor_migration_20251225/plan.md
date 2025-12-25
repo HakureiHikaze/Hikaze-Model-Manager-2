@@ -30,7 +30,7 @@
 - [x] Task: Implement Shadow File Generator [41aff96]
   - Create `backend/database/migration/shadow_generator.py`.
   - Implement dummy file creation with structural mirroring and random salting.
-- [ ] Task: Implement Mock Hasher for Dev Mode
+- [x] Task: Implement Mock Hasher for Dev Mode [c9bec3f]
   - Add logic to intercept SHA256 calculation in Dev mode to return legacy DB hashes.
 - [ ] Task: Implement Initial Legacy Importer
   - Implement logic to read legacy DB and perform the first-pass data and image migration.
