@@ -8,7 +8,7 @@
     - [ ] Create a modal state manager (ref-based) to handle visibility and options.
     - [ ] Implement a Promise-based `openManager` that resolves on "Confirm" and rejects/resolves null on "Cancel".
 
-- [ ] Task: Create HikazeManagerModal Wrapper
+- [x] Task: Create HikazeManagerModal Wrapper [912dfae]
   - Sub-tasks:
     - [ ] Create `HikazeManagerModal.vue` to wrap the layout in a full-screen container.
     - [ ] Handle z-index and backdrop to ensure it covers ComfyUI.
