@@ -8,7 +8,7 @@
   - Move `backend/database.py` -> `backend/database/db.py`.
   - Move `backend/migration/` -> `backend/database/migration/`.
   - Move `backend/config.py` -> `backend/util/config.py`.
-- [~] Task: Refactor Server Instance and Router
+- [x] Task: Refactor Server Instance and Router [9293468]
   - Move `backend/server.py` logic to `backend/server/instance.py`.
   - Create `backend/server/router.py` and extract API routes.
   - Fix all internal imports across the project.
