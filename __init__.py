@@ -19,16 +19,25 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
+LOGGER = logging.getLogger(__name__)
+
 from comfy_api.latest import ComfyExtension, io
 
-from .checkpoint_loader import HikazeCheckpointLoader
-from .lora_power_loader import HikazeLoraPowerLoader
+try:
+    from .checkpoint_loader import HikazeCheckpointLoader
+    from .lora_power_loader import HikazeLoraPowerLoader
+except (ImportError, ModuleNotFoundError):
+    try:
+        from checkpoint_loader import HikazeCheckpointLoader
+        from lora_power_loader import HikazeLoraPowerLoader
+    except (ImportError, ModuleNotFoundError):
+        LOGGER.warning("Could not import node classes. This is expected during testing if comfy is missing.")
+        HikazeCheckpointLoader = None
+        HikazeLoraPowerLoader = None
 
 from backend.database import DatabaseManager
 from backend.database.migration.manager import MigrationManager
 from backend.server import HikazeServer
-
-LOGGER = logging.getLogger(__name__)
 
 # Global reference to server instance for shutdown
 _hikaze_server: Optional[HikazeServer] = None

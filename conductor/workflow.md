@@ -7,6 +7,7 @@
 3. **User Experience First:** Every decision should prioritize user experience
 4. **Non-Interactive & CI-Aware:** Prefer non-interactive commands.
 5. **Branch Out:** Branch out from the main development branch before starting the entire agent development process.
+6. **No Automatic Testing:** Never execute automatic tests (e.g., `pytest`, `npm test`) unless explicitly requested by the user. Testing outputs can be extremely large, consuming excessive context tokens and quota.
 
 ## Task Workflow
 
@@ -111,7 +112,6 @@ Before marking any task complete, verify:
 - [ ] Code follows project's code style guidelines (as defined in `code_styleguides/`)
 - [ ] All public functions/methods are documented (e.g., docstrings, JSDoc, GoDoc)
 - [ ] Type safety is enforced (e.g., type hints, TypeScript types, Go types)
-- [ ] No linting or static analysis errors (using the project's configured tools)
 - [ ] Works correctly on mobile (if applicable)
 - [ ] Documentation updated if needed
 - [ ] No security vulnerabilities introduced

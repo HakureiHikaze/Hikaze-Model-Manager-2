@@ -78,3 +78,18 @@ class HikazeServer(threading.Thread):
             self.loop.call_soon_threadsafe(self.loop.stop)
         
         self.running = False
+
+def main():
+    """Standalone entrypoint for development."""
+    logging.basicConfig(level=logging.INFO)
+    server = HikazeServer(port=8189)
+    server.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        server.stop()
+        server.join()
+
+if __name__ == "__main__":
+    main()

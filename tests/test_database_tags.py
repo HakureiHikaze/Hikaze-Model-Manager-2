@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 def test_tag_crud(tmp_path):
     db_file = tmp_path / "test_db.sqlite"
-    with patch("backend.config.DB_PATH", str(db_file)):
+    with patch("backend.util.config.DB_PATH", str(db_file)):
         from backend.database import DatabaseManager
         db = DatabaseManager()
         db.init_db()
@@ -37,7 +37,7 @@ def test_tag_crud(tmp_path):
 
 def test_create_duplicate_tag(tmp_path):
     db_file = tmp_path / "test_db.sqlite"
-    with patch("backend.config.DB_PATH", str(db_file)):
+    with patch("backend.util.config.DB_PATH", str(db_file)):
         from backend.database import DatabaseManager
         db = DatabaseManager()
         db.init_db()

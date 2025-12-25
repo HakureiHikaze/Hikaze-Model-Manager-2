@@ -22,10 +22,13 @@
 - **Chip Input Pattern:** Tag and trigger word inputs should utilize a "Chip" pattern. Users create chips via `Space` or `Comma` delimiters. Chips must support hover-to-delete interactions (`x` icon).
 - **Click-to-Action:** Primary actions (selecting a model, switching tabs) should execute on a single click without unnecessary confirmation steps.
 
-## Localization (i18n) Strategy
+## localization (i18n) Strategy
 - **Manager Interface:** The full-screen manager UI must be fully localized using a standard i18n JSON solution (e.g., `en-US`, `zh-CN`).
 - **Configurable Language:** A language selection setting must be exposed via the native [ComfyUI Settings API](https://docs.comfy.org/zh-CN/custom-nodes/js/javascript_settings).
 - **Extensibility:** The system should allow administrators (users with backend access) to drop in custom or community-sourced language JSON files to extend support beyond the pre-packaged English and Chinese options.
+
+## Testing & Resource Management
+- **Manual Test Trigger Only:** Prohibit automatic execution of test suites (Pytest, Vitest, etc.) during implementation turns. Tests may only be run if the user provides an explicit command to do so. This policy is designed to prevent context overflow and minimize quota consumption due to verbose test outputs.
 
 ## Technical Presentation
 - **On-Demand Complexity:** While the main view remains visual, the Details Sidebar must provide comprehensive technical data (paths, hashes, config specs) without requiring "Advanced Mode" toggles.
