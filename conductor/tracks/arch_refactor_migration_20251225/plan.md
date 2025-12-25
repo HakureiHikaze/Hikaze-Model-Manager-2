@@ -17,7 +17,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md)
 
 ## Phase 2: Image Processing Infrastructure
-- [ ] Task: Implement Image Processor
+- [x] Task: Implement Image Processor [ebf36bf]
   - Create `backend/util/image_processor.py`.
   - Implement WebP conversion and 2MP resizing logic using Pillow.
 - [ ] Task: Implement Image API Handlers
