@@ -18,13 +18,12 @@
 
 ## Phase 2: Image Processing Infrastructure
 - [x] Task: Implement Image Processor [ebf36bf]
-  - Create `backend/util/image_processor.py`.
-  - Implement WebP conversion and 2MP resizing logic using Pillow.
 - [x] Task: Implement Image API Handlers [040be21]
-  - Create handlers in `router.py` for serving images from `data/images/` and `data/images/pending/`.
-  - Implement image upload handler (SHA256 based).
 - [x] Task: Verify Image Pipeline [040be21]
-  - Write unit tests for compression and path resolution.
+- [x] Task: Refactor Image Processor for Multi-Quality [f72d753]
+  - Implement 3-tier resolution/quality logic (High/Medium/Low).
+  - Update file naming with suffixes.
+  - Update API handlers to support quality parameter.
 - [ ] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: Migration & Development Tools
