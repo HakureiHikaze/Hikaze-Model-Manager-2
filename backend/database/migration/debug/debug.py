@@ -3,20 +3,12 @@ import os
 import sqlite3
 import logging
 import json
+from pathlib import Path
 
-# Setup path to import backend modules
-# File is at: backend/database/migration/debug/import_debug.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 1. debug, 2. migration, 3. database, 4. backend, 5. root
-root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))))
-
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-
-# Override DB Path BEFORE importing config/database
-# Target: root/data/db.sqlite3
 os.environ["HIKAZE_DB_PATH"] = "db.sqlite3" 
 
+current_file = Path(__file__).resolve()
+sys.path.append(str(current_file.parent.parent.parent.parent.parent))
 from backend.database import DatabaseManager
 
 logging.basicConfig(level=logging.INFO)
@@ -26,13 +18,6 @@ LEGACY_DB_PATH = r"D:\programming\ComfyUI251210\db_migration\hikaze_mm.sqlite3"
 TARGET_PREFIX = r"D:\programming\ComfyUI251210\db_migration\debug_models"
 
 def run_debug_import():
-    logger.info(f"Starting Debug Import...")
-    
-    if not os.path.exists(LEGACY_DB_PATH):
-        logger.error(f"Legacy DB not found: {LEGACY_DB_PATH}")
-        return
-
-    # Init DB
     db_mgr = DatabaseManager()
     db_mgr.init_db()
     logger.info(f"Target Database: {db_mgr.db_path}")
@@ -104,6 +89,6 @@ def run_debug_import():
     logger.info(f"Debug Import Complete.")
     logger.info(f"Summary: {count_migrated} Migrated, {count_pending} Pending.")
     conn.close()
-
+    
 if __name__ == "__main__":
     run_debug_import()

@@ -34,12 +34,23 @@ CREATE TABLE IF NOT EXISTS model_tags (
     FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS pending_model_tags (
+    model_id INTEGER,
+    tag_id INTEGER,
+    PRIMARY KEY (model_id, tag_id),
+    FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS pending_import (
     path TEXT PRIMARY KEY,
+    model_id INTEGER,
     name TEXT,
     type TEXT,
+    base TEXT,
+    size_bytes INTEGER,
     created_at INTEGER,
-    legacy_tags_json TEXT
+    last_used_at INTEGER,
+    meta_json TEXT
 );
 """
 
@@ -122,6 +133,16 @@ class DatabaseManager:
         """Remove a model from the pending import staging table."""
         conn = self.get_connection()
         with conn:
+            cur = conn.execute(
+                "SELECT model_id FROM pending_import WHERE path = ?",
+                (path,)
+            )
+            row = cur.fetchone()
+            if row and row["model_id"] is not None:
+                conn.execute(
+                    "DELETE FROM pending_model_tags WHERE model_id = ?",
+                    (row["model_id"],)
+                )
             conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
 
     def create_tag(self, name: str, color: Optional[str] = None) -> sqlite3.Row:
@@ -134,6 +155,24 @@ class DatabaseManager:
                 (name, color, created_at)
             )
             tag_id = cur.lastrowid
+        return self.get_tag_by_id(tag_id)
+
+    def upsert_tag_with_id(
+        self,
+        tag_id: int,
+        name: str,
+        color: Optional[str] = None
+    ) -> sqlite3.Row:
+        """Insert or update a tag with an explicit ID."""
+        conn = self.get_connection()
+        created_at = int(time.time() * 1000)
+        safe_name = name or ""
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO tags (id, name, color, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (tag_id, safe_name, color, created_at)
+            )
         return self.get_tag_by_id(tag_id)
 
     def get_tag(self, name: str) -> Optional[sqlite3.Row]:
@@ -175,3 +214,31 @@ class DatabaseManager:
             WHERE mt.model_hash = ?
         """, (model_hash,))
         return cur.fetchall()
+
+    def add_pending_model_tag(self, model_id: int, tag_id: int):
+        """Associate a legacy tag with a pending legacy model id."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO pending_model_tags (model_id, tag_id) "
+                "VALUES (?, ?)",
+                (model_id, tag_id)
+            )
+
+    def get_pending_tag_ids(self, model_id: int) -> List[int]:
+        """Get legacy tag IDs associated with a pending legacy model id."""
+        conn = self.get_connection()
+        cur = conn.execute(
+            "SELECT tag_id FROM pending_model_tags WHERE model_id = ?",
+            (model_id,)
+        )
+        return [row["tag_id"] for row in cur.fetchall()]
+
+    def remove_pending_model_tags(self, model_id: int):
+        """Remove pending tag mappings for a legacy model id."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "DELETE FROM pending_model_tags WHERE model_id = ?",
+                (model_id,)
+            )

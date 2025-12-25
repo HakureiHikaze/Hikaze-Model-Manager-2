@@ -70,3 +70,6 @@ def _calculate_real_sha256(path: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Error hashing {path}: {e}")
         return None
+
+if __name__ == "__main__":
+    print(get_sha256(r"D:\programming\ComfyUI251210\db_migration\debug_models\checkpoints\"))

@@ -1,7 +1,6 @@
 import threading
 import time
 import hashlib
-import json
 import logging
 import os
 from backend.database import DatabaseManager
@@ -44,6 +43,7 @@ class MigrationWorker(threading.Thread):
 
     def _process_item(self, item):
         path = item["path"]
+        model_id = item["model_id"]
         
         if self._stop_event.is_set():
             return
@@ -53,41 +53,47 @@ class MigrationWorker(threading.Thread):
             self.db.remove_pending_import(path)
             return
 
+        def get_str(value):
+            return value if value is not None else ""
+
+        def get_int(value):
+            if value is None:
+                return 0
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
         # Calculate SHA256
         sha256 = self._calculate_sha256(path)
         if not sha256:
             return # stopped during hash
 
+        meta_json = item["meta_json"]
+        if meta_json is None:
+            meta_json = "{}"
+
         # Move to models
         model_data = {
             "sha256": sha256,
             "path": path,
-            "name": item["name"],
-            "type": item["type"],
-            "created_at": item["created_at"],
-            "meta_json": "{}" # or migrate legacy meta if needed
+            "name": get_str(item["name"]),
+            "type": get_str(item["type"]),
+            "base": get_str(item["base"]),
+            "size_bytes": get_int(item["size_bytes"]),
+            "created_at": get_int(item["created_at"]),
+            "last_used_at": get_int(item["last_used_at"]),
+            "meta_json": meta_json
         }
         
         try:
             self.db.upsert_model(model_data)
             
             # Restore Tags
-            legacy_tags_json = item["legacy_tags_json"]
-            if legacy_tags_json:
-                tag_names = json.loads(legacy_tags_json)
-                for name in tag_names:
-                    # We might need to ensure tag exists (though importer should have created them)
-                    # If importer created them based on legacy IDs, names are there.
-                    # But duplicate names logic is unique constraint. 
-                    # DatabaseManager.create_tag returns existing if we implemented it that way?
-                    # Spec said create_tag creates. Importer logic checked get_tag first.
-                    # Let's check get_tag first here too.
-                    tag_row = self.db.get_tag(name)
-                    if not tag_row:
-                        # Fallback: create it if missing (e.g. race condition or manual pending insert)
-                        tag_row = self.db.create_tag(name)
-                    
-                    self.db.tag_model(sha256, tag_row["id"])
+            if model_id is not None:
+                tag_ids = self.db.get_pending_tag_ids(model_id)
+                for tag_id in tag_ids:
+                    self.db.tag_model(sha256, tag_id)
             
             # Remove from pending
             self.db.remove_pending_import(path)
