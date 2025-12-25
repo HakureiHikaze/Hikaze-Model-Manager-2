@@ -14,12 +14,12 @@ async def handle_hello(request):
 async def handle_get_image(request):
     """
     Serve an active image by hash.
-    URL: /api/images/{hash}.webp
+    URL: /api/images/{hash}.webp?quality=high|medium|low
     """
     img_hash = request.match_info.get("hash", "")
-    # quality = request.query.get("quality", "high") # Placeholder for future optimization
+    quality = request.query.get("quality", "high")
     
-    path = ImageProcessor.get_image_path(img_hash, is_pending=False)
+    path = ImageProcessor.get_image_path(img_hash, quality=quality, is_pending=False)
     if os.path.exists(path):
         return web.FileResponse(path)
     return web.Response(status=404, text="Image not found")
@@ -27,10 +27,12 @@ async def handle_get_image(request):
 async def handle_get_pending_image(request):
     """
     Serve a pending image by name.
-    URL: /api/images/pending/{name}.webp
+    URL: /api/images/pending/{name}.webp?quality=high|medium|low
     """
     name = request.match_info.get("name", "")
-    path = ImageProcessor.get_image_path(name, is_pending=True)
+    quality = request.query.get("quality", "high")
+    
+    path = ImageProcessor.get_image_path(name, quality=quality, is_pending=True)
     if os.path.exists(path):
         return web.FileResponse(path)
     return web.Response(status=404, text="Pending image not found")
@@ -66,8 +68,8 @@ async def handle_upload_image(request):
 
     try:
         # Save as active image (not pending)
-        saved_path = ImageProcessor.process_and_save(image_data, sha256, is_pending=False)
-        return web.json_response({"status": "success", "path": saved_path})
+        base_name = ImageProcessor.process_and_save(image_data, sha256, is_pending=False)
+        return web.json_response({"status": "success", "base_name": base_name})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
