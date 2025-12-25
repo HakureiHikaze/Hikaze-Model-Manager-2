@@ -12,7 +12,7 @@
   - Move `backend/server.py` logic to `backend/server/instance.py`.
   - Create `backend/server/router.py` and extract API routes.
   - Fix all internal imports across the project.
-- [ ] Task: Update Project Environment
+- [x] Task: Update Project Environment [f3dd5a3]
   - Add `data/` to `.gitignore`.
 - [ ] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md)
 
