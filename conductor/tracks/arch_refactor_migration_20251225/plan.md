@@ -32,7 +32,7 @@
   - Implement dummy file creation with structural mirroring and random salting.
 - [x] Task: Implement Mock Hasher for Dev Mode [c9bec3f]
   - Add logic to intercept SHA256 calculation in Dev mode to return legacy DB hashes.
-- [ ] Task: Implement Initial Legacy Importer
+- [x] Task: Implement Initial Legacy Importer [27a96cd]
   - Implement logic to read legacy DB and perform the first-pass data and image migration.
 - [ ] Task: Conductor - User Manual Verification 'Migration & Development Tools' (Protocol in workflow.md)
 
