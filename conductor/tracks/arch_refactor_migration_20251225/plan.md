@@ -23,7 +23,7 @@
 - [x] Task: Implement Image API Handlers [040be21]
   - Create handlers in `router.py` for serving images from `data/images/` and `data/images/pending/`.
   - Implement image upload handler (SHA256 based).
-- [ ] Task: Verify Image Pipeline
+- [x] Task: Verify Image Pipeline [040be21]
   - Write unit tests for compression and path resolution.
 - [ ] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md)
 
