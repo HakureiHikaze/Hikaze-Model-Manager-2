@@ -4,7 +4,7 @@
 - [x] Task: Reorganize Directory Structure [f03402b]
   - Create `backend/database/`, `backend/util/`, `backend/server/` packages.
   - Create `data/` and `data/images/pending/` directories.
-- [ ] Task: Move Database and Config
+- [x] Task: Move Database and Config [b70a87d]
   - Move `backend/database.py` -> `backend/database/db.py`.
   - Move `backend/migration/` -> `backend/database/migration/`.
   - Move `backend/config.py` -> `backend/util/config.py`.
