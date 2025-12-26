@@ -3,6 +3,7 @@ import logging
 import os
 from backend.util.image_processor import ImageProcessor
 from backend.util import config
+from backend.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +74,33 @@ async def handle_upload_image(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_get_pending_models(request):
+    """
+    GET /api/migration/pending_models
+    List models from the legacy database that are candidates for migration.
+    """
+    db = DatabaseManager()
+    try:
+        # Accessing .legacy triggers the lazy-loading and path verification
+        conn = db.get_legacy_connection()
+        # For now just return empty list as placeholder for Phase 4
+        return web.json_response({"models": []})
+    except (FileNotFoundError, ValueError) as e:
+        logger.error(f"Legacy database initialization failed: {e}")
+        return web.json_response({
+            "error": "Legacy database not found or not configured",
+            "details": str(e)
+        }, status=502)
+    except Exception as e:
+        logger.exception("Unexpected error accessing legacy database")
+        return web.json_response({"error": str(e)}, status=500)
+
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
+    app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
