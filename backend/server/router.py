@@ -1,12 +1,16 @@
 from aiohttp import web
 import logging
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from backend.util.image_processor import ImageProcessor
 from backend.util import config
 from backend.database import DatabaseManager
 from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images
+from backend.database.migration.processor import process_pending_item, calculate_sha256
 
 logger = logging.getLogger(__name__)
+hash_executor = ThreadPoolExecutor(max_workers=2)
 
 async def handle_hello(request):
     return web.json_response({
@@ -122,37 +126,36 @@ async def handle_migrate_legacy_db(request):
         logger.exception("Migration error")
         return web.json_response({"error": str(e)}, status=500)
 
-async def handle_import_pending_models(request):
+async def handle_calculate_hash(request):
     """
-    POST /api/migration/import_pending_models
-    Batch import multiple pending models (Stage 2 Trigger).
-    """
-    try:
-        data = await request.json()
-        ids = data.get("ids", [])
-        if not ids:
-            return web.json_response({"error": "No IDs provided"}, status=400)
-        
-        # Placeholder for Stage 2
-        return web.json_response({"status": "success", "message": f"Queued {len(ids)} models for migration."})
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-async def handle_import_single_pending_model(request):
-    """
-    POST /api/migration/import_a_pending_model
-    Import a single pending model (Stage 2 Trigger).
+    POST /api/models/sha256
+    Calculate hash for a file. If pending_status='pending', triggers Reactive Migration (Stage 2).
+    Body: { "path": "...", "pending_status": "pending|ignore" }
     """
     try:
         data = await request.json()
-        model_id = data.get("id")
-        strategy = data.get("strategy") 
+        path = data.get("path")
+        pending_status = data.get("pending_status", "ignore")
         
-        if model_id is None:
-            return web.json_response({"error": "Missing model ID"}, status=400)
+        if not path:
+            return web.json_response({"error": "Path required"}, status=400)
             
-        # Placeholder for Stage 2
-        return web.json_response({"status": "success", "model_id": model_id, "action": "imported" if not strategy else f"imported_with_{strategy}"})
+        loop = asyncio.get_event_loop()
+        
+        if pending_status == "pending":
+            db = DatabaseManager()
+            # Fetch pending item
+            row = db.get_connection().execute("SELECT * FROM pending_import WHERE path = ?", (path,)).fetchone()
+            if row:
+                item = dict(row)
+                # Offload reactive migration
+                sha256 = await loop.run_in_executor(hash_executor, process_pending_item, item)
+                return web.json_response({"sha256": sha256, "migrated": True})
+        
+        # Standard Calc
+        sha256 = await loop.run_in_executor(hash_executor, calculate_sha256, path)
+        return web.json_response({"sha256": sha256, "migrated": False})
+        
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -165,8 +168,7 @@ def setup_routes(app: web.Application):
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
-    app.router.add_post("/api/migration/import_pending_models", handle_import_pending_models)
-    app.router.add_post("/api/migration/import_a_pending_model", handle_import_single_pending_model)
+    app.router.add_post("/api/models/sha256", handle_calculate_hash)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
