@@ -16,25 +16,27 @@
   - Add `data/` to `.gitignore`.
 - [ ] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md)
 
-## Phase 2: Image Processing Infrastructure
+## Phase 2: Image Processing Infrastructure [checkpoint: de0a368]
 - [x] Task: Implement Image Processor [ebf36bf]
-  - Create `backend/util/image_processor.py`.
-  - Implement WebP conversion and 2MP resizing logic using Pillow.
 - [x] Task: Implement Image API Handlers [040be21]
-  - Create handlers in `router.py` for serving images from `data/images/` and `data/images/pending/`.
-  - Implement image upload handler (SHA256 based).
 - [x] Task: Verify Image Pipeline [040be21]
-  - Write unit tests for compression and path resolution.
+- [x] Task: Refactor Image Processor for Multi-Quality [f72d753]
+  - Implement 3-tier resolution/quality logic (High/Medium/Low).
+  - Update file naming with suffixes.
+  - Update API handlers to support quality parameter.
 - [ ] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: Migration & Development Tools
-- [ ] Task: Implement Shadow File Generator
+- [x] Task: Implement Shadow File Generator [41aff96]
   - Create `backend/database/migration/shadow_generator.py`.
   - Implement dummy file creation with structural mirroring and random salting.
-- [ ] Task: Implement Mock Hasher for Dev Mode
+- [x] Task: Implement Mock Hasher for Dev Mode [c9bec3f]
   - Add logic to intercept SHA256 calculation in Dev mode to return legacy DB hashes.
-- [ ] Task: Implement Initial Legacy Importer
+- [x] Task: Implement Initial Legacy Importer [27a96cd]
   - Implement logic to read legacy DB and perform the first-pass data and image migration.
+- [x] Task: Refactor Debug Tools and Standalone Importer [3c26b03]
+  - Move `shadow_generator.py` to `backend/database/migration/debug/`.
+  - Create `backend/database/migration/debug/import_debug.py` with path rewriting logic.
 - [ ] Task: Conductor - User Manual Verification 'Migration & Development Tools' (Protocol in workflow.md)
 
 ## Phase 4: Reactive Migration & Non-blocking API

@@ -1,6 +1,7 @@
 import sqlite3
 import threading
 import time
+import os
 from typing import Optional, Dict, List, Any
 from backend.util import config
 
@@ -10,10 +11,8 @@ CREATE TABLE IF NOT EXISTS models (
     path TEXT NOT NULL,
     name TEXT,
     type TEXT,
-    base TEXT,
     size_bytes INTEGER,
     created_at INTEGER,
-    last_used_at INTEGER,
     meta_json TEXT
 );
 
@@ -21,9 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_models_path ON models(path);
 
 CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    color TEXT,
-    created_at INTEGER
+    name TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS model_tags (
@@ -34,14 +31,63 @@ CREATE TABLE IF NOT EXISTS model_tags (
     FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS pending_model_tags (
+    model_id INTEGER,
+    tag_id INTEGER,
+    PRIMARY KEY (model_id, tag_id),
+    FOREIGN KEY(model_id) REFERENCES pending_import(id) ON DELETE CASCADE,
+    FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS pending_import (
-    path TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
+    path TEXT UNIQUE NOT NULL,
+    sha256 TEXT,
     name TEXT,
     type TEXT,
+    size_bytes INTEGER,
     created_at INTEGER,
-    legacy_tags_json TEXT
+    meta_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS db_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 """
+
+class _DatabaseHandle:
+    """Thread-local database connection wrapper."""
+
+    def __init__(self, db_path: str, read_only: bool = False):
+        self.db_path = db_path
+        self.read_only = read_only
+        self.local = threading.local()
+
+    def get_connection(self) -> sqlite3.Connection:
+        if not self.db_path:
+            raise ValueError("Database path is not configured.")
+        if not hasattr(self.local, "conn"):
+            if self.read_only:
+                # Use URI for read-only mode
+                db_uri = f"file:{self.db_path}?mode=ro"
+                self.local.conn = sqlite3.connect(db_uri, uri=True)
+            else:
+                self.local.conn = sqlite3.connect(self.db_path)
+            self.local.conn.row_factory = sqlite3.Row
+            self.local.conn.execute("PRAGMA foreign_keys = ON")
+        return self.local.conn
+
+class LegacyDatabaseReader:
+    """Explicit read-only reader for the legacy database."""
+    
+    def __init__(self, db_path: str):
+        if not db_path:
+            raise ValueError("Legacy database path is not configured.")
+        self.handle = _DatabaseHandle(db_path, read_only=True)
+        
+    def get_connection(self) -> sqlite3.Connection:
+        return self.handle.get_connection()
 
 class DatabaseManager:
     _instance = None
@@ -59,21 +105,57 @@ class DatabaseManager:
         if self._initialized:
             return
         self._initialized = True
-        self.db_path = config.DB_PATH
-        self.local = threading.local()
+        self.primary = _DatabaseHandle(config.DB_PATH)
+        self._legacy_handle = None
+        self.db_path = self.primary.db_path
+        self.local = self.primary.local
+        self.debug_mode = config.DB_DEBUG_MODE
 
     def get_connection(self) -> sqlite3.Connection:
-        if not hasattr(self.local, "conn"):
-             self.local.conn = sqlite3.connect(self.db_path)
-             self.local.conn.row_factory = sqlite3.Row
-             self.local.conn.execute("PRAGMA foreign_keys = ON")
-        return self.local.conn
+        return self.primary.get_connection()
+
+    @property
+    def legacy(self) -> _DatabaseHandle:
+        if self._legacy_handle is None:
+            if not config.LEGACY_DB_PATH:
+                raise ValueError("LEGACY_DB_PATH is not configured in config.")
+            if not os.path.exists(config.LEGACY_DB_PATH):
+                # Raise error as per spec for missing legacy path
+                raise FileNotFoundError(f"Legacy database file not found at: {config.LEGACY_DB_PATH}")
+            self._legacy_handle = _DatabaseHandle(config.LEGACY_DB_PATH, read_only=True)
+        return self._legacy_handle
+
+    def get_legacy_connection(self) -> sqlite3.Connection:
+        """Retrieve a legacy database connection."""
+        return self.legacy.get_connection()
+
+    def get_legacy_reader(self) -> LegacyDatabaseReader:
+        """Get an explicit legacy database reader."""
+        return LegacyDatabaseReader(config.LEGACY_DB_PATH)
 
     def init_db(self):
         """Initialize the database schema."""
         conn = self.get_connection()
         with conn:
             conn.executescript(SCHEMA_SQL)
+            
+            # Initialize db_version if not present
+            cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'db_version'")
+            if not cur.fetchone():
+                conn.execute(
+                    "INSERT INTO db_meta (key, value) VALUES ('db_version', '2')"
+                )
+            
+            # Initialize tags_id_max if not present
+            cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'tags_id_max'")
+            if not cur.fetchone():
+                # Get current max tag id
+                cur_tags = conn.execute("SELECT MAX(id) as max_id FROM tags")
+                max_id = cur_tags.fetchone()["max_id"] or 0
+                conn.execute(
+                    "INSERT INTO db_meta (key, value) VALUES ('tags_id_max', ?)",
+                    (str(max_id),)
+                )
 
     def upsert_model(self, data: Dict[str, Any]):
         """Insert or update a model."""
@@ -103,14 +185,29 @@ class DatabaseManager:
         return cur.fetchone()
 
     def add_pending_import(self, data: Dict[str, Any]):
-        """Add a model to the pending import staging table."""
+        """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        # Replace if path exists
-        sql = f"INSERT OR REPLACE INTO pending_import ({columns}) VALUES ({placeholders})"
-        with conn:
-            conn.execute(sql, list(data.values()))
+        
+        sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
+        try:
+            with conn:
+                conn.execute(sql, list(data.values()))
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed: pending_import.path" in str(e):
+                # Fetch existing record for logging
+                path = data.get("path")
+                existing = conn.execute("SELECT * FROM pending_import WHERE path = ?", (path,)).fetchone()
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Conflict: Path already exists in pending_import.\n"
+                    f"Existing: {dict(existing) if existing else 'Unknown'}\n"
+                    f"Incoming: {data}"
+                )
+            else:
+                raise
 
     def get_pending_imports(self) -> List[sqlite3.Row]:
         """Get all pending imports sorted by creation time."""
@@ -122,18 +219,57 @@ class DatabaseManager:
         """Remove a model from the pending import staging table."""
         conn = self.get_connection()
         with conn:
+            cur = conn.execute(
+                "SELECT id FROM pending_import WHERE path = ?",
+                (path,)
+            )
+            row = cur.fetchone()
+            if row and row["id"] is not None:
+                conn.execute(
+                    "DELETE FROM pending_model_tags WHERE model_id = ?",
+                    (row["id"],)
+                )
             conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
 
-    def create_tag(self, name: str, color: Optional[str] = None) -> sqlite3.Row:
+    def create_tag(self, name: str) -> sqlite3.Row:
         """Create a new tag."""
         conn = self.get_connection()
-        created_at = int(time.time() * 1000)
         with conn:
             cur = conn.execute(
-                "INSERT INTO tags (name, color, created_at) VALUES (?, ?, ?)",
-                (name, color, created_at)
+                "INSERT INTO tags (name) VALUES (?)",
+                (name,)
             )
             tag_id = cur.lastrowid
+            
+            # Update tags_id_max
+            conn.execute(
+                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
+                (str(tag_id), tag_id)
+            )
+            
+        return self.get_tag_by_id(tag_id)
+
+    def upsert_tag_with_id(
+        self,
+        tag_id: int,
+        name: str
+    ) -> sqlite3.Row:
+        """Insert or update a tag with an explicit ID."""
+        conn = self.get_connection()
+        safe_name = name or ""
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO tags (id, name) "
+                "VALUES (?, ?)",
+                (tag_id, safe_name)
+            )
+            
+            # Update tags_id_max
+            conn.execute(
+                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
+                (str(tag_id), tag_id)
+            )
+            
         return self.get_tag_by_id(tag_id)
 
     def get_tag(self, name: str) -> Optional[sqlite3.Row]:
@@ -175,3 +311,47 @@ class DatabaseManager:
             WHERE mt.model_hash = ?
         """, (model_hash,))
         return cur.fetchall()
+
+    def add_pending_model_tag(self, model_id: int, tag_id: int):
+        """Associate a legacy tag with a pending legacy model id."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO pending_model_tags (model_id, tag_id) "
+                "VALUES (?, ?)",
+                (model_id, tag_id)
+            )
+
+    def get_pending_tag_ids(self, model_id: int) -> List[int]:
+        """Get legacy tag IDs associated with a pending legacy model id."""
+        conn = self.get_connection()
+        cur = conn.execute(
+            "SELECT tag_id FROM pending_model_tags WHERE model_id = ?",
+            (model_id,)
+        )
+        return [row["tag_id"] for row in cur.fetchall()]
+
+    def remove_pending_model_tags(self, model_id: int):
+        """Remove pending tag mappings for a legacy model id."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "DELETE FROM pending_model_tags WHERE model_id = ?",
+                (model_id,)
+            )
+
+    def get_meta(self, key: str, default: Any = None) -> Any:
+        """Retrieve a metadata value."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT value FROM db_meta WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row["value"] if row else default
+
+    def set_meta(self, key: str, value: Any):
+        """Set a metadata value."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO db_meta (key, value) VALUES (?, ?)",
+                (key, str(value))
+            )

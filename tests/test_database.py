@@ -38,7 +38,11 @@ def test_database_init_creates_tables(tmp_path):
         # Verify pending_import schema
         cursor.execute("PRAGMA table_info(pending_import)")
         columns = {row[1]: row[2] for row in cursor.fetchall()}
-        assert "legacy_tags_json" in columns
+        assert "path" in columns
+        assert "id" in columns
+        
+        # Verify db_meta exists
+        assert "db_meta" in tables
         
         conn.close()
 

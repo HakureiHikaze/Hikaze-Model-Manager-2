@@ -10,10 +10,9 @@ def test_tag_crud(tmp_path):
         db.init_db()
 
         # 1. Create Tag
-        tag = db.create_tag("anime", "#ff00ff")
+        tag = db.create_tag("anime")
         assert tag is not None
         assert tag["name"] == "anime"
-        assert tag["color"] == "#ff00ff"
 
         # 2. Get Tag
         fetched = db.get_tag("anime")
