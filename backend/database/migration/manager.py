@@ -1,7 +1,7 @@
 import threading
 import logging
 from typing import Dict, Optional
-from .importer import import_legacy_data
+from .importer import migrate_legacy_db
 from .worker import MigrationWorker
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class MigrationManager:
         logger.info(f"Starting full migration from {legacy_db_path}")
         
         # Stage 1: Import
-        report = import_legacy_data(legacy_db_path)
+        report = migrate_legacy_db(legacy_db_path)
         logger.info(f"Import Report: {report}")
         
         # Stage 2: Start Worker if there are pending items
