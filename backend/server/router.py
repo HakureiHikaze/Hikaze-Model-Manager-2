@@ -7,7 +7,6 @@ from backend.util.image_processor import ImageProcessor
 from backend.util import config
 from backend.database import DatabaseManager
 from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images, strip_meta_images
-from backend.database.migration.processor import process_pending_item, calculate_sha256
 
 logger = logging.getLogger(__name__)
 hash_executor = ThreadPoolExecutor(max_workers=2)
@@ -129,39 +128,6 @@ async def handle_migrate_legacy_db(request):
         logger.exception("Migration error")
         return web.json_response({"error": str(e)}, status=500)
 
-async def handle_calculate_hash(request):
-    """
-    POST /api/models/sha256
-    Calculate hash for a file. If pending_status='pending', triggers Reactive Migration (Stage 2).
-    Body: { "path": "...", "pending_status": "pending|ignore" }
-    """
-    try:
-        data = await request.json()
-        path = data.get("path")
-        pending_status = data.get("pending_status", "ignore")
-        
-        if not path:
-            return web.json_response({"error": "Path required"}, status=400)
-            
-        loop = asyncio.get_event_loop()
-        
-        if pending_status == "pending":
-            db = DatabaseManager()
-            # Fetch pending item
-            row = db.get_connection().execute("SELECT * FROM pending_import WHERE path = ?", (path,)).fetchone()
-            if row:
-                item = dict(row)
-                # Offload reactive migration
-                sha256 = await loop.run_in_executor(hash_executor, process_pending_item, item)
-                return web.json_response({"sha256": sha256, "migrated": True})
-        
-        # Standard Calc
-        sha256 = await loop.run_in_executor(hash_executor, calculate_sha256, path)
-        return web.json_response({"sha256": sha256, "migrated": False})
-        
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
@@ -171,7 +137,6 @@ def setup_routes(app: web.Application):
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
-    app.router.add_post("/api/models/sha256", handle_calculate_hash)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
