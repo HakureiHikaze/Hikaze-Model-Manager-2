@@ -16,7 +16,7 @@
   - Add `data/` to `.gitignore`.
 - [x] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md) [607ed39]
 
-## Phase 2: Image Processing Infrastructure [checkpoint: de0a368]
+## Phase 2: Image Processing Infrastructure [checkpoint: 5f390d2]
 - [x] Task: Implement Image Processor [ebf36bf]
 - [x] Task: Implement Image API Handlers [040be21]
 - [x] Task: Verify Image Pipeline [040be21]
@@ -24,7 +24,7 @@
   - Implement 3-tier resolution/quality logic (High/Medium/Low).
   - Update file naming with suffixes.
   - Update API handlers to support quality parameter.
-- [ ] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md) [5f390d2]
 
 ## Phase 3: Migration & Development Tools
 - [x] Task: Implement Shadow File Generator [41aff96]
