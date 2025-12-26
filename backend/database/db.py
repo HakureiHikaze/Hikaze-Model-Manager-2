@@ -109,7 +109,6 @@ class DatabaseManager:
         self._legacy_handle = None
         self.db_path = self.primary.db_path
         self.local = self.primary.local
-        self.debug_mode = config.DB_DEBUG_MODE
 
     def get_connection(self) -> sqlite3.Connection:
         return self.primary.get_connection()
