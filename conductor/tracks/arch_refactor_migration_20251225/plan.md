@@ -26,26 +26,26 @@
   - Update API handlers to support quality parameter.
 - [x] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md) [5f390d2]
 
-## Phase 3: Migration & Development Tools
-- [x] Task: Implement Shadow File Generator [41aff96]
-  - Create `backend/database/migration/shadow_generator.py`.
-  - Implement dummy file creation with structural mirroring and random salting.
-- [x] Task: Implement Mock Hasher for Dev Mode [c9bec3f]
-  - Add logic to intercept SHA256 calculation in Dev mode to return legacy DB hashes.
-- [x] Task: Implement Initial Legacy Importer [27a96cd]
-  - Implement logic to read legacy DB and perform the first-pass data and image migration.
-- [x] Task: Refactor Debug Tools and Standalone Importer [3c26b03]
-  - Move `shadow_generator.py` to `backend/database/migration/debug/`.
-  - Create `backend/database/migration/debug/import_debug.py` with path rewriting logic.
-- [ ] Task: Conductor - User Manual Verification 'Migration & Development Tools' (Protocol in workflow.md)
+## Phase 3: Refactor - Stage 1: Legacy Import
+- [x] Task: Clean up redundant migration tools (Shadow Generator, Mock Hasher) [6015ef4]
+- [ ] Task: Refactor Legacy Importer for One-Time DB Migration
+  - Implement `import_legacy_data` with logic to split data into `models` (hashed) and `pending_import` (unhashed).
+  - Ensure Legacy Tags are preserved and mapped correctly.
+- [ ] Task: Implement Legacy Image Migration Logic
+  - Implement search logic for images in `legacy_images_dir` based on filenames.
+  - Implement multi-quality compression for Active models with naming conflict resolution (`<hash>_<seq>_<quality>.webp`).
+  - Implement copy logic for Pending models to `data/images/pending/`.
+- [ ] Task: Implement One-Time Migration API
+  - Create `POST /api/migration/migrate_legacy_db` endpoint.
+- [ ] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md)
 
-## Phase 4: Reactive Migration & Non-blocking API
+## Phase 4: Stage 2: Reactive Migration & API
 - [ ] Task: Implement Non-blocking SHA256 Calculator
-  - Use `ThreadPoolExecutor` to offload hashing from the async event loop.
+  - Use `ThreadPoolExecutor` to offload hashing.
 - [ ] Task: Implement Reactive Migration Logic
-  - Implement the "Move Data + Move Image" flow triggered by calculation success.
+  - Triggered by hash calculation.
+  - Move record from `pending_import` to `models`.
+  - Process/Move pending image to active storage with multi-quality compression.
 - [ ] Task: Implement Unified SHA256 API Endpoint
-  - Finalize `POST /api/models/sha256` with logic branching for `pending` status.
-- [ ] Task: Verify End-to-End Migration Flow
-  - Perform integration testing with legacy data and shadow files.
-- [ ] Task: Conductor - User Manual Verification 'Reactive Migration & Non-blocking API' (Protocol in workflow.md)
+  - Finalize `POST /api/models/sha256` to trigger Stage 2.
+- [ ] Task: Conductor - User Manual Verification 'Stage 2 Reactive Migration' (Protocol in workflow.md)
