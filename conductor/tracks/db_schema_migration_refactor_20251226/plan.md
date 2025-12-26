@@ -14,8 +14,8 @@
 - [x] Task: Implement LegacyDatabaseReader (read-only) [cd09c03]
 - [x] Task: Enforce legacy read-only (SQLite mode=ro) [cd09c03]
 - [x] Task: Lazy init legacy handle; missing path raises error [cd09c03]
-- [~] Task: Propagate legacy init errors to API (502)
-- [ ] Task: Conductor - User Manual Verification 'Database Manager Refactor' (Protocol in workflow.md)
+- [x] Task: Propagate legacy init errors to API (502) [14d7fba]
+- [x] Task: Conductor - User Manual Verification 'Database Manager Refactor' (Protocol in workflow.md)
 
 ## Phase 3: Migration Pipeline Updates
 - [ ] Task: One-pass legacy routing to models or pending_import
