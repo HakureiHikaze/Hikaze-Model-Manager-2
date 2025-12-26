@@ -10,11 +10,11 @@
 - [x] Task: Conductor - User Manual Verification 'Schema and Metadata' (Protocol in workflow.md)
 
 ## Phase 2: Database Manager Refactor
-- [ ] Task: Add dual-handle manager (primary + legacy)
-- [ ] Task: Implement LegacyDatabaseReader (read-only)
-- [ ] Task: Enforce legacy read-only (SQLite mode=ro)
-- [ ] Task: Lazy init legacy handle; missing path raises error
-- [ ] Task: Propagate legacy init errors to API (502)
+- [x] Task: Add dual-handle manager (primary + legacy) [cd09c03]
+- [x] Task: Implement LegacyDatabaseReader (read-only) [cd09c03]
+- [x] Task: Enforce legacy read-only (SQLite mode=ro) [cd09c03]
+- [x] Task: Lazy init legacy handle; missing path raises error [cd09c03]
+- [~] Task: Propagate legacy init errors to API (502)
 - [ ] Task: Conductor - User Manual Verification 'Database Manager Refactor' (Protocol in workflow.md)
 
 ## Phase 3: Migration Pipeline Updates
