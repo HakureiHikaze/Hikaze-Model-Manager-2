@@ -12,7 +12,7 @@
 - [x] Task: Remove legacy DB handle references from `backend/server/router.py`
 - [x] Task: Conductor - User Manual Verification 'Migration & API Refactor' (Protocol in workflow.md)
 
-## Phase 3: Final Verification
+## Phase 3: Final Verification [checkpoint: 8e10772]
 - [x] Task: Create a manual verification script for DatabaseManager functionality (CRUD, Connection).
 - [x] Task: Create a manual verification script for Legacy Migration (Connection, Import).
 - [x] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)
