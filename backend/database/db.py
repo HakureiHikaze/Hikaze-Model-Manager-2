@@ -138,7 +138,7 @@ class DatabaseManager:
         """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
-        placeholders = ", ".join(["?" * len(data)])
+        placeholders = ", ".join(data)
         
         sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
         try:
@@ -165,21 +165,18 @@ class DatabaseManager:
         cur = conn.execute("SELECT * FROM pending_import ORDER BY created_at")
         return cur.fetchall()
 
-    def remove_pending_import(self, path: str):
-        """Remove a model from the pending import staging table."""
+    def get_pending_import_by_id(self, item_id: int) -> Optional[sqlite3.Row]:
+        """Get a single pending import by its ID."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM pending_import WHERE id = ?", (item_id,))
+        return cur.fetchone()
+
+    def remove_pending_import(self, item_id: int):
+        """Remove a model from the pending import staging table by ID."""
         conn = self.get_connection()
         with conn:
-            cur = conn.execute(
-                "SELECT id FROM pending_import WHERE path = ?",
-                (path,)
-            )
-            row = cur.fetchone()
-            if row and row["id"] is not None:
-                conn.execute(
-                    "DELETE FROM pending_model_tags WHERE model_id = ?",
-                    (row["id"],)
-                )
-            conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
+            # Cascading delete should handle pending_model_tags
+            conn.execute("DELETE FROM pending_import WHERE id = ?", (item_id,))
 
     def create_tag(self, name: str) -> sqlite3.Row:
         """Create a new tag."""
