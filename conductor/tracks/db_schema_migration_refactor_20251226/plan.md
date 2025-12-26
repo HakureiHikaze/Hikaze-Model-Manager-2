@@ -6,7 +6,7 @@
 - [x] Task: Update pending_import schema (legacy id PK, path UNIQUE, sha256 NULL) [be1dc04]
 - [x] Task: Add or confirm pending_model_tags table [be1dc04]
 - [x] Task: Remove rating field from schema [c179e2c]
-- [ ] Task: Rename system_tags to system_types in config
+- [x] Task: Rename system_tags to system_types in config [678b124]
 - [ ] Task: Conductor - User Manual Verification 'Schema and Metadata' (Protocol in workflow.md)
 
 ## Phase 2: Database Manager Refactor
