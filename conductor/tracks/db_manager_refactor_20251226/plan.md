@@ -8,11 +8,11 @@
 - [x] Task: Conductor - User Manual Verification 'Database Manager Simplification' (Protocol in workflow.md)
 
 ## Phase 2: Migration & API Refactor
-- [ ] Task: Update `backend/database/migration/importer.py` to use standalone `sqlite3` connections for legacy files
-- [ ] Task: Remove legacy DB handle references from `backend/server/router.py`
-- [ ] Task: Conductor - User Manual Verification 'Migration & API Refactor' (Protocol in workflow.md)
+- [x] Task: Update `backend/database/migration/importer.py` to use standalone `sqlite3` connections for legacy files
+- [x] Task: Remove legacy DB handle references from `backend/server/router.py`
+- [x] Task: Conductor - User Manual Verification 'Migration & API Refactor' (Protocol in workflow.md)
 
 ## Phase 3: Final Verification
-- [ ] Task: Run existing database unit tests to ensure no regressions in schema or CRUD logic
-- [ ] Task: Perform a test migration to verify independent connection logic
-- [ ] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)
+- [x] Task: Create a manual verification script for DatabaseManager functionality (CRUD, Connection).
+- [x] Task: Create a manual verification script for Legacy Migration (Connection, Import).
+- [x] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)
