@@ -37,7 +37,7 @@
   - Implement copy logic for Pending models to `data/images/pending/`.
 - [x] Task: Implement One-Time Migration API [8edffba]
   - Create `POST /api/migration/migrate_legacy_db` endpoint.
-- [~] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md) [ecbd649]
 
 ## Phase 4: Stage 2: Reactive Migration & API
 - [ ] Task: Implement Non-blocking SHA256 Calculator
