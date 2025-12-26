@@ -1,6 +1,6 @@
 # Track Plan: Architecture Refactor & Legacy Migration
 
-## Phase 1: Architectural Refactoring & Setup
+## Phase 1: Architectural Refactoring & Setup [checkpoint: 607ed39]
 - [x] Task: Reorganize Directory Structure [f03402b]
   - Create `backend/database/`, `backend/util/`, `backend/server/` packages.
   - Create `data/` and `data/images/pending/` directories.
@@ -14,7 +14,7 @@
   - Fix all internal imports across the project.
 - [x] Task: Update Project Environment [f3dd5a3]
   - Add `data/` to `.gitignore`.
-- [ ] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Architectural Refactoring & Setup' (Protocol in workflow.md) [607ed39]
 
 ## Phase 2: Image Processing Infrastructure [checkpoint: de0a368]
 - [x] Task: Implement Image Processor [ebf36bf]
