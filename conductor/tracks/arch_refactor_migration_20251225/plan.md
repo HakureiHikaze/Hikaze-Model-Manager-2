@@ -39,8 +39,13 @@
   - Create `POST /api/migration/migrate_legacy_db` endpoint.
 - [x] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md) [ecbd649]
 
-## Phase 4: Stage 2: Reactive Migration & API [checkpoint: 002367b]
+## Phase 4: Stage 2: Reactive Migration & API [checkpoint: 96425f8]
 - [x] Task: Implement Non-blocking SHA256 Calculator [002367b]
+  - Use `ThreadPoolExecutor` to offload hashing.
 - [x] Task: Implement Reactive Migration Logic [002367b]
+  - Triggered by hash calculation.
+  - Move record from `pending_import` to `models`.
+  - Process/Move pending image to active storage with multi-quality compression.
 - [x] Task: Implement Unified SHA256 API Endpoint [002367b]
+  - Finalize `POST /api/models/sha256` to trigger Stage 2.
 - [x] Task: Conductor - User Manual Verification 'Stage 2 Reactive Migration' (Protocol in workflow.md) [002367b]
