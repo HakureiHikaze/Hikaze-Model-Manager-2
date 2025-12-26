@@ -7,7 +7,7 @@
 3. **User Experience First:** Every decision should prioritize user experience
 4. **Non-Interactive & CI-Aware:** Prefer non-interactive commands.
 5. **Branch Out:** Branch out from the main development branch before starting the entire agent development process.
-6. **No Automatic Testing:** Never execute automatic tests (e.g., `pytest`, `npm test`) unless explicitly requested by the user. Testing outputs can be extremely large, consuming excessive context tokens and quota.
+6. **No Automatic Testing:** Do NOT execute any automatic unit tests (e.g., `pytest`, `npm test`). All testing, including writing and verifying tests, is the exclusive responsibility of the human developer. The agent must strictly rely on manual verification steps provided to the user.
 
 ## Task Workflow
 
