@@ -3,6 +3,9 @@ import os
 # Development Mode
 DEV_MODE = os.environ.get("HIKAZE_DEV_MODE", "false").lower() == "true"
 
+# Debug Mode (internal only)
+DB_DEBUG_MODE = os.environ.get("HIKAZE_DB_DEBUG_MODE", "false").lower() == "true"
+
 # Base Directories
 # This file is in backend/util/config.py
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,13 +21,16 @@ os.makedirs(PENDING_IMAGES_DIR, exist_ok=True)
 DB_FILENAME = os.environ.get("HIKAZE_DB_PATH", "hikaze_model_manager.db")
 DB_PATH = os.path.join(DATA_DIR, DB_FILENAME)
 
-# System Tags
+# Legacy Database Path (optional)
+LEGACY_DB_PATH = os.environ.get("HIKAZE_LEGACY_DB_PATH", "")
+
+# System Types
 try:
     import folder_paths
-    def get_system_tags():
+    def get_system_types():
         return list(folder_paths.folder_names_and_paths.keys())
 except ImportError:
-    def get_system_tags():
+    def get_system_types():
         return [
             "checkpoints",
             "loras",
@@ -38,4 +44,4 @@ except ImportError:
             "other"
         ]
 
-SYSTEM_TAGS = get_system_tags()
+SYSTEM_TYPES = get_system_types()

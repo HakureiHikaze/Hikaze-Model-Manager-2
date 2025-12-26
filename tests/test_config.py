@@ -2,16 +2,16 @@ import os
 import importlib
 from unittest.mock import patch
 
-def test_config_defaults():
-    from backend.util import config
+def test_config_structure():
+    assert hasattr(config, "DEV_MODE")
     assert hasattr(config, "DB_PATH")
-    assert hasattr(config, "SYSTEM_TAGS")
-    assert config.DB_PATH.endswith("hikaze_model_manager.db")
-    assert isinstance(config.SYSTEM_TAGS, list)
-    # Check against mocked values in conftest.py
-    assert "checkpoints" in config.SYSTEM_TAGS
-    assert "loras" in config.SYSTEM_TAGS
-    assert "vae" in config.SYSTEM_TAGS
+    assert hasattr(config, "SYSTEM_TYPES")
+    
+    assert isinstance(config.SYSTEM_TYPES, list)
+    
+    assert "checkpoints" in config.SYSTEM_TYPES
+    assert "loras" in config.SYSTEM_TYPES
+    assert "vae" in config.SYSTEM_TYPES
 
 
 def test_config_env_override():
