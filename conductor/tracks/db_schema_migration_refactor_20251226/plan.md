@@ -24,12 +24,12 @@
 - [x] Task: Log and skip pending_import.path unique conflicts (full records) [e7bf29b]
 - [x] Task: Conductor - User Manual Verification 'Migration Pipeline Updates' (Protocol in workflow.md)
 
-## Phase 4: Pending Import APIs
-- [ ] Task: Add API to list pending models
-- [ ] Task: Add batch import API (/import_pending_models)
-- [ ] Task: Add single import API (/import_a_pending_model) with strategy handling
-- [ ] Task: Implement conflict response structure (full records)
-- [ ] Task: Conductor - User Manual Verification 'Pending Import APIs' (Protocol in workflow.md)
+## Phase 4: Pending Import APIs [checkpoint: 18ee790]
+- [x] Task: Add API to list pending models [bbd41d3]
+- [x] Task: Add batch import API (/import_pending_models) [18ee790]
+- [x] Task: Add single import API (/import_a_pending_model) with strategy handling [18ee790]
+- [x] Task: Implement conflict response structure (full records) [18ee790]
+- [x] Task: Conductor - User Manual Verification 'Pending Import APIs' (Protocol in workflow.md)
 
 ## Phase 5: Frontend Pending UX
 - [ ] Task: Add Pending tab in manager
