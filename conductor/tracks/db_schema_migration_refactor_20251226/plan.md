@@ -1,13 +1,13 @@
 # Track Plan: Database Schema and Migration Refactor
 
-## Phase 1: Schema and Metadata
+## Phase 1: Schema and Metadata [checkpoint: 36c6a56]
 - [x] Task: Define db_meta k/v table (db_version, tags_id_max) [91d5af8]
 - [x] Task: Update tags schema to id and name only [bd71fc7]
 - [x] Task: Update pending_import schema (legacy id PK, path UNIQUE, sha256 NULL) [be1dc04]
 - [x] Task: Add or confirm pending_model_tags table [be1dc04]
 - [x] Task: Remove rating field from schema [c179e2c]
 - [x] Task: Rename system_tags to system_types in config [678b124]
-- [ ] Task: Conductor - User Manual Verification 'Schema and Metadata' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Schema and Metadata' (Protocol in workflow.md)
 
 ## Phase 2: Database Manager Refactor
 - [ ] Task: Add dual-handle manager (primary + legacy)
