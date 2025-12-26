@@ -36,18 +36,18 @@ CREATE TABLE IF NOT EXISTS pending_model_tags (
     model_id INTEGER,
     tag_id INTEGER,
     PRIMARY KEY (model_id, tag_id),
+    FOREIGN KEY(model_id) REFERENCES pending_import(id) ON DELETE CASCADE,
     FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS pending_import (
-    path TEXT PRIMARY KEY,
-    model_id INTEGER,
+    id INTEGER PRIMARY KEY,
+    path TEXT UNIQUE NOT NULL,
+    sha256 TEXT,
     name TEXT,
     type TEXT,
-    base TEXT,
     size_bytes INTEGER,
     created_at INTEGER,
-    last_used_at INTEGER,
     meta_json TEXT
 );
 
@@ -174,14 +174,14 @@ class DatabaseManager:
         conn = self.get_connection()
         with conn:
             cur = conn.execute(
-                "SELECT model_id FROM pending_import WHERE path = ?",
+                "SELECT id FROM pending_import WHERE path = ?",
                 (path,)
             )
             row = cur.fetchone()
-            if row and row["model_id"] is not None:
+            if row and row["id"] is not None:
                 conn.execute(
                     "DELETE FROM pending_model_tags WHERE model_id = ?",
-                    (row["model_id"],)
+                    (row["id"],)
                 )
             conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
 
