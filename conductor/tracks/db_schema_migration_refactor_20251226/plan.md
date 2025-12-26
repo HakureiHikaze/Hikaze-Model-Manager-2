@@ -17,7 +17,7 @@
 - [x] Task: Propagate legacy init errors to API (502) [14d7fba]
 - [x] Task: Conductor - User Manual Verification 'Database Manager Refactor' (Protocol in workflow.md)
 
-## Phase 3: Migration Pipeline Updates
+## Phase 3: Migration Pipeline Updates [checkpoint: 0be2dc5]
 - [x] Task: One-pass legacy routing to models or pending_import [e7bf29b]
 - [x] Task: Preserve legacy tags and pending tags via ids [e7bf29b]
 - [x] Task: Write tags_id_max after migration and sync on tag creation [e7bf29b]
