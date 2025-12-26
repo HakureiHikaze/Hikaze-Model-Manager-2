@@ -9,7 +9,7 @@
 - [x] Task: Rename system_tags to system_types in config [678b124]
 - [x] Task: Conductor - User Manual Verification 'Schema and Metadata' (Protocol in workflow.md)
 
-## Phase 2: Database Manager Refactor
+## Phase 2: Database Manager Refactor [checkpoint: b4bbe92]
 - [x] Task: Add dual-handle manager (primary + legacy) [cd09c03]
 - [x] Task: Implement LegacyDatabaseReader (read-only) [cd09c03]
 - [x] Task: Enforce legacy read-only (SQLite mode=ro) [cd09c03]
