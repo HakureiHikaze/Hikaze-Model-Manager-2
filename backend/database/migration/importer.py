@@ -40,47 +40,48 @@ def import_legacy_data(legacy_db_path: str, legacy_images_dir: Optional[str] = N
             return 0
     
     try:
-        legacy_conn = sqlite3.connect(legacy_db_path)
-        legacy_conn.row_factory = sqlite3.Row
+        db = DatabaseManager()
+        # Use DatabaseManager to get legacy connection (verified and read-only)
+        legacy_conn = db.get_legacy_connection()
         
-        # Map legacy tag ID -> tag data
+        # 1. Tags Migration
         legacy_tags_cur = legacy_conn.execute("SELECT * FROM tags")
         legacy_tag_rows = legacy_tags_cur.fetchall()
-        legacy_tag_map = {
-            row["id"]: {"name": row["name"], "color": row["color"]}
-            for row in legacy_tag_rows
-        }
         
-        # Get models
-        models_cur = legacy_conn.execute("SELECT * FROM models")
-        models = models_cur.fetchall()
-        report["total"] = len(models)
-        
-        db = DatabaseManager()
-
         for row in legacy_tag_rows:
             tag_id = get_int(row, "id")
             if tag_id <= 0:
                 continue
             db.upsert_tag_with_id(
                 tag_id,
-                get_str(row, "name"),
-                get_value(row, "color", None)
+                get_str(row, "name")
             )
         
+        # Update tags_id_max after tag migration
+        cur_tags = db.get_connection().execute("SELECT MAX(id) as max_id FROM tags")
+        max_id = cur_tags.fetchone()["max_id"] or 0
+        db.set_meta("tags_id_max", max_id)
+
+        # 2. Models Migration
+        models_cur = legacy_conn.execute("SELECT * FROM models")
+        models = models_cur.fetchall()
+        report["total"] = len(models)
+
         for row in models:
             try:
                 model_id = get_int(row, "id")
                 hash_hex = get_value(row, "hash_hex", "")
                 filename = get_str(row, "name")
                 
-                # Fetch tags
+                # Fetch legacy tags
                 mt_cur = legacy_conn.execute("SELECT tag_id FROM model_tags WHERE model_id = ?", (model_id,))
                 tag_ids = [r["tag_id"] for r in mt_cur.fetchall()]
                 
                 # Image Logic
-                preview_id = None
+                preview_image_id = None
                 extra_json = get_value(row, "extra_json", "")
+                meta_json_str = extra_json # Direct copy of legacy extra_json
+                
                 extra_data = {}
                 if extra_json:
                     try:
@@ -98,73 +99,51 @@ def import_legacy_data(legacy_db_path: str, legacy_images_dir: Optional[str] = N
                             src_path = os.path.join(legacy_images_dir, legacy_img_name)
                             
                             if os.path.exists(src_path):
-                                # Determine identifier for processing (hash if exists, else name)
-                                identifier = hash_hex if (hash_hex and len(hash_hex) == 64) else os.path.splitext(filename)[0]
-                                is_pending = not (hash_hex and len(hash_hex) == 64)
+                                # Determine identifier (hash if active, else legacy model id)
+                                is_active = (hash_hex and len(hash_hex) == 64)
+                                identifier = hash_hex if is_active else str(model_id)
                                 
                                 with open(src_path, "rb") as f:
                                     img_data = f.read()
                                     
-                                preview_id = ImageProcessor.process_and_save(img_data, identifier, is_pending=is_pending)
+                                ImageProcessor.process_and_save(img_data, identifier, is_pending=(not is_active))
+                                preview_image_id = identifier
                                 report["images"] += 1
                     except Exception as img_err:
                         logger.warning(f"Failed to process legacy image for model {model_id}: {img_err}")
 
-                # Prepare common meta
-                meta = dict(extra_data)
-                legacy_meta_json = get_value(row, "meta_json", "")
-                if legacy_meta_json:
-                    try:
-                        legacy_meta = json.loads(legacy_meta_json)
-                        for key, value in legacy_meta.items():
-                            if key not in meta:
-                                meta[key] = value
-                    except (json.JSONDecodeError, TypeError, ValueError):
-                        pass
-                
-                if preview_id:
-                    meta["preview_image"] = preview_id
-
-                # Prepare common data
-                model_data = {
+                # Prepare Data
+                common_data = {
                     "path": get_str(row, "path"),
                     "name": filename,
                     "type": get_str(row, "type"),
-                    "base": get_str(row, "base"),
                     "size_bytes": get_int(row, "size_bytes"),
                     "created_at": get_int(row, "created_at"),
-                    "last_used_at": get_int(row, "last_used_at"),
-                    "meta_json": json.dumps(meta)
+                    "meta_json": meta_json_str
                 }
                 
                 if hash_hex and len(hash_hex) == 64:
-                    # Valid hash: Import directly
-                    model_data["sha256"] = hash_hex
-                    db.upsert_model(model_data)
+                    # Valid hash: Active record
+                    common_data["sha256"] = hash_hex
+                    db.upsert_model(common_data)
                     
-                    # Import tags
+                    # Associate tags
                     for tid in tag_ids:
-                        if tid in legacy_tag_map:
-                            db.tag_model(hash_hex, tid)
+                        db.tag_model(hash_hex, tid)
                     
                     report["migrated"] += 1
                 else:
-                    # No hash: Pending Import
-                    pending_data = {
-                        "path": get_str(row, "path"),
-                        "model_id": model_id,
-                        "name": filename,
-                        "type": get_str(row, "type"),
-                        "base": get_str(row, "base"),
-                        "size_bytes": get_int(row, "size_bytes"),
-                        "created_at": get_int(row, "created_at"),
-                        "last_used_at": get_int(row, "last_used_at"),
-                        "meta_json": json.dumps(meta)
-                    }
+                    # No hash: Pending record
+                    pending_data = common_data.copy()
+                    pending_data["id"] = model_id
+                    pending_data["sha256"] = None
+                    
                     db.add_pending_import(pending_data)
+                    
+                    # Associate pending tags
                     for tid in tag_ids:
-                        if tid in legacy_tag_map:
-                            db.add_pending_model_tag(model_id, tid)
+                        db.add_pending_model_tag(model_id, tid)
+                    
                     report["pending"] += 1
                     
             except Exception as row_err:
@@ -174,8 +153,5 @@ def import_legacy_data(legacy_db_path: str, legacy_images_dir: Optional[str] = N
     except Exception as e:
         logger.error(f"Migration error: {e}")
         report["errors"] += 1
-    finally:
-        if 'legacy_conn' in locals():
-            legacy_conn.close()
             
     return report

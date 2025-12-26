@@ -185,14 +185,29 @@ class DatabaseManager:
         return cur.fetchone()
 
     def add_pending_import(self, data: Dict[str, Any]):
-        """Add a model to the pending import staging table."""
+        """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        # Replace if path exists
-        sql = f"INSERT OR REPLACE INTO pending_import ({columns}) VALUES ({placeholders})"
-        with conn:
-            conn.execute(sql, list(data.values()))
+        
+        sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
+        try:
+            with conn:
+                conn.execute(sql, list(data.values()))
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed: pending_import.path" in str(e):
+                # Fetch existing record for logging
+                path = data.get("path")
+                existing = conn.execute("SELECT * FROM pending_import WHERE path = ?", (path,)).fetchone()
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Conflict: Path already exists in pending_import.\n"
+                    f"Existing: {dict(existing) if existing else 'Unknown'}\n"
+                    f"Incoming: {data}"
+                )
+            else:
+                raise
 
     def get_pending_imports(self) -> List[sqlite3.Row]:
         """Get all pending imports sorted by creation time."""

@@ -13,6 +13,7 @@ CREATE TABLE models (
   size_bytes INTEGER,
   hash_hex TEXT,
   created_at INTEGER,
+  extra_json TEXT,
   meta_json TEXT
 );
 CREATE TABLE tags (
@@ -32,7 +33,7 @@ def setup_legacy_db(path):
     
     # 1. Hashed Model (should go to models)
     valid_hash = "a" * 64
-    conn.execute(f"INSERT INTO models (id, path, name, type, hash_hex, created_at) VALUES (1, 'p1', 'm1', 'ckpt', '{valid_hash}', 100)")
+    conn.execute(f"INSERT INTO models (id, path, name, type, hash_hex, created_at, extra_json) VALUES (1, 'p1', 'm1', 'ckpt', '{valid_hash}', 100, '{{\"legacy\": true}}')")
     # Tags for m1
     conn.execute("INSERT INTO tags (id, name, color) VALUES (1, 't1', 'red')")
     conn.execute("INSERT INTO model_tags (model_id, tag_id) VALUES (1, 1)")
@@ -71,18 +72,24 @@ def test_import_legacy_data(tmp_path):
         m1 = db.get_model(valid_hash)
         assert m1 is not None
         assert m1["path"] == "p1"
+        assert json.loads(m1["meta_json"]) == {"legacy": True}
         
         # Verify tags for m1
         tags1 = db.get_tags_for_model(valid_hash)
         assert len(tags1) == 1
         assert tags1[0]["name"] == "t1"
+        assert tags1[0]["id"] == 1 # Preserve ID
         
         # Verify m2 in pending_import
         pending = db.get_pending_imports()
         assert len(pending) == 1
         m2_pending = pending[0]
         assert m2_pending["path"] == "p2"
+        assert m2_pending["id"] == 2 # Preserve ID
         
-        # Verify serialized tags for m2
-        legacy_tags = json.loads(m2_pending["legacy_tags_json"])
-        assert "t2" in legacy_tags
+        # Verify pending tags for m2
+        pending_tag_ids = db.get_pending_tag_ids(2)
+        assert 2 in pending_tag_ids
+        
+        # Verify tags_id_max
+        assert int(db.get_meta("tags_id_max")) == 2
