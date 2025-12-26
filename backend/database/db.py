@@ -21,9 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_models_path ON models(path);
 
 CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    color TEXT,
-    created_at INTEGER
+    name TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS model_tags (
@@ -187,34 +185,45 @@ class DatabaseManager:
                 )
             conn.execute("DELETE FROM pending_import WHERE path = ?", (path,))
 
-    def create_tag(self, name: str, color: Optional[str] = None) -> sqlite3.Row:
+    def create_tag(self, name: str) -> sqlite3.Row:
         """Create a new tag."""
         conn = self.get_connection()
-        created_at = int(time.time() * 1000)
         with conn:
             cur = conn.execute(
-                "INSERT INTO tags (name, color, created_at) VALUES (?, ?, ?)",
-                (name, color, created_at)
+                "INSERT INTO tags (name) VALUES (?)",
+                (name,)
             )
             tag_id = cur.lastrowid
+            
+            # Update tags_id_max
+            conn.execute(
+                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
+                (str(tag_id), tag_id)
+            )
+            
         return self.get_tag_by_id(tag_id)
 
     def upsert_tag_with_id(
         self,
         tag_id: int,
-        name: str,
-        color: Optional[str] = None
+        name: str
     ) -> sqlite3.Row:
         """Insert or update a tag with an explicit ID."""
         conn = self.get_connection()
-        created_at = int(time.time() * 1000)
         safe_name = name or ""
         with conn:
             conn.execute(
-                "INSERT OR REPLACE INTO tags (id, name, color, created_at) "
-                "VALUES (?, ?, ?, ?)",
-                (tag_id, safe_name, color, created_at)
+                "INSERT OR REPLACE INTO tags (id, name) "
+                "VALUES (?, ?)",
+                (tag_id, safe_name)
             )
+            
+            # Update tags_id_max
+            conn.execute(
+                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
+                (str(tag_id), tag_id)
+            )
+            
         return self.get_tag_by_id(tag_id)
 
     def get_tag(self, name: str) -> Optional[sqlite3.Row]:
