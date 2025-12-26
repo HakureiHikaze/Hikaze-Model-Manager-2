@@ -52,7 +52,28 @@ CREATE TABLE IF NOT EXISTS pending_import (
     last_used_at INTEGER,
     meta_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS db_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
 """
+
+class _DatabaseHandle:
+    """Thread-local database connection wrapper."""
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.local = threading.local()
+
+    def get_connection(self) -> sqlite3.Connection:
+        if not self.db_path:
+            raise ValueError("Database path is not configured.")
+        if not hasattr(self.local, "conn"):
+            self.local.conn = sqlite3.connect(self.db_path)
+            self.local.conn.row_factory = sqlite3.Row
+            self.local.conn.execute("PRAGMA foreign_keys = ON")
+        return self.local.conn
 
 class DatabaseManager:
     _instance = None
@@ -70,21 +91,42 @@ class DatabaseManager:
         if self._initialized:
             return
         self._initialized = True
-        self.db_path = config.DB_PATH
-        self.local = threading.local()
+        self.primary = _DatabaseHandle(config.DB_PATH)
+        self.legacy = _DatabaseHandle(config.LEGACY_DB_PATH)
+        self.db_path = self.primary.db_path
+        self.local = self.primary.local
+        self.debug_mode = config.DB_DEBUG_MODE
 
     def get_connection(self) -> sqlite3.Connection:
-        if not hasattr(self.local, "conn"):
-             self.local.conn = sqlite3.connect(self.db_path)
-             self.local.conn.row_factory = sqlite3.Row
-             self.local.conn.execute("PRAGMA foreign_keys = ON")
-        return self.local.conn
+        return self.primary.get_connection()
+
+    def get_legacy_connection(self) -> sqlite3.Connection:
+        """Retrieve a legacy database connection."""
+        return self.legacy.get_connection()
 
     def init_db(self):
         """Initialize the database schema."""
         conn = self.get_connection()
         with conn:
             conn.executescript(SCHEMA_SQL)
+            
+            # Initialize db_version if not present
+            cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'db_version'")
+            if not cur.fetchone():
+                conn.execute(
+                    "INSERT INTO db_meta (key, value) VALUES ('db_version', '2')"
+                )
+            
+            # Initialize tags_id_max if not present
+            cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'tags_id_max'")
+            if not cur.fetchone():
+                # Get current max tag id
+                cur_tags = conn.execute("SELECT MAX(id) as max_id FROM tags")
+                max_id = cur_tags.fetchone()["max_id"] or 0
+                conn.execute(
+                    "INSERT INTO db_meta (key, value) VALUES ('tags_id_max', ?)",
+                    (str(max_id),)
+                )
 
     def upsert_model(self, data: Dict[str, Any]):
         """Insert or update a model."""
@@ -241,4 +283,20 @@ class DatabaseManager:
             conn.execute(
                 "DELETE FROM pending_model_tags WHERE model_id = ?",
                 (model_id,)
+            )
+
+    def get_meta(self, key: str, default: Any = None) -> Any:
+        """Retrieve a metadata value."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT value FROM db_meta WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row["value"] if row else default
+
+    def set_meta(self, key: str, value: Any):
+        """Set a metadata value."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO db_meta (key, value) VALUES (?, ?)",
+                (key, str(value))
             )
