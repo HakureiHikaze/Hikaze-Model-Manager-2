@@ -1,7 +1,6 @@
 import sqlite3
 import threading
 import time
-import os
 from typing import Optional, Dict, List, Any
 from backend.util import config
 
@@ -56,39 +55,6 @@ CREATE TABLE IF NOT EXISTS db_meta (
 );
 """
 
-class _DatabaseHandle:
-    """Thread-local database connection wrapper."""
-
-    def __init__(self, db_path: str, read_only: bool = False):
-        self.db_path = db_path
-        self.read_only = read_only
-        self.local = threading.local()
-
-    def get_connection(self) -> sqlite3.Connection:
-        if not self.db_path:
-            raise ValueError("Database path is not configured.")
-        if not hasattr(self.local, "conn"):
-            if self.read_only:
-                # Use URI for read-only mode
-                db_uri = f"file:{self.db_path}?mode=ro"
-                self.local.conn = sqlite3.connect(db_uri, uri=True)
-            else:
-                self.local.conn = sqlite3.connect(self.db_path)
-            self.local.conn.row_factory = sqlite3.Row
-            self.local.conn.execute("PRAGMA foreign_keys = ON")
-        return self.local.conn
-
-class LegacyDatabaseReader:
-    """Explicit read-only reader for the legacy database."""
-    
-    def __init__(self, db_path: str):
-        if not db_path:
-            raise ValueError("Legacy database path is not configured.")
-        self.handle = _DatabaseHandle(db_path, read_only=True)
-        
-    def get_connection(self) -> sqlite3.Connection:
-        return self.handle.get_connection()
-
 class DatabaseManager:
     _instance = None
     _lock = threading.Lock()
@@ -105,32 +71,17 @@ class DatabaseManager:
         if self._initialized:
             return
         self._initialized = True
-        self.primary = _DatabaseHandle(config.DB_PATH)
-        self._legacy_handle = None
-        self.db_path = self.primary.db_path
-        self.local = self.primary.local
+        self.db_path = config.DB_PATH
+        if not self.db_path:
+            raise ValueError("Database path is not configured.")
+        self.local = threading.local()
 
     def get_connection(self) -> sqlite3.Connection:
-        return self.primary.get_connection()
-
-    @property
-    def legacy(self) -> _DatabaseHandle:
-        if self._legacy_handle is None:
-            if not config.LEGACY_DB_PATH:
-                raise ValueError("LEGACY_DB_PATH is not configured in config.")
-            if not os.path.exists(config.LEGACY_DB_PATH):
-                # Raise error as per spec for missing legacy path
-                raise FileNotFoundError(f"Legacy database file not found at: {config.LEGACY_DB_PATH}")
-            self._legacy_handle = _DatabaseHandle(config.LEGACY_DB_PATH, read_only=True)
-        return self._legacy_handle
-
-    def get_legacy_connection(self) -> sqlite3.Connection:
-        """Retrieve a legacy database connection."""
-        return self.legacy.get_connection()
-
-    def get_legacy_reader(self) -> LegacyDatabaseReader:
-        """Get an explicit legacy database reader."""
-        return LegacyDatabaseReader(config.LEGACY_DB_PATH)
+        if not hasattr(self.local, "conn"):
+            self.local.conn = sqlite3.connect(self.db_path)
+            self.local.conn.row_factory = sqlite3.Row
+            self.local.conn.execute("PRAGMA foreign_keys = ON")
+        return self.local.conn
 
     def init_db(self):
         """Initialize the database schema."""
@@ -160,7 +111,7 @@ class DatabaseManager:
         """Insert or update a model."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
-        placeholders = ", ".join(["?"] * len(data))
+        placeholders = ", ".join(["?" * len(data)])
         # Update all fields except sha256 on conflict
         updates = ", ".join([f"{k}=excluded.{k}" for k in data.keys() if k != "sha256"])
         
@@ -187,7 +138,7 @@ class DatabaseManager:
         """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
-        placeholders = ", ".join(["?"] * len(data))
+        placeholders = ", ".join(["?" * len(data)])
         
         sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
         try:
