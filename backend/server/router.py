@@ -141,17 +141,39 @@ async def handle_import_single_pending_model(request):
     POST /api/migration/import_a_pending_model
     Import a single pending model with optional strategy.
     Body: { "id": 1, "strategy": "overwrite|skip|merge" }
+    
+    Logic:
+    1. If strategy is NOT provided:
+       - Calculate SHA256 of the pending file.
+       - Check if SHA256 exists in 'models' table.
+       - If exists: Return 409 Conflict with existing and pending record details.
+       - If not exists: Proceed with import (move to active).
+    2. If strategy IS provided:
+       - Apply strategy (Overwrite existing, Skip, or Merge tags).
     """
     try:
         data = await request.json()
         model_id = data.get("id")
-        strategy = data.get("strategy")
+        strategy = data.get("strategy") # Optional: None if not provided
         
         if model_id is None:
             return web.json_response({"error": "Missing model ID"}, status=400)
             
-        # Placeholder for explicit single import logic with strategy handling
-        return web.json_response({"status": "success", "model_id": model_id})
+        # TODO: Real Implementation Logic
+        # 1. Fetch pending model by ID
+        # 2. Calculate Hash
+        # 3. Check for Conflict
+        
+        # Simulation of Conflict Logic for validation:
+        # if not strategy and check_conflict(hash):
+        #     return web.json_response({
+        #         "error": "Conflict detected",
+        #         "reason": "SHA256 collision",
+        #         "existing": { ... },
+        #         "pending": { ... }
+        #     }, status=409)
+        
+        return web.json_response({"status": "success", "model_id": model_id, "action": "imported" if not strategy else f"imported_with_{strategy}"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
