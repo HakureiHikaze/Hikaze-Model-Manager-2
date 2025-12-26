@@ -77,14 +77,33 @@ async def handle_upload_image(request):
 async def handle_get_pending_models(request):
     """
     GET /api/migration/pending_models
-    List models from the legacy database that are candidates for migration.
+    List pending models from the NEW database (staging area).
     """
     db = DatabaseManager()
     try:
-        # Accessing .legacy triggers the lazy-loading and path verification
+        pending = db.get_pending_imports()
+        # Convert rows to dicts
+        return web.json_response({
+            "models": [dict(row) for row in pending]
+        })
+    except Exception as e:
+        logger.exception("Error fetching pending models")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_start_legacy_migration(request):
+    """
+    POST /api/migration/legacy_migrate
+    Trigger the one-time migration from Legacy DB -> New DB (pending/active).
+    Current implementation only checks legacy DB connectivity.
+    """
+    db = DatabaseManager()
+    try:
+        # This triggers lazy loading and verification of the legacy path
         conn = db.get_legacy_connection()
-        # For now just return empty list as placeholder for Phase 4
-        return web.json_response({"models": []})
+        
+        # TODO: Implement the actual migration logic here (Phase 3)
+        
+        return web.json_response({"status": "connected", "message": "Legacy database connected successfully."})
     except (FileNotFoundError, ValueError) as e:
         logger.error(f"Legacy database initialization failed: {e}")
         return web.json_response({
@@ -100,7 +119,10 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
+    
+    # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
+    app.router.add_post("/api/migration/legacy_migrate", handle_start_legacy_migration)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
