@@ -6,13 +6,13 @@
   - Sub-tasks:
     - [x] Edit `backend/database/migration/importer.py` to strip image paths from `meta_json`.
 
-- [ ] Task: Image Processor Upgrade
+- [x] Task: Image Processor Upgrade [905ab90]
   - Sub-tasks:
-    - [ ] Update `backend/util/image_processor.py`.
-    - [ ] Implement `get_image_list(hash)` (Scanner).
-    - [ ] Implement `get_next_sequence_index(hash)`.
-    - [ ] Implement `promote_pending_image(pending_img_path, sha256, seq)`.
-    - [ ] Update `get_image_path` to handle sequence naming.
+    - [x] Update `backend/util/image_processor.py`.
+    - [x] Implement `get_image_list(hash)` (Scanner).
+    - [x] Implement `get_next_sequence_index(hash)`.
+    - [x] Implement `promote_pending_image(pending_img_path, sha256, seq)`.
+    - [x] Update `get_image_path` to handle sequence naming.
 
 - [ ] Task: Conductor - User Manual Verification 'Legacy Cleanup & Image Utils' (Protocol in workflow.md)
 
