@@ -203,7 +203,50 @@ def migrate_legacy_images(legacy_images_dir: str) -> Dict[str, int]:
                     # Requirement: save in data/images/pending
                     ImageProcessor.save_pending_image_original(img_data, str(row["id"]))
                     report["images_processed"] += 1
-            except Exception as e:
-                pass
-
     return report
+
+def strip_meta_images():
+    """Remove image-related keys from meta_json in both models and pending_import tables."""
+    db = DatabaseManager()
+    conn = db.get_connection()
+    
+    def clean_json(json_str: str) -> str:
+        if not json_str: return "{}"
+        try:
+            data = json.loads(json_str)
+            modified = False
+            for key in ["image", "images", "preview"]:
+                if key in data:
+                    data.pop(key)
+                    modified = True
+            return json.dumps(data) if modified else json_str
+        except:
+            return "{}"
+
+    # 1. Clean models
+    logger.info("Cleaning meta_json in models table...")
+    cursor = conn.execute("SELECT sha256, meta_json FROM models")
+    rows = cursor.fetchall()
+    with conn:
+        for row in rows:
+            cleaned = clean_json(row["meta_json"])
+            if cleaned != row["meta_json"]:
+                conn.execute(
+                    "UPDATE models SET meta_json = ? WHERE sha256 = ?",
+                    (cleaned, row["sha256"])
+                )
+
+    # 2. Clean pending_import
+    logger.info("Cleaning meta_json in pending_import table...")
+    cursor = conn.execute("SELECT id, meta_json FROM pending_import")
+    rows = cursor.fetchall()
+    with conn:
+        for row in rows:
+            cleaned = clean_json(row["meta_json"])
+            if cleaned != row["meta_json"]:
+                conn.execute(
+                    "UPDATE pending_import SET meta_json = ? WHERE id = ?",
+                    (cleaned, row["id"])
+                )
+
+

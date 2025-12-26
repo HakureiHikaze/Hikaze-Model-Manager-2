@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from backend.util.image_processor import ImageProcessor
 from backend.util import config
 from backend.database import DatabaseManager
-from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images
+from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images, strip_meta_images
 from backend.database.migration.processor import process_pending_item, calculate_sha256
 
 logger = logging.getLogger(__name__)
@@ -116,6 +116,9 @@ async def handle_migrate_legacy_db(request):
         img_report = {}
         if legacy_images_dir:
             img_report = migrate_legacy_images(legacy_images_dir)
+            
+        # 3. Cleanup Meta JSON
+        strip_meta_images()
             
         return web.json_response({
             "status": "success",
