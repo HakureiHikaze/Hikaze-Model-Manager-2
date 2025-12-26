@@ -28,16 +28,16 @@
 
 ## Phase 3: Refactor - Stage 1: Legacy Import
 - [x] Task: Clean up redundant migration tools (Shadow Generator, Mock Hasher) [6015ef4]
-- [ ] Task: Refactor Legacy Importer for One-Time DB Migration
+- [x] Task: Refactor Legacy Importer for One-Time DB Migration [8edffba]
   - Implement `import_legacy_data` with logic to split data into `models` (hashed) and `pending_import` (unhashed).
   - Ensure Legacy Tags are preserved and mapped correctly.
-- [ ] Task: Implement Legacy Image Migration Logic
+- [x] Task: Implement Legacy Image Migration Logic [8edffba]
   - Implement search logic for images in `legacy_images_dir` based on filenames.
   - Implement multi-quality compression for Active models with naming conflict resolution (`<hash>_<seq>_<quality>.webp`).
   - Implement copy logic for Pending models to `data/images/pending/`.
-- [ ] Task: Implement One-Time Migration API
+- [x] Task: Implement One-Time Migration API [8edffba]
   - Create `POST /api/migration/migrate_legacy_db` endpoint.
-- [ ] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Stage 1 Legacy Import' (Protocol in workflow.md)
 
 ## Phase 4: Stage 2: Reactive Migration & API
 - [ ] Task: Implement Non-blocking SHA256 Calculator
