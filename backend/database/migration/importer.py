@@ -203,6 +203,9 @@ def migrate_legacy_images(legacy_images_dir: str) -> Dict[str, int]:
                     # Requirement: save in data/images/pending
                     ImageProcessor.save_pending_image_original(img_data, str(row["id"]))
                     report["images_processed"] += 1
+            except Exception as e:
+                pass
+
     return report
 
 def strip_meta_images():
