@@ -10,10 +10,8 @@ CREATE TABLE IF NOT EXISTS models (
     path TEXT NOT NULL,
     name TEXT,
     type TEXT,
-    base TEXT,
     size_bytes INTEGER,
     created_at INTEGER,
-    last_used_at INTEGER,
     meta_json TEXT
 );
 
