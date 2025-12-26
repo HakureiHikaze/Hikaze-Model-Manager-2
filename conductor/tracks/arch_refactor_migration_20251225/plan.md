@@ -26,7 +26,7 @@
   - Update API handlers to support quality parameter.
 - [x] Task: Conductor - User Manual Verification 'Image Processing Infrastructure' (Protocol in workflow.md) [5f390d2]
 
-## Phase 3: Refactor - Stage 1: Legacy Import
+## Phase 3: Refactor - Stage 1: Legacy Import [checkpoint: 4275d22]
 - [x] Task: Clean up redundant migration tools (Shadow Generator, Mock Hasher) [6015ef4]
 - [x] Task: Refactor Legacy Importer for One-Time DB Migration [8edffba]
   - Implement `import_legacy_data` with logic to split data into `models` (hashed) and `pending_import` (unhashed).
