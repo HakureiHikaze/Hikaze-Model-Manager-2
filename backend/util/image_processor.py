@@ -134,15 +134,88 @@ class ImageProcessor:
                     pass
 
     @staticmethod
+    def get_image_list(hash_str: str) -> List[str]:
+        """Scan data/images for all sequence base names matching the hash."""
+        # We look for <hash>_<seq>_high.webp
+        import glob
+        pattern = os.path.join(config.IMAGES_DIR, f"{hash_str}_*_high.webp")
+        files = glob.glob(pattern)
+        
+        # Extract base names like "hash_0", "hash_1"
+        bases = []
+        for f in files:
+            name = os.path.basename(f)
+            # Remove _high.webp
+            base = name.replace("_high.webp", "")
+            bases.append(base)
+            
+        return sorted(bases)
+
+    @staticmethod
+    def get_next_sequence_index(hash_str: str) -> int:
+        """Find the next available sequence index for a hash."""
+        seq = 0
+        while True:
+            filename = f"{hash_str}_{seq}_high.webp"
+            path = os.path.join(config.IMAGES_DIR, filename)
+            if not os.path.exists(path):
+                return seq
+            seq += 1
+
+    @staticmethod
+    def promote_pending_image(pending_id: str, sha256: str, seq: int = 0):
+        """
+        Move a pending image to active storage with 3-tier compression.
+        """
+        import glob
+        # Find pending image by ID (could be any extension)
+        pattern = os.path.join(config.PENDING_IMAGES_DIR, f"{pending_id}.*")
+        matches = glob.glob(pattern)
+        
+        if not matches:
+            logger.warning(f"No pending image found for ID {pending_id}")
+            return
+            
+        src_path = matches[0]
+        try:
+            with open(src_path, "rb") as f:
+                data = f.read()
+            
+            target_base = f"{sha256}_{seq}"
+            ImageProcessor.process_and_save(data, target_base, is_pending=False)
+            
+            # Delete source
+            os.remove(src_path)
+        except Exception as e:
+            logger.error(f"Failed to promote pending image {pending_id}: {e}")
+
+    @staticmethod
     def get_image_path(identifier: str, quality: str = "high", is_pending: bool = False) -> str:
         """
         Resolve the full path for a given image identifier and quality.
+        'identifier' can be a hash, a full base name like 'hash_0', or a model ID.
         """
         if quality not in QUALITIES:
             quality = "high"
             
-        clean_base = os.path.splitext(identifier)[0]
-        filename = f"{clean_base}_{quality}.webp"
-            
         base_dir = config.PENDING_IMAGES_DIR if is_pending else config.IMAGES_DIR
+        
+        # If is_pending, identifier is the model_id. 
+        # But wait, pending images are stored as original files (e.g. 123.png)
+        if is_pending:
+            import glob
+            pattern = os.path.join(base_dir, f"{identifier}.*")
+            matches = glob.glob(pattern)
+            if matches:
+                return matches[0]
+            return os.path.join(base_dir, str(identifier))
+
+        # Active images follow the <base>_<quality>.webp pattern
+        clean_base = os.path.splitext(identifier)[0]
+        # If it doesn't have an underscore, it might be just the hash. 
+        # Default to seq 0 if it looks like just a hash.
+        if "_" not in clean_base and len(clean_base) == 64:
+            clean_base = f"{clean_base}_0"
+            
+        filename = f"{clean_base}_{quality}.webp"
         return os.path.join(base_dir, filename)
