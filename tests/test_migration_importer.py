@@ -47,7 +47,7 @@ def setup_legacy_db(path):
     conn.commit()
     conn.close()
 
-def test_import_legacy_data(tmp_path):
+def test_migrate_legacy_db(tmp_path):
     legacy_db_path = tmp_path / "legacy.db"
     setup_legacy_db(str(legacy_db_path))
     
@@ -55,14 +55,14 @@ def test_import_legacy_data(tmp_path):
     
     with patch("backend.util.config.DB_PATH", str(new_db_path)):
         from backend.database import DatabaseManager
-        from backend.database.migration.importer import import_legacy_data
+        from backend.database.migration.importer import migrate_legacy_db
         
         # Init new DB
         db = DatabaseManager()
         db.init_db()
         
         # Run Import
-        report = import_legacy_data(str(legacy_db_path))
+        report = migrate_legacy_db(str(legacy_db_path))
         
         assert report["migrated"] == 1 # m1
         assert report["pending"] == 1 # m2

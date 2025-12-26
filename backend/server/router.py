@@ -4,6 +4,7 @@ import os
 from backend.util.image_processor import ImageProcessor
 from backend.util import config
 from backend.database import DatabaseManager
+from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images
 
 logger = logging.getLogger(__name__)
 
@@ -90,35 +91,41 @@ async def handle_get_pending_models(request):
         logger.exception("Error fetching pending models")
         return web.json_response({"error": str(e)}, status=500)
 
-async def handle_start_legacy_migration(request):
+async def handle_migrate_legacy_db(request):
     """
-    POST /api/migration/legacy_migrate
-    Trigger the one-time migration from Legacy DB -> New DB (pending/active).
-    Current implementation only checks legacy DB connectivity.
+    POST /api/migration/migrate_legacy_db
+    Stage 1: Import Legacy Data and Images (One-Time).
+    Body: { "legacy_db_path": "...", "legacy_images_dir": "..." }
     """
-    db = DatabaseManager()
     try:
-        # This triggers lazy loading and verification of the legacy path
-        conn = db.get_legacy_connection()
+        data = await request.json()
+        legacy_db_path = data.get("legacy_db_path")
+        legacy_images_dir = data.get("legacy_images_dir")
         
-        # TODO: Implement the actual migration logic here (Phase 3)
+        if not legacy_db_path:
+            return web.json_response({"error": "legacy_db_path is required"}, status=400)
+            
+        # 1. Migrate DB
+        db_report = migrate_legacy_db(legacy_db_path)
         
-        return web.json_response({"status": "connected", "message": "Legacy database connected successfully."})
-    except (FileNotFoundError, ValueError) as e:
-        logger.error(f"Legacy database initialization failed: {e}")
+        # 2. Migrate Images (optional if dir provided)
+        img_report = {}
+        if legacy_images_dir:
+            img_report = migrate_legacy_images(legacy_images_dir)
+            
         return web.json_response({
-            "error": "Legacy database not found or not configured",
-            "details": str(e)
-        }, status=502)
+            "status": "success",
+            "db_migration": db_report,
+            "image_migration": img_report
+        })
     except Exception as e:
-        logger.exception("Unexpected error accessing legacy database")
+        logger.exception("Migration error")
         return web.json_response({"error": str(e)}, status=500)
 
 async def handle_import_pending_models(request):
     """
     POST /api/migration/import_pending_models
-    Batch import multiple pending models.
-    Body: { "ids": [1, 2, 3] }
+    Batch import multiple pending models (Stage 2 Trigger).
     """
     try:
         data = await request.json()
@@ -126,12 +133,7 @@ async def handle_import_pending_models(request):
         if not ids:
             return web.json_response({"error": "No IDs provided"}, status=400)
         
-        # In this implementation, 'import' just means triggering hashing/migration
-        # The worker usually does this automatically. 
-        # For an explicit 'import' API, we might want to prioritize these IDs
-        # or perform it synchronously if small.
-        # But Phase 4 Spec says "Add batch import API". 
-        # For now, we'll return a success status as we rely on the MigrationWorker.
+        # Placeholder for Stage 2
         return web.json_response({"status": "success", "message": f"Queued {len(ids)} models for migration."})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -139,40 +141,17 @@ async def handle_import_pending_models(request):
 async def handle_import_single_pending_model(request):
     """
     POST /api/migration/import_a_pending_model
-    Import a single pending model with optional strategy.
-    Body: { "id": 1, "strategy": "overwrite|skip|merge" }
-    
-    Logic:
-    1. If strategy is NOT provided:
-       - Calculate SHA256 of the pending file.
-       - Check if SHA256 exists in 'models' table.
-       - If exists: Return 409 Conflict with existing and pending record details.
-       - If not exists: Proceed with import (move to active).
-    2. If strategy IS provided:
-       - Apply strategy (Overwrite existing, Skip, or Merge tags).
+    Import a single pending model (Stage 2 Trigger).
     """
     try:
         data = await request.json()
         model_id = data.get("id")
-        strategy = data.get("strategy") # Optional: None if not provided
+        strategy = data.get("strategy") 
         
         if model_id is None:
             return web.json_response({"error": "Missing model ID"}, status=400)
             
-        # TODO: Real Implementation Logic
-        # 1. Fetch pending model by ID
-        # 2. Calculate Hash
-        # 3. Check for Conflict
-        
-        # Simulation of Conflict Logic for validation:
-        # if not strategy and check_conflict(hash):
-        #     return web.json_response({
-        #         "error": "Conflict detected",
-        #         "reason": "SHA256 collision",
-        #         "existing": { ... },
-        #         "pending": { ... }
-        #     }, status=409)
-        
+        # Placeholder for Stage 2
         return web.json_response({"status": "success", "model_id": model_id, "action": "imported" if not strategy else f"imported_with_{strategy}"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -185,7 +164,7 @@ def setup_routes(app: web.Application):
     
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
-    app.router.add_post("/api/migration/legacy_migrate", handle_start_legacy_migration)
+    app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
     app.router.add_post("/api/migration/import_pending_models", handle_import_pending_models)
     app.router.add_post("/api/migration/import_a_pending_model", handle_import_single_pending_model)
     
@@ -198,8 +177,6 @@ def setup_routes(app: web.Application):
             return web.FileResponse(os.path.join(static_path, "index.html"))
             
         app.router.add_get("/", index)
-        # We serve the manager UI at root. 
-        # Note: avoid clashing with /api routes.
         app.router.add_static("/", static_path, show_index=True)
     else:
         logger.warning(f"Static path not found: {static_path}")

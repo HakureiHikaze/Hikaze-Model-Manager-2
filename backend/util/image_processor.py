@@ -22,15 +22,6 @@ class ImageProcessor:
     def process_and_save(image_data: bytes, target_filename_base: str, is_pending: bool = False) -> str:
         """
         Process image into 3 quality tiers (High/Medium/Low) and save.
-        
-        Args:
-            image_data: Raw image bytes.
-            target_filename_base: Base name (e.g. 'hash' or 'filename'). 
-                                  Suffixes (_high, _medium, _low) will be appended.
-            is_pending: If True, save to pending directory.
-            
-        Returns:
-            The base filename used (e.g. 'hash').
         """
         try:
             original_img = Image.open(io.BytesIO(image_data))
@@ -51,45 +42,29 @@ class ImageProcessor:
                 scale = math.sqrt(MAX_PIXELS / current_pixels)
                 base_width = int(width * scale)
                 base_height = int(height * scale)
-                logger.info(f"Base resolution scaled to {base_width}x{base_height} (from {width}x{height})")
 
             # 3. Process Each Quality Tier
             base_dir = config.PENDING_IMAGES_DIR if is_pending else config.IMAGES_DIR
             
-            # Clean filename base (remove extension if present)
             clean_base = os.path.splitext(target_filename_base)[0]
             
             for q_name, settings in QUALITIES.items():
-                # Calculate tier dimensions
                 tier_scale = settings["scale"]
                 tier_width = int(base_width * tier_scale)
                 tier_height = int(base_height * tier_scale)
                 
-                # Resize
-                # Only resize if different from original, but here we always resize 
-                # if original > 2MP OR if tier_scale < 1.0.
-                # If original < 2MP and High tier (scale 1.0), we keep original size.
-                
-                # Logic:
-                # If tier_scale < 1.0 or (original was huge): resize.
-                # Actually, resize() returns a copy, so safe to do always or conditionally.
-                # Lanczos for downsampling.
                 img_tier = original_img.resize((tier_width, tier_height), Image.Resampling.LANCZOS)
                 
-                # Prepare save path
                 filename = f"{clean_base}_{q_name}.webp"
                 save_path = os.path.join(base_dir, filename)
                 
-                # Ensure dir exists
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 
-                # Save without metadata
                 data = list(img_tier.getdata())
                 clean_img = Image.new(img_tier.mode, img_tier.size)
                 clean_img.putdata(data)
                 
                 clean_img.save(save_path, "WEBP", quality=settings["quality"], method=6)
-                logger.debug(f"Saved {q_name} image: {save_path}")
 
             return clean_base
 
@@ -98,23 +73,75 @@ class ImageProcessor:
             raise
 
     @staticmethod
+    def save_legacy_active_image(image_data: bytes, hash_str: str) -> str:
+        """
+        Save active image with sequence conflict resolution.
+        Naming: <hash>_<seq>_<quality>.webp
+        """
+        seq = 0
+        while True:
+            # Check collision on "high" quality file
+            # If high exists, assume the set exists.
+            filename = f"{hash_str}_{seq}_high.webp"
+            path = os.path.join(config.IMAGES_DIR, filename)
+            if not os.path.exists(path):
+                break
+            seq += 1
+            
+        target_base = f"{hash_str}_{seq}"
+        return ImageProcessor.process_and_save(image_data, target_base, is_pending=False)
+
+    @staticmethod
+    def save_pending_image_original(image_data: bytes, model_id: str) -> str:
+        """
+        Save original image to pending dir.
+        Filename: <model_id> (no extension, or detect?)
+        User requirement: "save original image".
+        We will attempt to detect extension to be nice, but save primarily by ID.
+        """
+        try:
+            img = Image.open(io.BytesIO(image_data))
+            ext = (img.format or "bin").lower()
+            filename = f"{model_id}.{ext}"
+            
+            path = os.path.join(config.PENDING_IMAGES_DIR, filename)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            
+            with open(path, "wb") as f:
+                f.write(image_data)
+            
+            return filename
+        except Exception as e:
+            logger.error(f"Failed to save pending original: {e}")
+            # Fallback
+            path = os.path.join(config.PENDING_IMAGES_DIR, str(model_id))
+            with open(path, "wb") as f:
+                f.write(image_data)
+            return str(model_id)
+
+    @staticmethod
+    def delete_images(identifier: str, is_pending: bool = False):
+        """Helper to delete all quality variants."""
+        base_dir = config.PENDING_IMAGES_DIR if is_pending else config.IMAGES_DIR
+        clean_base = os.path.splitext(identifier)[0]
+        
+        for q_name in QUALITIES.keys():
+            path = os.path.join(base_dir, f"{clean_base}_{q_name}.webp")
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+    @staticmethod
     def get_image_path(identifier: str, quality: str = "high", is_pending: bool = False) -> str:
         """
         Resolve the full path for a given image identifier and quality.
-        
-        Args:
-            identifier: filename base (e.g. hash).
-            quality: 'high', 'medium', or 'low'.
-            is_pending: look in pending dir.
         """
-        # Validate quality
         if quality not in QUALITIES:
             quality = "high"
             
-        # Clean identifier
         clean_base = os.path.splitext(identifier)[0]
-        
-        # Suffix format
         filename = f"{clean_base}_{quality}.webp"
             
         base_dir = config.PENDING_IMAGES_DIR if is_pending else config.IMAGES_DIR
