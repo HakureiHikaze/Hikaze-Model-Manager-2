@@ -3,7 +3,7 @@
 ## Phase 1: Schema and Metadata
 - [x] Task: Define db_meta k/v table (db_version, tags_id_max) [91d5af8]
 - [x] Task: Update tags schema to id and name only [bd71fc7]
-- [ ] Task: Update pending_import schema (legacy id PK, path UNIQUE, sha256 NULL)
+- [x] Task: Update pending_import schema (legacy id PK, path UNIQUE, sha256 NULL) [be1dc04]
 - [ ] Task: Add or confirm pending_model_tags table
 - [ ] Task: Remove rating field from schema
 - [ ] Task: Rename system_tags to system_types in config
