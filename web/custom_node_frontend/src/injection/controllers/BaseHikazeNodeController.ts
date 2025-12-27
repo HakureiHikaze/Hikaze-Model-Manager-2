@@ -11,6 +11,7 @@ import { createApp, h, ref, type App as VueApp, type Ref } from 'vue'
 import HikazeNodeFrame from '../../components/HikazeNodeFrame.vue'
 import { getVueNodeWidgetBodyElement } from '../../util/dom'
 import type { InjectionContext, InjectionMode } from '../types'
+import { openManager } from '../modalService'
 
 const PAYLOAD_WIDGET = 'hikaze_payload'
 
@@ -308,6 +309,7 @@ export class BaseHikazeNodeController {
         })
     })
     
+    app.provide('openManager', openManager)
     app.mount(host)
     this.vueApp = app
   }

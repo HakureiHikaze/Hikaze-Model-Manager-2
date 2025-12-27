@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
+      "@manager": resolve(__dirname, "../model_manager_frontend/src"),
     },
   },
   build: {

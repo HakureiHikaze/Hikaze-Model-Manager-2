@@ -29,8 +29,8 @@ defineProps<{
   display: grid;
   grid-template-columns: 1fr 350px; /* Library | Details */
   grid-template-rows: auto 1fr; /* Header | Content */
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   background-color: var(--color-bg-primary, #0f1115);
   color: var(--color-text-primary, #c9d1d9);

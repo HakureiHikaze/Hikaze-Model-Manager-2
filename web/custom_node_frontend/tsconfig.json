@@ -10,7 +10,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "types": ["vite/client"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@manager/*": ["../model_manager_frontend/src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }]

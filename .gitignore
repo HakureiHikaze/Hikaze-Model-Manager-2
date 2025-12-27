@@ -3,4 +3,5 @@ __pycache__
 *dist
 *.vscode
 *.gemini
-*.pytest_cache
+*.pytest_cachedata/
+data/*

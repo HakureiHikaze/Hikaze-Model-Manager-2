@@ -18,7 +18,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 - **Context-Aware Manager Entry:** When entering the manager from a node (e.g., a Checkpoint loader), the view automatically filters to the relevant model category (Checkpoints/LoRA/CLIP/etc.).
 - **Sophisticated Node Overlays:** Custom Vue overlays that replace or enhance standard node widgets, allowing for rich form elements that serialize their state into a hidden JSON input.
 - **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and detailed metadata sidebars.
-- **Legacy Database Integration:** A manual migration path in the settings to import legacy databases (DB and preview directories) from the previous version, with SHA256 deduplication and conflict resolution.
+- **Legacy Database Integration:** A multi-stage migration path to import legacy databases from the previous version. Models are first staged in a pending queue, preserving legacy tags and metadata, then processed into the active library with SHA256 deduplication and reactive image migration.
 - **State Persistence:** Backend logic that parses incoming JSON from nodes based on versioned schemas, ensuring reliable execution and future-proofing.
 
 ## Visual Design & UX

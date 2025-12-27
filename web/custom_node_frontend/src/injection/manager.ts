@@ -18,6 +18,8 @@ import {
 } from './types'
 import { BaseHikazeNodeController } from './controllers/BaseHikazeNodeController'
 import { defineHiddenFlag, hasOwn } from '../util/object'
+import { createApp } from 'vue'
+import HikazeManagerModal from '../components/HikazeManagerModal.vue'
 
 type UnknownApp = any
 type UnknownNode = any
@@ -66,6 +68,17 @@ export class HikazeInjectionManager {
   install() {
     this.installVueNodesSettingListener()
     this.installGraphChangeListener()
+    this.mountGlobalModal()
+  }
+
+  private mountGlobalModal() {
+    // Create a host for the global modal app.
+    // The component uses Teleport, so this host will remain mostly empty.
+    const host = document.createElement('div')
+    host.setAttribute('data-hikaze-global-host', '1')
+    host.style.display = 'none' 
+    document.body.appendChild(host)
+    createApp(HikazeManagerModal).mount(host)
   }
 
   /**
