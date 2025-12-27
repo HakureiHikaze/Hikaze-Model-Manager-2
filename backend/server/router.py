@@ -1,7 +1,9 @@
 from aiohttp import web
+import json
 import logging
 import os
 from backend.util.image_processor import ImageProcessor
+from backend.util import hasher
 from backend.database import DatabaseManager
 from backend.database.migration.importer import (
     migrate_legacy_db,
@@ -167,11 +169,156 @@ async def handle_import_a_model(request):
     """
     try:
         data = await request.json()
-        pending_id = data.get("pending_id")
-        conflict_strategy = data.get("conflict_strategy", "ignore")
-    except Exception as e:
-        logger.exception("Error importing model")
-        return web.json_response({"error": str(e)}, status=500)
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+
+    pending_id = data.get("id", data.get("pending_id"))
+    conflict_strategy = data.get("conflict_strategy")
+    legacy_images_dir = data.get("legacy_images_dir")
+
+    if conflict_strategy == "null":
+        conflict_strategy = None
+    if conflict_strategy not in (None, "override", "merge", "ignore", "delete"):
+        return web.json_response({"error": "Invalid conflict_strategy"}, status=400)
+
+    try:
+        pending_id = int(pending_id)
+    except (TypeError, ValueError):
+        return web.json_response({"error": "id is required"}, status=400)
+
+    db = DatabaseManager()
+    pending_row = db.get_pending_import_by_id(pending_id)
+    if not pending_row:
+        return web.json_response({"error": "Pending model not found"}, status=404)
+
+    pending = dict(pending_row)
+    path = pending.get("path")
+    if not path:
+        return web.json_response({"error": "Pending model missing path"}, status=500)
+
+    sha256 = hasher.get_sha256(path)
+    if not sha256:
+        return web.json_response({"error": "SHA256 calculation failed"}, status=500)
+
+    pending["sha256"] = sha256
+    pending_tags = db.get_pending_tag_ids(pending_id)
+
+    existing = db.get_model(sha256)
+    if existing and conflict_strategy is None:
+        return web.json_response(
+            {
+                "error": "Conflict",
+                "existing": {"id": sha256, "path": existing["path"]},
+                "pending": {"id": pending_id, "path": path},
+            },
+            status=409,
+        )
+
+    if conflict_strategy == "ignore":
+        return web.json_response(
+            {"status": "ignored", "pending_id": pending_id, "sha256": sha256}
+        )
+
+    if conflict_strategy == "delete":
+        db.remove_pending_import(pending_id)
+        return web.json_response(
+            {"status": "deleted", "pending_id": pending_id, "sha256": sha256}
+        )
+
+    def is_empty_value(value: object) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip() == ""
+        if isinstance(value, (list, dict, tuple, set)):
+            return len(value) == 0
+        if isinstance(value, (int, float)):
+            return value == 0
+        return False
+
+    def clean_meta_json(raw: str) -> dict:
+        if not raw:
+            return {}
+        try:
+            value = json.loads(raw)
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
+
+    def import_meta_images(meta: dict) -> dict:
+        images = meta.get("images")
+        if not isinstance(images, list) or not images:
+            return meta
+
+        if not legacy_images_dir:
+            raise ValueError("legacy_images_dir is required for image import")
+
+        filename = os.path.basename(str(images[0]))
+        src_path = os.path.join(legacy_images_dir, filename)
+        if not os.path.exists(src_path):
+            raise ValueError(f"Legacy image not found: {src_path}")
+
+        with open(src_path, "rb") as f:
+            image_data = f.read()
+
+        seq = ImageProcessor.get_next_sequence_index(sha256)
+        target_base = f"{sha256}_{seq}"
+        ImageProcessor.process_and_save(image_data, target_base, is_pending=False)
+
+        meta.pop("images", None)
+        return meta
+
+    if conflict_strategy == "merge":
+        pending_meta = clean_meta_json(pending.get("meta_json") or "")
+        try:
+            pending_meta = import_meta_images(pending_meta)
+        except Exception as exc:
+            logger.exception("Failed to import meta images")
+            return web.json_response({"error": str(exc)}, status=500)
+        pending["meta_json"] = json.dumps(pending_meta)
+
+    def build_model_data(source: dict) -> dict:
+        return {
+            "sha256": source.get("sha256"),
+            "path": source.get("path"),
+            "name": source.get("name"),
+            "type": source.get("type"),
+            "size_bytes": source.get("size_bytes"),
+            "created_at": source.get("created_at"),
+            "meta_json": source.get("meta_json"),
+        }
+
+    if existing and conflict_strategy == "merge":
+        merged = dict(existing)
+        for key, value in build_model_data(pending).items():
+            if key == "sha256":
+                continue
+            if key == "meta_json":
+                if is_empty_value(merged.get(key)) and not is_empty_value(value):
+                    merged[key] = value
+                continue
+            if is_empty_value(merged.get(key)) and not is_empty_value(value):
+                merged[key] = value
+
+        merged["sha256"] = sha256
+        db.upsert_model(merged)
+    else:
+        db.upsert_model(build_model_data(pending))
+
+    if existing and conflict_strategy in ("override", "merge"):
+        existing_tags = db.get_tags_for_model(sha256)
+        existing_tag_ids = {row["id"] for row in existing_tags}
+        tag_ids = sorted(existing_tag_ids.union(pending_tags))
+    else:
+        tag_ids = pending_tags
+
+    for tag_id in tag_ids:
+        db.tag_model(sha256, tag_id)
+
+    db.remove_pending_import(pending_id)
+    return web.json_response(
+        {"status": "success", "sha256": sha256, "action_taken": conflict_strategy or "import"}
+    )
 
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
@@ -183,6 +330,7 @@ def setup_routes(app: web.Application):
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
+    app.router.add_post("/api/migration/import_a_model", handle_import_a_model)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
