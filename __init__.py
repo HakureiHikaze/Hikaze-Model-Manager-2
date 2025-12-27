@@ -36,7 +36,6 @@ except (ImportError, ModuleNotFoundError):
         HikazeLoraPowerLoader = None
 
 from backend.database import DatabaseManager
-from backend.database.migration.manager import MigrationManager
 from backend.server import HikazeServer
 
 # Global reference to server instance for shutdown
@@ -67,7 +66,7 @@ class HikazeModelManagerExtension(ComfyExtension):
 
 
 def init_services():
-    """Initialize Database, Migration Manager, and Web Server."""
+    """Initialize Database and Web Server."""
     global _hikaze_server
     
     # 1. Determine Port
@@ -89,16 +88,7 @@ def init_services():
         # We might want to halt or continue with reduced functionality
         # For now, we continue but server might fail to serve data
     
-    # 3. Check/Resume Migrations
-    try:
-        LOGGER.info("Checking for pending migrations...")
-        migration_mgr = MigrationManager()
-        # This starts the worker thread if there are pending items in the DB
-        migration_mgr.resume_processing()
-    except Exception as e:
-        LOGGER.error(f"Failed to initialize migration manager: {e}")
-
-    # 4. Start Web Server
+    # 3. Start Web Server
     # We attempt to start on ComfyUI port + 1
     server_port = base_port + 1
     LOGGER.info(f"Starting Hikaze Server (base port: {server_port})...")
@@ -123,15 +113,6 @@ def stop_services():
         # Use a timeout for join to prevent hanging
         _hikaze_server.join(timeout=5.0)
         _hikaze_server = None
-        
-    # Stop Migration Worker
-    try:
-        migration_mgr = MigrationManager()
-        if migration_mgr.is_processing():
-            LOGGER.info("Stopping Migration Worker...")
-            migration_mgr.pause_processing()
-    except Exception as e:
-        LOGGER.error(f"Error stopping migration manager: {e}")
         
     LOGGER.info("Hikaze services stopped.")
 
