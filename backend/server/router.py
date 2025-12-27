@@ -1,9 +1,11 @@
 from aiohttp import web
+import asyncio
 import json
 import logging
 import os
 from backend.util.image_processor import ImageProcessor
 from backend.util import hasher
+from backend.util import config
 from backend.database import DatabaseManager
 from backend.database.migration.importer import (
     migrate_legacy_db,
@@ -147,13 +149,20 @@ async def handle_migrate_legacy_db(request):
         # 2. Migrate Images (optional if dir provided)
         img_report = {}
         if legacy_images_dir:
-            img_report = migrate_legacy_images(legacy_images_dir)
+            loop = asyncio.get_running_loop()
+            img_report = await loop.run_in_executor(
+                None, migrate_legacy_images, legacy_images_dir
+            )
             
         # 3. Cleanup Meta JSON
         strip_meta_images()
-            
+
+        status = "success"
+        if db_report.get("errors", 0) > 0 or img_report.get("errors", 0) > 0:
+            status = "failed"
+
         return web.json_response({
-            "status": "success",
+            "status": status,
             "db_migration": db_report,
             "image_migration": img_report
         })
@@ -161,69 +170,50 @@ async def handle_migrate_legacy_db(request):
         logger.exception("Migration error")
         return web.json_response({"error": str(e)}, status=500)
 
-async def handle_import_a_model(request):
-    """
-    POST /api/migration/import_a_model
-    Import a single model into active storage.
-    Body: { "pending_id": "...", "conflict_strategy":"override|merge|delete|ignore" or null }
-    """
-    try:
-        data = await request.json()
-    except Exception:
-        return web.json_response({"error": "Invalid JSON body"}, status=400)
-
-    pending_id = data.get("id", data.get("pending_id"))
-    conflict_strategy = data.get("conflict_strategy")
-    legacy_images_dir = data.get("legacy_images_dir")
-
-    if conflict_strategy == "null":
-        conflict_strategy = None
-    if conflict_strategy not in (None, "override", "merge", "ignore", "delete"):
-        return web.json_response({"error": "Invalid conflict_strategy"}, status=400)
-
-    try:
-        pending_id = int(pending_id)
-    except (TypeError, ValueError):
-        return web.json_response({"error": "id is required"}, status=400)
+def _import_pending_model(pending_id: int, conflict_strategy: str | None) -> dict:
+    result = {"id": pending_id}
 
     db = DatabaseManager()
     pending_row = db.get_pending_import_by_id(pending_id)
     if not pending_row:
-        return web.json_response({"error": "Pending model not found"}, status=404)
+        result.update({"status": "error", "error": "Pending model not found", "status_code": 404})
+        return result
 
     pending = dict(pending_row)
     path = pending.get("path")
     if not path:
-        return web.json_response({"error": "Pending model missing path"}, status=500)
+        result.update({"status": "error", "error": "Pending model missing path", "status_code": 500})
+        return result
 
     sha256 = hasher.get_sha256(path)
     if not sha256:
-        return web.json_response({"error": "SHA256 calculation failed"}, status=500)
+        result.update({"status": "error", "error": "SHA256 calculation failed", "status_code": 500})
+        return result
 
     pending["sha256"] = sha256
     pending_tags = db.get_pending_tag_ids(pending_id)
 
     existing = db.get_model(sha256)
     if existing and conflict_strategy is None:
-        return web.json_response(
+        result.update(
             {
-                "error": "Conflict",
-                "existing": {"id": sha256, "path": existing["path"]},
+                "status": "conflict",
+                "sha256": sha256,
                 "pending": {"id": pending_id, "path": path},
-            },
-            status=409,
+                "existing": {"id": sha256, "path": existing["path"]},
+                "status_code": 409,
+            }
         )
+        return result
 
     if conflict_strategy == "ignore":
-        return web.json_response(
-            {"status": "ignored", "pending_id": pending_id, "sha256": sha256}
-        )
+        result.update({"status": "ignored", "sha256": sha256, "status_code": 200})
+        return result
 
     if conflict_strategy == "delete":
         db.remove_pending_import(pending_id)
-        return web.json_response(
-            {"status": "deleted", "pending_id": pending_id, "sha256": sha256}
-        )
+        result.update({"status": "deleted", "sha256": sha256, "status_code": 200})
+        return result
 
     def is_empty_value(value: object) -> bool:
         if value is None:
@@ -245,18 +235,15 @@ async def handle_import_a_model(request):
         except Exception:
             return {}
 
-    def import_meta_images(meta: dict) -> dict:
+    def import_meta_images(meta: dict) -> str | None:
         images = meta.get("images")
         if not isinstance(images, list) or not images:
-            return meta
-
-        if not legacy_images_dir:
-            raise ValueError("legacy_images_dir is required for image import")
+            return None
 
         filename = os.path.basename(str(images[0]))
-        src_path = os.path.join(legacy_images_dir, filename)
+        src_path = os.path.join(config.PENDING_IMAGES_DIR, filename)
         if not os.path.exists(src_path):
-            raise ValueError(f"Legacy image not found: {src_path}")
+            raise ValueError(f"Pending image not found: {src_path}")
 
         with open(src_path, "rb") as f:
             image_data = f.read()
@@ -266,16 +253,16 @@ async def handle_import_a_model(request):
         ImageProcessor.process_and_save(image_data, target_base, is_pending=False)
 
         meta.pop("images", None)
-        return meta
+        return src_path
 
-    if conflict_strategy == "merge":
-        pending_meta = clean_meta_json(pending.get("meta_json") or "")
-        try:
-            pending_meta = import_meta_images(pending_meta)
-        except Exception as exc:
-            logger.exception("Failed to import meta images")
-            return web.json_response({"error": str(exc)}, status=500)
-        pending["meta_json"] = json.dumps(pending_meta)
+    pending_meta = clean_meta_json(pending.get("meta_json") or "")
+    try:
+        pending_image_path = import_meta_images(pending_meta)
+    except Exception as exc:
+        logger.exception("Failed to import meta images")
+        result.update({"status": "error", "error": str(exc), "status_code": 500})
+        return result
+    pending["meta_json"] = json.dumps(pending_meta)
 
     def build_model_data(source: dict) -> dict:
         return {
@@ -316,9 +303,111 @@ async def handle_import_a_model(request):
         db.tag_model(sha256, tag_id)
 
     db.remove_pending_import(pending_id)
-    return web.json_response(
-        {"status": "success", "sha256": sha256, "action_taken": conflict_strategy or "import"}
+    if pending_image_path:
+        try:
+            os.remove(pending_image_path)
+        except OSError:
+            logger.warning("Failed to delete pending image: %s", pending_image_path)
+
+    result.update(
+        {"status": "success", "sha256": sha256, "status_code": 200}
     )
+    return result
+
+
+async def handle_import_a_model(request):
+    """
+    Deprecated. Use POST /api/migration/import_models instead.
+
+    POST /api/migration/import_a_model
+    Import a single model into active storage.
+    Body: { "pending_id": "...", "conflict_strategy":"override|merge|delete|ignore" or null }
+    """
+    logger.warning("handle_import_a_model is deprecated; use /api/migration/import_models")
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+
+    pending_id = data.get("id", data.get("pending_id"))
+    conflict_strategy = data.get("conflict_strategy")
+
+    if conflict_strategy == "null":
+        conflict_strategy = None
+    if conflict_strategy not in (None, "override", "merge", "ignore", "delete"):
+        return web.json_response({"error": "Invalid conflict_strategy"}, status=400)
+
+    try:
+        pending_id = int(pending_id)
+    except (TypeError, ValueError):
+        return web.json_response({"error": "id is required"}, status=400)
+
+    result = _import_pending_model(pending_id, conflict_strategy)
+    status_code = result.pop("status_code", 200)
+    result["deprecated"] = True
+    return web.json_response(result, status=status_code)
+
+
+async def handle_import_models(request):
+    """
+    POST /api/migration/import_models
+    Import multiple pending models into active storage.
+    Body: { "id": [...], "conflict_strategy":"override|merge|delete|ignore" or null }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+
+    ids = data.get("id")
+    conflict_strategy = data.get("conflict_strategy")
+
+    if conflict_strategy == "null":
+        conflict_strategy = None
+    if conflict_strategy not in (None, "override", "merge", "ignore", "delete"):
+        return web.json_response({"error": "Invalid conflict_strategy"}, status=400)
+
+    if not isinstance(ids, list) or len(ids) == 0:
+        return web.json_response({"error": "id must be a non-empty array"}, status=400)
+
+    response = {
+        "total": len(ids),
+        "success": [],
+        "conflict": [],
+        "ignored": [],
+        "deleted": [],
+        "failed": [],
+    }
+
+    for raw_id in ids:
+        try:
+            pending_id = int(raw_id)
+        except (TypeError, ValueError):
+            response["failed"].append({"id": raw_id, "error": "Invalid id"})
+            continue
+
+        result = _import_pending_model(pending_id, conflict_strategy)
+        status = result.get("status")
+
+        if status == "success":
+            response["success"].append(pending_id)
+        elif status == "conflict":
+            response["conflict"].append(
+                {
+                    "pending": result.get("pending"),
+                    "existing": result.get("existing"),
+                }
+            )
+        elif status == "ignored":
+            response["ignored"].append(pending_id)
+        elif status == "deleted":
+            response["deleted"].append(pending_id)
+        else:
+            response["failed"].append(
+                {"id": pending_id, "error": result.get("error", "Unknown error")}
+            )
+
+    return web.json_response(response, status=207)
 
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
@@ -331,6 +420,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
     app.router.add_post("/api/migration/import_a_model", handle_import_a_model)
+    app.router.add_post("/api/migration/import_models", handle_import_models)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
