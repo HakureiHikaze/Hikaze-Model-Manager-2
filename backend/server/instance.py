@@ -6,6 +6,8 @@ import time
 import os
 from aiohttp import web
 from typing import Optional
+
+from backend.database import DatabaseManager
 from .router import setup_routes
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,15 @@ class HikazeServer(threading.Thread):
         """Thread entry point."""
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+        
+        # Initialize database within the thread
+        try:
+            db = DatabaseManager()
+            db.init_db()
+            logger.info("Database initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            return
         
         # Find port
         try:

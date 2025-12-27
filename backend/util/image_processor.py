@@ -2,6 +2,7 @@ import os
 import io
 import math
 import logging
+from typing import List
 from PIL import Image
 from . import config
 
@@ -25,7 +26,7 @@ class ImageProcessor:
         """
         try:
             original_img = Image.open(io.BytesIO(image_data))
-            
+            logger.info(f"Processing image, original size: {original_img.size}, mode: {original_img.mode}")
             # 1. Handle transparency/modes
             if original_img.mode in ('RGBA', 'P'):
                 original_img = original_img.convert('RGBA')
@@ -65,7 +66,7 @@ class ImageProcessor:
                 clean_img.putdata(data)
                 
                 clean_img.save(save_path, "WEBP", quality=settings["quality"], method=6)
-
+                logger.info(f"Saved {q_name} quality image at {save_path} ({tier_width}x{tier_height})")
             return clean_base
 
         except Exception as e:

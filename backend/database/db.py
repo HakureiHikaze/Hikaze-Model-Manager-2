@@ -111,7 +111,7 @@ class DatabaseManager:
         """Insert or update a model."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
-        placeholders = ", ".join(["?" * len(data)])
+        placeholders = ", ".join(["?"] * len(data))
         # Update all fields except sha256 on conflict
         updates = ", ".join([f"{k}=excluded.{k}" for k in data.keys() if k != "sha256"])
         
@@ -138,7 +138,7 @@ class DatabaseManager:
         """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
-        placeholders = ", ".join(data)
+        placeholders = ", ".join(["?"] * len(data))
         
         sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
         try:
