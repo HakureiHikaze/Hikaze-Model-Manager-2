@@ -72,11 +72,42 @@ async def handle_upload_image(request):
         return web.json_response({"error": "Missing image or sha256"}, status=400)
 
     try:
-        # Save as active image (not pending)
-        base_name = ImageProcessor.process_and_save(image_data, sha256, is_pending=False)
+        # Save as active image (not pending) with next sequence index.
+        seq = ImageProcessor.get_next_sequence_index(sha256)
+        base_name = f"{sha256}_{seq}"
+        ImageProcessor.process_and_save(image_data, base_name, is_pending=False)
         return web.json_response({"status": "success", "base_name": base_name})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_sample_imgs(request):
+    """
+    POST /api/images/get_sample_imgs
+    Body: { "sha256": "...", "quality": "high|medium|low" }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+
+    sha256 = data.get("sha256") or data.get("hash")
+    quality = data.get("quality", "high")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+    if isinstance(sha256, str):
+        sha256 = sha256.strip()
+
+    if quality not in ("high", "medium", "low"):
+        quality = "high"
+
+    bases = ImageProcessor.get_image_list(sha256)
+    images = [
+        f"/api/images/{base}.webp?quality={quality}"
+        for base in bases
+    ]
+    return web.json_response(
+        {"images": images, "quality": quality, "count": len(images)}
+    )
 
 async def handle_get_pending_models(request):
     """
@@ -147,6 +178,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
+    app.router.add_post("/api/images/get_sample_imgs", handle_get_sample_imgs)
     
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
