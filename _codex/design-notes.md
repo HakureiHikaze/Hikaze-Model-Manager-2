@@ -11,7 +11,7 @@
 - Node backend logic operates only on resolved file paths; server and node execution remain decoupled.
 
 ## Itemized Review (1-19)
-1) lora_list_parser.py and dataclasses.py
+1) nodes/util/lora_list_parser.py and nodes/util/dataclasses.py
    - Purpose aligns with backend parsing of LoRA list JSON payloads.
    - Current parser expects "LoRAList" but loraListExample.json and frontend use "LoRAs".
    - If strict backend validation is required, keep parser but update it to accept "LoRAs" and the canonical schema.
@@ -81,7 +81,7 @@
 
 ## Code Alignment Notes
 - backend/util/hasher.py provides SHA256 hashing but is not wired to any endpoint yet.
-- util/lora_list_parser.py does not accept the "LoRAs" key used in loraListExample.json and the frontend.
+- nodes/util/lora_list_parser.py does not accept the "LoRAs" key used in loraListExample.json and the frontend.
 - web/custom_node_frontend/src/util/lora.ts exports stringifyLoRAListDocument, which writes "LoRAs".
 - backend/util/image_processor.py expects seq for active images, but upload currently saves without seq.
 

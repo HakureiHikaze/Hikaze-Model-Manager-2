@@ -66,6 +66,9 @@
   - Image-first cards; list mode optional.
   - Grid column limit: 2-10.
   - Details panel holds technical metadata only.
+- Type tabs:
+  - In plugin or standalone manager mode, when the Vue control is not marked embedded, call GET /api/models/get_types.
+  - Render the returned type list as the top tab bar.
 
 ## UI Constraints
 - Node labels and backend logs remain English.

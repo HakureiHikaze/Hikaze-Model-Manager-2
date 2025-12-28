@@ -1,5 +1,5 @@
 """
-Utility package for Hikaze Model Manager 2.
+Node-side utility package for Hikaze Model Manager 2.
 
 This package hosts cross-node helpers that are safe to import from ComfyUI nodes.
 """
