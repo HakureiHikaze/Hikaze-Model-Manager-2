@@ -2,7 +2,7 @@
 Hikaze Model Manager 2 - custom ComfyUI node scaffold.
 
 This module registers a ComfyExtension entrypoint so the project is discoverable.
-Node implementations should live in this package and be returned from
+Node implementations should live under the nodes package and be returned from
 HikazeModelManagerExtension.get_node_list().
 """
 
@@ -24,16 +24,12 @@ LOGGER = logging.getLogger(__name__)
 from comfy_api.latest import ComfyExtension, io
 
 try:
-    from .checkpoint_loader import HikazeCheckpointLoader
-    from .lora_power_loader import HikazeLoraPowerLoader
+    from .nodes.checkpoint_loader import HikazeCheckpointLoader
+    from .nodes.lora_power_loader import HikazeLoraPowerLoader
 except (ImportError, ModuleNotFoundError):
-    try:
-        from checkpoint_loader import HikazeCheckpointLoader
-        from lora_power_loader import HikazeLoraPowerLoader
-    except (ImportError, ModuleNotFoundError):
-        LOGGER.warning("Could not import node classes. This is expected during testing if comfy is missing.")
-        HikazeCheckpointLoader = None
-        HikazeLoraPowerLoader = None
+    LOGGER.warning("Could not import node classes. This is expected during testing if comfy is missing.")
+    HikazeCheckpointLoader = None
+    HikazeLoraPowerLoader = None
 
 from backend.database import DatabaseManager
 from backend.server import HikazeServer

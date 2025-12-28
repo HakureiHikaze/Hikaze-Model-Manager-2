@@ -6,6 +6,7 @@ import os
 from backend.util.image_processor import ImageProcessor
 from backend.util import hasher
 from backend.util import config
+from backend.util import get_model_types
 from backend.database import DatabaseManager
 from backend.database.migration.importer import (
     migrate_legacy_db,
@@ -112,6 +113,13 @@ async def handle_get_sample_imgs(request):
     return web.json_response(
         {"images": images, "quality": quality, "count": len(images)}
     )
+
+async def handle_get_model_types(request):
+    """
+    GET /api/models/get_types
+    Return available model type keys.
+    """
+    return web.json_response({"types": list(get_model_types())})
 
 async def handle_get_pending_models(request):
     """
@@ -411,6 +419,7 @@ async def handle_import_models(request):
 
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
+    app.router.add_get("/api/models/get_types", handle_get_model_types)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)

@@ -56,11 +56,11 @@
 - request: json body `{"id":[1,2,3],"conflict_strategy":"override|merge|ignore|delete"|null}`
 - response: `{"total":n,"success":[...],"conflict":[...],"ignored":[...],"deleted":[...],"failed":[...]}` (207)
 
-## u GET /api/models/types
+## GET /api/models/get_types
 
 - desc: list model types for top tabs
 - request: none
-- response: `{"types":["checkpoint","lora",...]}`
+- response: `{"types":["checkpoints","lora",...]}`
 
 ## u GET /api/models
 

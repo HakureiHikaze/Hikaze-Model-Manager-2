@@ -3,8 +3,8 @@
 This is an empty scaffold for a ComfyUI custom node project using Python for backend nodes and Vue + TypeScript for the frontend UI.
 
 ## Backend
-- Add node implementations under this package and return them from `HikazeModelManagerExtension.get_node_list()`.
-- `base_nodes.py` provides `HikazeBaseNode`, an abstract V3 node for subclasses to extend.
+- Add node implementations under `nodes/` and return them from `HikazeModelManagerExtension.get_node_list()`.
+- `nodes/base_nodes.py` provides `HikazeBaseNode`, an abstract V3 node for subclasses to extend.
 - `pyproject.toml` declares the `web/dist` directory for frontend assets via `[tool.comfy] web = "web/dist"`.
 
 ## Frontend
