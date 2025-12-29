@@ -9,10 +9,10 @@
 - [x] Task: Update `backend/server/router.py` with `PATCH /api/models/{sha256}` for model updates. [966eb3b]
 - [x] Task: Conductor - User Manual Verification 'API Restoration & Extension' (Protocol in workflow.md) [0bceed1]
 
-## Phase 2: Documentation Correction
-- [ ] Task: Update `_codex/backend_apis.md` to reflect new and refactored endpoints.
-- [ ] Task: Update `conductor/discrepancies/20251229-2315-discrepancies_fixed.md` to remove the "Redundant" status of the single-model fetch API.
-- [ ] Task: Conductor - User Manual Verification 'Documentation Correction' (Protocol in workflow.md)
+## Phase 2: Documentation Correction [checkpoint: 390ebcc]
+- [x] Task: Update `_codex/backend_apis.md` to reflect new and refactored endpoints. [2fc1cf9]
+- [x] Task: Update `conductor/discrepancies/20251229-2315-discrepancies_fixed.md` to remove the "Redundant" status of the single-model fetch API. [065bb77]
+- [x] Task: Conductor - User Manual Verification 'Documentation Correction' (Protocol in workflow.md) [390ebcc]
 
 ## Phase 3: Frontend Image Gallery & Tag Components
 - [ ] Task: Create `HikazeImageGallery.vue` with 3:4 aspect ratio, navigation, and add/delete controls.
