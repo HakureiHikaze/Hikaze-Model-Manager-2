@@ -12,7 +12,7 @@
 - [x] Task: Update `web/model_manager_frontend/src/api/models.ts` with the `fetchModels` function and necessary TypeScript interfaces. d31df62
 - [x] Task: Implement a centralized model store or composable to manage the `cachedModels` (Record<type, Model[]>) and loading states. 5dd99c9
 - [x] Task: Update `HikazeManagerLayout.vue` to trigger model fetching (or cache retrieval) whenever the `activeTab` changes. a853e9b
-- [ ] Task: Conductor - User Manual Verification 'Frontend Data & Cache Layer' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Frontend Data & Cache Layer' (Protocol in workflow.md)
 
 ## Phase 3: Reactive Library & Filtering
 - [ ] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data.
