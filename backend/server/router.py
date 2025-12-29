@@ -124,7 +124,7 @@ async def handle_get_model_types(request):
 async def handle_get_models(request):
     """
     GET /api/models?type=...
-    List models by type.
+    List models by type. Returns simplified objects for the library view.
     """
     model_type = request.query.get("type")
     if not model_type:
@@ -134,9 +134,22 @@ async def handle_get_models(request):
     try:
         if model_type.lower() == "others":
             system_types = list(get_model_types())
-            models = db.get_other_models(system_types)
+            raw_models = db.get_other_models(system_types)
         else:
-            models = db.get_models_by_type(model_type)
+            raw_models = db.get_models_by_type(model_type)
+            
+        # Simplify response: exclude heavy meta_json
+        models = []
+        for m in raw_models:
+            models.append({
+                "sha256": m.get("sha256"),
+                "name": m.get("name"),
+                "type": m.get("type"),
+                "path": m.get("path"),
+                "size_bytes": m.get("size_bytes"),
+                "created_at": m.get("created_at"),
+                "tags": m.get("tags", []),
+            })
             
         return web.json_response({"models": models})
     except Exception as e:
