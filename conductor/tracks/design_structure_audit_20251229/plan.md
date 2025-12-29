@@ -1,6 +1,6 @@
 # Plan - Project Structure and Design Audit
 
-## Phase 1: Preparation & Information Gathering
+## Phase 1: Preparation & Information Gathering [checkpoint: d6a9e1c]
 - [x] Task: Review `conductor/` and `_codex/` for canonical project structure and architectural definitions. [docs]
 - [x] Task: Scan `backend/` directory to map current implementation of routers, database modules, and utilities. [scan]
 - [x] Task: Scan `web/model_manager_frontend/` to map current implementation of components, state, and API layers. [scan]
