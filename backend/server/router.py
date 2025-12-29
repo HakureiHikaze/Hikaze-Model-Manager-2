@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 from backend.util.image_processor import ImageProcessor
 from backend.util import hasher
 from backend.util import config
@@ -24,15 +25,32 @@ async def handle_hello(request):
 async def handle_get_image(request):
     """
     Serve an active image by hash.
-    URL: /api/images/{hash}.webp?quality=high|medium|low
+    URL: /api/images/{hash}.webp?quality=high|medium|low&seq=N
     """
     img_hash = request.match_info.get("hash", "")
     quality = request.query.get("quality", "high")
+    seq = request.query.get("seq")
     
-    path = ImageProcessor.get_image_path(img_hash, quality=quality, is_pending=False)
+    identifier = img_hash
+    if seq is not None:
+        identifier = f"{img_hash}_{seq}"
+    
+    path = ImageProcessor.get_image_path(identifier, quality=quality, is_pending=False)
     if os.path.exists(path):
         return web.FileResponse(path)
     return web.Response(status=404, text="Image not found")
+
+async def handle_get_img_num(request):
+    """
+    GET /api/images/get_img_num?sha256=...
+    Return count of images for a model.
+    """
+    sha256 = request.query.get("sha256")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+    
+    count = ImageProcessor.get_image_count(sha256)
+    return web.json_response({"count": count})
 
 async def handle_get_pending_image(request):
     """
@@ -84,6 +102,69 @@ async def handle_upload_image(request):
         return web.json_response({"status": "success", "base_name": base_name})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
+async def handle_delete_image(request):
+    """
+    DELETE /api/images/delete?sha256=...&seq=...
+    """
+    sha256 = request.query.get("sha256")
+    seq_str = request.query.get("seq")
+    
+    if not sha256 or seq_str is None:
+        return web.json_response({"error": "sha256 and seq are required"}, status=400)
+    
+    try:
+        seq = int(seq_str)
+    except ValueError:
+        return web.json_response({"error": "seq must be an integer"}, status=400)
+
+    try:
+        ImageProcessor.delete_image_sequence(sha256, seq)
+        return web.json_response({"status": "success"})
+    except ValueError as e:
+        return web.json_response({"error": str(e)}, status=404)
+    except Exception as e:
+        logger.exception(f"Error deleting image {sha256}_{seq}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_add_tags(request):
+    """
+    POST /api/tags_add
+    Body: { "newtags": ["name1", "name2"] }
+    Returns: { "tags": [{ "id": 1, "name": "name1" }, ...] }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+        
+    new_tags = data.get("newtags")
+    if not isinstance(new_tags, list):
+        return web.json_response({"error": "newtags must be a list"}, status=400)
+        
+    db = DatabaseManager()
+    created_tags = []
+    
+    for name in new_tags:
+        if not isinstance(name, str) or not name.strip():
+            continue
+        
+        name = name.strip()
+        # Try to create
+        try:
+            tag = db.create_tag(name)
+            created_tags.append({"id": tag["id"], "name": tag["name"]})
+        except sqlite3.IntegrityError:
+            # Already exists
+            tag = db.get_tag(name)
+            if tag:
+                created_tags.append({"id": tag["id"], "name": tag["name"]})
+            else:
+                logger.warning(f"Tag {name} failed creation but not found?")
+        except Exception as e:
+            logger.error(f"Error creating tag {name}: {e}")
+            
+    return web.json_response({"tags": created_tags})
 
 async def handle_get_sample_imgs(request):
     """
@@ -168,6 +249,104 @@ async def handle_get_models(request):
         return web.json_response({"models": models})
     except Exception as e:
         logger.exception("Error fetching models")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_model_details(request):
+    """
+    GET /api/models/{sha256}
+    Return full details for a specific model.
+    """
+    sha256 = request.match_info.get("sha256", "")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+
+    db = DatabaseManager()
+    try:
+        row = db.get_model(sha256)
+        if not row:
+            return web.json_response({"error": "Model not found"}, status=404)
+        
+        model = dict(row)
+        # Fetch tags
+        tags_rows = db.get_tags_for_model(sha256)
+        model["tags"] = [dict(t) for t in tags_rows]
+        
+        return web.json_response(model)
+    except Exception as e:
+        logger.exception(f"Error fetching model details for {sha256}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_update_model(request):
+    """
+    PATCH /api/models/{sha256}
+    Body: { "name": "...", "type": "...", "tags": [id1, id2], "meta_json": ... }
+    """
+    sha256 = request.match_info.get("sha256", "")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+        
+    db = DatabaseManager()
+    
+    # 1. Check existence
+    existing_row = db.get_model(sha256)
+    if not existing_row:
+        return web.json_response({"error": "Model not found"}, status=404)
+        
+    existing = dict(existing_row)
+    
+    # 2. Prepare update data
+    updatable_fields = ["name", "path", "type", "meta_json"]
+    has_changes = False
+    
+    for field in updatable_fields:
+        if field in data:
+            existing[field] = data[field]
+            has_changes = True
+            
+    # 3. Apply model updates
+    if has_changes:
+        try:
+            db.upsert_model(existing)
+        except Exception as e:
+            logger.error(f"Error updating model {sha256}: {e}")
+            return web.json_response({"error": f"Database update failed: {str(e)}"}, status=500)
+            
+    # 4. Handle Tags
+    if "tags" in data:
+        new_tag_ids = data["tags"]
+        if not isinstance(new_tag_ids, list):
+             return web.json_response({"error": "tags must be a list of IDs"}, status=400)
+             
+        try:
+            current_tags = db.get_tags_for_model(sha256)
+            for t in current_tags:
+                db.untag_model(sha256, t["id"])
+            
+            for tag_id in new_tag_ids:
+                # Use explicit int cast if needed, though JSON decoder usually gives int
+                try:
+                    tid = int(tag_id)
+                    db.tag_model(sha256, tid)
+                except ValueError:
+                    pass
+        except Exception as e:
+            logger.error(f"Error updating tags for {sha256}: {e}")
+            return web.json_response({"error": f"Tag update failed: {str(e)}"}, status=500)
+            
+    # 5. Return updated model
+    try:
+        updated_row = db.get_model(sha256)
+        result = dict(updated_row)
+        tags_rows = db.get_tags_for_model(sha256)
+        result["tags"] = [dict(t) for t in tags_rows]
+        return web.json_response(result)
+    except Exception as e:
+        logger.exception(f"Error fetching updated model {sha256}")
         return web.json_response({"error": str(e)}, status=500)
 
 async def handle_get_pending_models(request):
@@ -469,11 +648,16 @@ async def handle_import_models(request):
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
     app.router.add_get("/api/models/get_types", handle_get_model_types)
+    app.router.add_get("/api/models/{sha256}", handle_get_model_details)
+    app.router.add_patch("/api/models/{sha256}", handle_update_model)
     app.router.add_get("/api/models", handle_get_models)
     app.router.add_get("/api/tags", handle_get_tags)
+    app.router.add_post("/api/tags_add", handle_add_tags)
+    app.router.add_get("/api/images/get_img_num", handle_get_img_num)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
+    app.router.add_delete("/api/images/delete", handle_delete_image)
     app.router.add_post("/api/images/get_sample_imgs", handle_get_sample_imgs)
     
     # Migration APIs

@@ -13,13 +13,13 @@
 - **Segregated Detail View:** All technical metadata (SHA256 hashes, full file paths, extensive descriptions) must be strictly confined to the right-side "Model Preview/Details" sidebar.
 
 ## Detail View Strategy
-- **Dual-Name Architecture:** The UI must clearly distinguish between the "Display Name" (editable database alias) and the "Physical Path" (read-only filesystem name).
+- **Triple-Name Architecture:** The UI must clearly distinguish between the "Display Name" (editable database alias), the "Physical Path" (read-only filesystem name), and the "SHA256 Hash" (read-only identifier).
 - **Interactive Preview:** The detail image preview should serve as a control surface, offering overlay actions for "Open in New Tab" and "Upload Image" on hover.
-- **Hash-Centric Validation:** A prominent "Calculate Hash" action should be available next to the SHA256 field, triggering a non-blocking background verification process.
+- **Immutable Hash Policy:** SHA256 hashes are treated as read-only identifiers determined by the backend during import. Manual re-calculation buttons are excluded to prevent UI clutter and ensure backend as the source of truth.
 
 ## Interaction Principles
 - **Low-Latency & Direct:** Interactions should feel immediate. Minimize decorative animations in favor of raw speed.
-- **Chip Input Pattern:** Tag and trigger word inputs should utilize a "Chip" pattern. Users create chips via `Space` or `Comma` delimiters. Chips must support hover-to-delete interactions (`x` icon).
+- **Chip Input Pattern:** Tag inputs should utilize a "Chip" pattern. Users create chips via `Space` or `Comma` delimiters. Chips must support hover-to-delete interactions (`x` icon).
 - **Click-to-Action:** Primary actions (selecting a model, switching tabs) should execute on a single click without unnecessary confirmation steps.
 - **Safety-First Defaults:** The UI must proactively protect the user by automatically excluding sensitive content (identified via "nsfw" tags) on initialization. Users must explicitly opt-in to view this content via the filter settings.
 

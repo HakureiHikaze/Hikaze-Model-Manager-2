@@ -5,7 +5,8 @@
 - **Framework:** ComfyUI Custom Node API (V3/V2 hybrid) + **aiohttp** (Dedicated Manager Server)
 - **ComfyUI Integration:** `folder_paths` for path resolution, `comfy.sd` and `comfy.utils` for model operations.
 - **Data Persistence:** SQLite (SHA256-based indexing, legacy migration staging, and versioned metadata via `db_meta`).
-- **Schema Management:** Versioned JSON schemas for node-to-backend communication.
+- **Communication Protocol:** `hikaze_payload` hidden widget for structured JSON exchange between Vue overlays and Python nodes.
+- **Image Strategy:** 3-tier WebP compression (High/Medium/Low) with sequential naming (`hash_seq_quality.webp`).
 
 ## Frontend
 - **Framework:** Vue 3 (Composition API)
