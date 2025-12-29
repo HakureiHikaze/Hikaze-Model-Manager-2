@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useModelStore } from '../store/models'
+import { useIntersectionObserver } from '../util/intersectionObserver'
 
 const props = defineProps<{
   activeTab: string
@@ -20,6 +21,58 @@ const tagFilters = ref<Map<number, 'include' | 'exclude'>>(new Map())
 const rawModels = modelStore.getModels(computed(() => props.activeTab))
 const isLoading = modelStore.isLoading(computed(() => props.activeTab))
 const error = modelStore.getError(computed(() => props.activeTab))
+
+// Lazy loading logic
+let observer: IntersectionObserver | null = null
+
+function setupObserver() {
+  if (observer) observer.disconnect()
+  
+  observer = useIntersectionObserver((entry) => {
+    const target = entry.target as HTMLElement
+    const sha256 = target.dataset.sha256
+    if (!sha256) return
+
+    const img = new Image()
+    const url = `/api/images/${sha256}.webp?quality=medium`
+    
+    img.onload = () => {
+      target.style.backgroundImage = `url(${url})`
+      target.classList.remove('lazy')
+      target.classList.add('loaded')
+    }
+    
+    img.onerror = () => {
+      target.classList.remove('lazy')
+      target.classList.add('error')
+    }
+    
+    img.src = url
+    observer?.unobserve(target)
+  })
+
+  nextTick(() => {
+    const elements = document.querySelectorAll('.card-image.lazy')
+    elements.forEach(el => observer?.observe(el))
+  })
+}
+
+onMounted(() => {
+  if (viewMode.value === 'card') {
+    setupObserver()
+  }
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+})
+
+// Re-setup observer when models or view mode changes
+watch([filteredModels, viewMode], () => {
+  if (viewMode.value === 'card') {
+    setupObserver()
+  }
+}, { deep: true })
 
 // Extract unique tags from current models for the filter dropdown
 const availableTags = computed(() => {
