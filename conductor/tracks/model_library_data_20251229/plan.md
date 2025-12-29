@@ -9,7 +9,7 @@
 - [x] Task: Conductor - User Manual Verification 'Setup & Backend API Development' (Protocol in workflow.md) df68154
 
 ## Phase 2: Frontend Data & Cache Layer
-- [ ] Task: Update `web/model_manager_frontend/src/api/models.ts` with the `fetchModels` function and necessary TypeScript interfaces.
+- [x] Task: Update `web/model_manager_frontend/src/api/models.ts` with the `fetchModels` function and necessary TypeScript interfaces. d31df62
 - [ ] Task: Implement a centralized model store or composable to manage the `cachedModels` (Record<type, Model[]>) and loading states.
 - [ ] Task: Update `HikazeManagerLayout.vue` to trigger model fetching (or cache retrieval) whenever the `activeTab` changes.
 - [ ] Task: Conductor - User Manual Verification 'Frontend Data & Cache Layer' (Protocol in workflow.md)
