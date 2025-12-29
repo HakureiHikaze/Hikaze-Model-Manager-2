@@ -134,7 +134,7 @@ class DatabaseManager:
         cur = conn.execute("SELECT * FROM models WHERE path = ?", (path,))
         return cur.fetchone()
 
-    def add_pending_import(self, data: Dict[str, Any]):
+    def add_pending_import(self, data: Dict[str, Any]) -> bool:
         """Add a model to the pending import staging table. Logs and skips on path conflict."""
         conn = self.get_connection()
         columns = ", ".join(data.keys())
@@ -144,6 +144,7 @@ class DatabaseManager:
         try:
             with conn:
                 conn.execute(sql, list(data.values()))
+            return True
         except sqlite3.IntegrityError as e:
             if "UNIQUE constraint failed: pending_import.path" in str(e):
                 # Fetch existing record for logging
@@ -156,6 +157,7 @@ class DatabaseManager:
                     f"Existing: {dict(existing) if existing else 'Unknown'}\n"
                     f"Incoming: {data}"
                 )
+                return False
             else:
                 raise
 

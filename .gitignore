@@ -4,4 +4,4 @@ __pycache__
 *.vscode
 *.gemini
 *.pytest_cachedata/
-data/*
+data
