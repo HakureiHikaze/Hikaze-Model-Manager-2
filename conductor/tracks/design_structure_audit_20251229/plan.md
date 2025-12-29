@@ -14,5 +14,5 @@
 
 ## Phase 3: Reporting & Recommendation
 - [x] Task: Draft the discrepancy report `<date-h24:mm>-discrepancies.md` detailing findings, impacts, and advice. [report]
-- [ ] Task: Review report for clarity and actionable recommendations.
+- [x] Task: Review report for clarity and actionable recommendations. [docs]
 - [ ] Task: Conductor - User Manual Verification 'Reporting & Recommendation' (Protocol in workflow.md)
