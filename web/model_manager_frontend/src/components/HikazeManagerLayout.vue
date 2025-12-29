@@ -38,7 +38,7 @@ async function loadModelTypes() {
     if (initial && modelTypes.value.includes(initial)) {
       activeTab.value = initial;
     } else if (modelTypes.value.length > 0) {
-      activeTab.value = modelTypes.value[0];
+      activeTab.value = modelTypes.value[0] || '';
     }
   } catch (e: any) {
     error.value = e.message || 'Failed to load model types';

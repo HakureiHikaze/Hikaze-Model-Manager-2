@@ -1,4 +1,4 @@
-import { ref, reactive, computed } from 'vue';
+import { reactive, computed } from 'vue';
 import { fetchModels, type Model } from '../api/models';
 
 /**
