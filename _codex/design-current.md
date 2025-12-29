@@ -14,8 +14,8 @@
 ## Data Flow (Authoritative)
 1) Backend DB serves model library data to the manager UI.
 2) Manager UI resolves model metadata and selects models.
-3) Node overlay writes path-only payloads to ComfyUI node inputs.
-4) Backend node execution uses file paths only (server and nodes are decoupled).
+3) Node overlay writes path-only payloads to ComfyUI node inputs via `hikaze_payload` protocol.
+4) Backend node execution uses file paths only (server and nodes are decoupled). `hikaze_payload` acts as a data protocol to bypass standard ComfyUI widget limitations.
 
 ## Backend Architecture
 - Python 3.10+, aiohttp server, SQLite storage.
@@ -27,29 +27,39 @@
   - pending_model_tags: model_id + tag_id.
   - db_meta: key/value metadata.
 - Backend nodes:
-  - hikaze_payload is the only persisted UI payload.
+  - `hikaze_payload` is the core data exchange widget.
   - Nodes must parse payloads and operate on absolute paths.
+- Other Models Logic:
+  - `GET /api/models?type=others` returns models whose type is unknown or not in the system-defined list.
+- Model Type Sniffer:
+  - Implements `types_cache.json` to store a snapshot of ComfyUI model types and paths for fast retrieval.
 
 ## Migration Strategy (Current)
 - Stage 1: Legacy import (one-time, no legacy DB after completion).
-  - Hashed models -> models + model_tags.
-  - Unhashed models -> pending_import + pending_model_tags (legacy id preserved).
-  - Images:
-    - Hashed models -> 3-tier WebP in images/ with seq naming.
-    - Unhashed models -> original file in images/pending/.
-- Stage 2: Import by pending id (no reactive migration).
+- Stage 2: Import by pending id.
   - Frontend calls import endpoint with pending id.
-  - Backend calculates sha256, moves record to models, migrates tags.
-  - Pending record and pending image are removed after promotion.
-  - Conflict strategies (override/merge/delete) are part of the import endpoint design.
+  - Backend calculates sha256 (canonical PK), moves record to models, migrates tags.
+  - Conflict strategies (override/merge/delete) are handled during this promotion phase.
+  - SHA256 calculation is reserved for promotion and is NOT performed for already hashed records in the active library.
 
 ## Image Pipeline (Current)
 - Active images use: <hash>_<seq>_<quality>.webp.
-- Pending images store original format under images/pending/ using pending id.
-- get_sample_imgs endpoint will list available seq variants for a hash.
+- Image Deletion: Deleting a sequence index triggers a shift of subsequent images down to maintain a gapless sequence.
+- get_img_num endpoint provides the upper bound for sequential image cycling.
 - Frontend uses IntersectionObserver for lazy loading:
-  - Cards init with placeholder/loading state.
-  - Image request (`/api/images/{hash}.webp`) triggers only when card enters viewport.
+  - Image request (`/api/images/{hash}.webp?seq=N&quality=medium`) triggers only when card enters viewport.
+
+## Frontend Architecture
+- Vue 3 + TypeScript + Vite.
+- Data Strategy:
+  - "Client-Side Heavy" for model lists.
+  - Local reactive search and tag filtering (AND logic, Include/Exclude).
+  - Auto-exclusion of 'nsfw' tag on load.
+- LoRA JSON Protocol:
+  - Unified schema using `LoRAEntry` and `LoRAListDocument` fields (e.g., `full_path`, `strength_model`, `enabled`).
+- Model Details Form:
+  - Derived from `meta_json` for fields like trigger words and notes.
+  - Types fetched dynamically via `GET /api/models/get_types`.
 
 ## API Surface (Current)
 - /api/migration/migrate_legacy_db (Stage 1 import). (Implemented)
