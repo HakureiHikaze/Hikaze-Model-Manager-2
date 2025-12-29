@@ -6,12 +6,12 @@
 - [x] Task: Review previous discrepancy reports (`conductor/discrepancies/`) to filter out already addressed issues. [docs]
 - [x] Task: Conductor - User Manual Verification 'Information Gathering & Scope Mapping' (Protocol in workflow.md)
 
-## Phase 2: Multi-Dimensional Audit
+## Phase 2: Multi-Dimensional Audit [checkpoint: 6f19693]
 - [x] Task: Audit `backend/` logic (Routers, DB, Utils) against design docs and tech-stack. [audit]
 - [x] Task: Audit `nodes/` (Custom Node implementations) for core logic consistency and user-facing requirements. [audit]
 - [x] Task: Audit `web/src` (Components, Store, API layer) against UI/UX guidelines and product goals. [audit]
-- [~] Task: Identify "Headless Artifacts" (interrupted code/design) and mark them as Development Junction Points. [audit]
-- [ ] Task: Conductor - User Manual Verification 'Multi-Dimensional Audit' (Protocol in workflow.md)
+- [x] Task: Identify "Headless Artifacts" (interrupted code/design) and mark them as Development Junction Points. [audit]
+- [x] Task: Conductor - User Manual Verification 'Multi-Dimensional Audit' (Protocol in workflow.md)
 
 ## Phase 3: Reporting & Recommendation
 - [ ] Task: Generate the comprehensive discrepancy report `20251230-comprehensive-audit.md` in `conductor/discrepancies/`. [report]
