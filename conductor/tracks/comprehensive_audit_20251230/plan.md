@@ -1,10 +1,10 @@
 # Plan - Comprehensive Codebase & Design Audit (2025-12-30)
 
-## Phase 1: Information Gathering & Scope Mapping
+## Phase 1: Information Gathering & Scope Mapping [checkpoint: 916beac]
 - [x] Task: Review all reference documents in `conductor/` and `_codex/` to establish the current "Design Baseline". [docs]
 - [x] Task: Map the physical structure of `backend/`, `nodes/`, and `web/src` to identify all modules and components. [scan]
-- [~] Task: Review previous discrepancy reports (`conductor/discrepancies/`) to filter out already addressed issues. [docs]
-- [ ] Task: Conductor - User Manual Verification 'Information Gathering & Scope Mapping' (Protocol in workflow.md)
+- [x] Task: Review previous discrepancy reports (`conductor/discrepancies/`) to filter out already addressed issues. [docs]
+- [x] Task: Conductor - User Manual Verification 'Information Gathering & Scope Mapping' (Protocol in workflow.md)
 
 ## Phase 2: Multi-Dimensional Audit
 - [ ] Task: Audit `backend/` logic (Routers, DB, Utils) against design docs and tech-stack. [audit]
