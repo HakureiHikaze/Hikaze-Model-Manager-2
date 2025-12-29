@@ -135,6 +135,56 @@ class ImageProcessor:
                     pass
 
     @staticmethod
+    def delete_image_sequence(sha256: str, target_seq: int):
+        """
+        Delete a specific sequence index and shift subsequent images down.
+        """
+        # 1. Validate target existence (at least high quality)
+        target_base = f"{sha256}_{target_seq}"
+        high_path = ImageProcessor.get_image_path(target_base, "high", is_pending=False)
+        if not os.path.exists(high_path):
+            # Try just the hash for seq 0 if it's stored without suffix?
+            # But get_image_path handles that normalization.
+            # If get_image_path(target_base) doesn't exist, it doesn't exist.
+            raise ValueError(f"Image sequence {target_seq} not found for {sha256}")
+
+        # 2. Delete the target files
+        ImageProcessor.delete_images(target_base, is_pending=False)
+
+        # 3. Shift subsequent images
+        current_seq = target_seq + 1
+        base_dir = config.IMAGES_DIR
+        
+        while True:
+            # Check if next sequence exists
+            next_base = f"{sha256}_{current_seq}"
+            # We construct path manually to avoid 'get_image_path' logic potentially interfering (though it shouldn't)
+            # and to be explicit about checking "high" quality as indicator.
+            next_high_name = f"{next_base}_high.webp"
+            next_high_path = os.path.join(base_dir, next_high_name)
+            
+            if not os.path.exists(next_high_path):
+                break
+                
+            # Rename all qualities for current_seq to current_seq - 1
+            new_seq = current_seq - 1
+            new_base = f"{sha256}_{new_seq}"
+            
+            for q_name in QUALITIES.keys():
+                old_name = f"{next_base}_{q_name}.webp"
+                new_name = f"{new_base}_{q_name}.webp"
+                old_path = os.path.join(base_dir, old_name)
+                new_path = os.path.join(base_dir, new_name)
+                
+                if os.path.exists(old_path):
+                    # Ensure target doesn't exist (it shouldn't, we just deleted/moved it)
+                    if os.path.exists(new_path):
+                        os.remove(new_path)
+                    os.rename(old_path, new_path)
+            
+            current_seq += 1
+
+    @staticmethod
     def get_image_list(hash_str: str) -> List[str]:
         """Scan data/images for all sequence base names matching the hash."""
         # We look for <hash>_<seq>_high.webp

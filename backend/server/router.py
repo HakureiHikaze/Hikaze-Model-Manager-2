@@ -102,6 +102,30 @@ async def handle_upload_image(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_delete_image(request):
+    """
+    DELETE /api/images/delete?sha256=...&seq=...
+    """
+    sha256 = request.query.get("sha256")
+    seq_str = request.query.get("seq")
+    
+    if not sha256 or seq_str is None:
+        return web.json_response({"error": "sha256 and seq are required"}, status=400)
+    
+    try:
+        seq = int(seq_str)
+    except ValueError:
+        return web.json_response({"error": "seq must be an integer"}, status=400)
+
+    try:
+        ImageProcessor.delete_image_sequence(sha256, seq)
+        return web.json_response({"status": "success"})
+    except ValueError as e:
+        return web.json_response({"error": str(e)}, status=404)
+    except Exception as e:
+        logger.exception(f"Error deleting image {sha256}_{seq}")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def handle_get_sample_imgs(request):
     """
     POST /api/images/get_sample_imgs
@@ -518,6 +542,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
+    app.router.add_delete("/api/images/delete", handle_delete_image)
     app.router.add_post("/api/images/get_sample_imgs", handle_get_sample_imgs)
     
     # Migration APIs
