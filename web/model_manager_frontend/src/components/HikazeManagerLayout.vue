@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { fetchModelTypes } from '../api/models';
+import { useModelStore } from '../store/models';
 
 const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
+
+const modelStore = useModelStore();
 
 const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
@@ -15,6 +18,13 @@ const error = ref<string | null>(null);
 function setActiveTab(type: string) {
   activeTab.value = type;
 }
+
+// Watch for tab changes and load models
+watch(activeTab, (newTab) => {
+  if (newTab) {
+    modelStore.loadModels(newTab);
+  }
+});
 
 async function loadModelTypes() {
   isLoading.value = true;
