@@ -5,11 +5,10 @@ This report refines the findings from the initial audit based on product owner f
 
 ---
 
-## 1. API Redundancy: `GET /api/models/{sha256}`
-- **Status:** **Redundant / To Remove**
-- **Analysis:** The frontend `ModelLibrary` already fetches all necessary metadata (including SHA256) via `GET /api/models`. The details pane uses this local data. Therefore, a dedicated single-model fetch endpoint is unnecessary overhead.
-- **Action:** Remove references to `GET /api/models/{sha256}` from `_codex/backend_apis.md` and design docs. Do NOT implement.
-- **Note:** `PATCH /api/models/{sha256}` is still required for updating model details (tags, name).
+## 1. API Status: `GET /api/models/{sha256}`
+- **Status:** **Required / Active**
+- **Analysis:** Initial audit suggested redundancy, but the "Model Details" pane requires the heavy `meta_json` payload which is excluded from the simplified `GET /api/models` library view to optimize performance.
+- **Action:** Retain and implement `GET /api/models/{sha256}`. Document in `_codex/backend_apis.md`.
 
 ## 2. Automatic Model Scanning
 - **Status:** **Planned / Legitimate Design**
