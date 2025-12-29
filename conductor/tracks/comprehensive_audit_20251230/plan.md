@@ -14,9 +14,9 @@
 - [x] Task: Conductor - User Manual Verification 'Multi-Dimensional Audit' (Protocol in workflow.md)
 
 ## Phase 3: Reporting & Recommendation
-- [ ] Task: Generate the comprehensive discrepancy report `20251230-comprehensive-audit.md` in `conductor/discrepancies/`. [report]
-- [ ] Task: Categorize findings into Missing, Undocumented, Deviations, and Junction Points. [docs]
-- [ ] Task: Review the report with the user to confirm findings and prioritize "collapsed" design decisions. [docs]
+- [x] Task: Generate the comprehensive discrepancy report `20251230-comprehensive-audit.md` in `conductor/discrepancies/`. [report]
+- [x] Task: Categorize findings into Missing, Undocumented, Deviations, and Junction Points. [docs]
+- [~] Task: Review the report with the user to confirm findings and prioritize "collapsed" design decisions. [docs]
 - [ ] Task: Conductor - User Manual Verification 'Reporting & Recommendation' (Protocol in workflow.md)
 
 ## Phase 4: Design Consolidation & Documentation Update
