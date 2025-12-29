@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { fetchModelTypes } from '../api/models';
 
-defineProps<{
+const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
@@ -23,12 +23,13 @@ async function loadModelTypes() {
     const types = await fetchModelTypes();
     modelTypes.value = [...types, 'Others'];
     
-    // Set default tab if not set
-    if (!activeTab.value && modelTypes.value.length > 0) {
+    // Resolve initial active tab
+    const initial = props.initialTab;
+    if (initial && modelTypes.value.includes(initial)) {
+      activeTab.value = initial;
+    } else if (modelTypes.value.length > 0) {
       activeTab.value = modelTypes.value[0];
     }
-    
-    // Initial active tab logic will be implemented in Phase 3
   } catch (e: any) {
     error.value = e.message || 'Failed to load model types';
   } finally {
