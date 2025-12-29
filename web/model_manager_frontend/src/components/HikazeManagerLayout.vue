@@ -1,8 +1,35 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { fetchModelTypes } from '../api/models';
+
 defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
+
+const activeTab = ref<string>('');
+const modelTypes = ref<string[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
+async function loadModelTypes() {
+  isLoading.value = true;
+  error.value = null;
+  try {
+    const types = await fetchModelTypes();
+    modelTypes.value = [...types, 'Others'];
+    
+    // Initial active tab logic will be implemented in Phase 3
+  } catch (e: any) {
+    error.value = e.message || 'Failed to load model types';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadModelTypes();
+});
 </script>
 
 <template>
