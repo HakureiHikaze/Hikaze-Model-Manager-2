@@ -13,11 +13,11 @@
 - [x] Task: Identify "Headless Artifacts" (interrupted code/design) and mark them as Development Junction Points. [audit]
 - [x] Task: Conductor - User Manual Verification 'Multi-Dimensional Audit' (Protocol in workflow.md)
 
-## Phase 3: Reporting & Recommendation
+## Phase 3: Reporting & Recommendation [checkpoint: 1d0270b]
 - [x] Task: Generate the comprehensive discrepancy report `20251230-comprehensive-audit.md` in `conductor/discrepancies/`. [report]
 - [x] Task: Categorize findings into Missing, Undocumented, Deviations, and Junction Points. [docs]
-- [~] Task: Review the report with the user to confirm findings and prioritize "collapsed" design decisions. [docs]
-- [ ] Task: Conductor - User Manual Verification 'Reporting & Recommendation' (Protocol in workflow.md)
+- [x] Task: Review the report with the user to confirm findings and prioritize "collapsed" design decisions. [docs]
+- [x] Task: Conductor - User Manual Verification 'Reporting & Recommendation' (Protocol in workflow.md)
 
 ## Phase 4: Design Consolidation & Documentation Update
 - [ ] Task: Interactively update `conductor/product.md` and `conductor/tech-stack.md` based on audit results. [docs]
