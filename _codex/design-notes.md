@@ -79,21 +79,20 @@
 19) grid column limit
     - Keep 2-10 column limit; no change required.
 
-## Code Alignment Notes
-- backend/util/hasher.py provides SHA256 hashing but is not wired to any endpoint yet.
-- nodes/util/lora_list_parser.py does not accept the "LoRAs" key used in loraListExample.json and the frontend.
-- web/custom_node_frontend/src/util/lora.ts exports stringifyLoRAListDocument, which writes "LoRAs".
-- backend/util/image_processor.py expects seq for active images, but upload currently saves without seq.
+## Review of Code Alignment
+- **backend/util/hasher.py**: Now utilized by the `import_models` endpoint for SHA256 calculation during promotion.
+- **nodes/util/lora_list_parser.py**: Updated to support the "LoRAs" key (and other variants) in non-strict mode, ensuring compatibility with the frontend and example JSON.
+- **backend/util/image_processor.py**: Image upload logic in `router.py` correctly uses `get_next_sequence_index` to ensure consistent naming (hash_seq_quality.webp).
+- **Decoupled Node Execution**: Confirmed that nodes rely solely on `hikaze_payload` and do not require database access during execution, maintaining a clean separation between the Manager UI and the ComfyUI backend.
 
-## API Decisions (updated)
-- Remove /api/models/sha256 from the target design.
-- Use /api/migration/import_a_model as the sole trigger for pending import.
-- Add /api/images/get_sample_imgs to list available sequences for a hash.
+## API Decisions (Updated)
+- **handle_import_models**: Replaced `handle_import_a_model` as the primary promotion mechanism, supporting batch imports and conflict strategies.
+- **/api/images/get_sample_imgs**: Implemented to return a list of available image sequences for a given hash.
 
-## Image Pipeline Decisions (updated)
+## Image Pipeline Decisions (Updated)
 - Active images: always saved as hash_seq_quality.webp.
-- Pending images: store original file under data/images/pending/ with pending id.
-- Promotion: compute next sequence index for merge, or seq 0 for initial import.
+- Pending images: store original file under data/images/pending/ using pending id.
+- Promotion: compute next sequence index for merge, or seq 0 for initial import. logic verified in `router.py`.
 
 ## Deferred Items
 - UI wiring to backend APIs.
