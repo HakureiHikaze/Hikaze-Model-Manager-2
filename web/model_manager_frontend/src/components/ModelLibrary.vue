@@ -15,7 +15,7 @@ const tooltipPlacement = ref<'top' | 'bottom'>('bottom')
 const showTagFilter = ref(false)
 
 const searchQuery = ref('')
-const selectedTagIds = ref<Set<number>>(new Set())
+const tagFilters = ref<Map<number, 'include' | 'exclude'>>(new Map())
 
 const rawModels = modelStore.getModels(computed(() => props.activeTab))
 const isLoading = modelStore.isLoading(computed(() => props.activeTab))
@@ -44,29 +44,46 @@ const filteredModels = computed(() => {
     )
   }
 
-  // Apply tag filter
-  if (selectedTagIds.value.size > 0) {
-    result = result.filter((m: any) => 
-      m.tags.some((tag: any) => selectedTagIds.value.has(tag.id))
-    )
-    
-    // Sort: models matching ALL selected tags first? 
-    // For now, just keep original order but filtered.
+  // Apply tag filter (AND logic for includes, NOT logic for excludes)
+  if (tagFilters.value.size > 0) {
+    const includedIds = Array.from(tagFilters.value.entries())
+      .filter(([_, state]) => state === 'include')
+      .map(([id]) => id)
+      
+    const excludedIds = Array.from(tagFilters.value.entries())
+      .filter(([_, state]) => state === 'exclude')
+      .map(([id]) => id)
+
+    result = result.filter((m: any) => {
+      const modelTagIds = new Set(m.tags.map((t: any) => t.id))
+      
+      // Must have ALL included tags
+      const hasAllIncluded = includedIds.every(id => modelTagIds.has(id))
+      
+      // Must have NO excluded tags
+      const hasNoExcluded = !excludedIds.some(id => modelTagIds.has(id))
+      
+      return hasAllIncluded && hasNoExcluded
+    })
   }
 
   return result
 })
 
 function toggleTag(tagId: number) {
-  if (selectedTagIds.value.has(tagId)) {
-    selectedTagIds.value.delete(tagId)
+  const currentState = tagFilters.value.get(tagId)
+  
+  if (currentState === 'include') {
+    tagFilters.value.set(tagId, 'exclude')
+  } else if (currentState === 'exclude') {
+    tagFilters.value.delete(tagId)
   } else {
-    selectedTagIds.value.add(tagId)
+    tagFilters.value.set(tagId, 'include')
   }
 }
 
 function clearTags() {
-  selectedTagIds.value.clear()
+  tagFilters.value.clear()
 }
 
 function refresh() {
@@ -120,8 +137,8 @@ const onMouseLeave = () => {
         </button>
 
         <div class="tag-filter">
-          <button class="btn-filter" :class="{ active: selectedTagIds.size > 0 }" @click="showTagFilter = !showTagFilter">
-            Tags Filter {{ selectedTagIds.size > 0 ? `(${selectedTagIds.size})` : '' }}
+          <button class="btn-filter" :class="{ active: tagFilters.size > 0 }" @click="showTagFilter = !showTagFilter">
+            Tags Filter {{ tagFilters.size > 0 ? `(${tagFilters.size})` : '' }}
           </button>
           <div v-if="showTagFilter" class="tag-dropdown">
             <div v-if="availableTags.length === 0" class="placeholder-msg">No tags available</div>
@@ -130,7 +147,7 @@ const onMouseLeave = () => {
                 v-for="tag in availableTags" 
                 :key="tag.id" 
                 class="tag-item"
-                :class="{ selected: selectedTagIds.has(tag.id) }"
+                :class="tagFilters.get(tag.id)"
                 @click="toggleTag(tag.id)"
               >
                 {{ tag.name }}
@@ -336,8 +353,13 @@ const onMouseLeave = () => {
   background: #161b22;
 }
 
-.tag-item.selected {
+.tag-item.include {
   background: #238636;
+  color: #fff;
+}
+
+.tag-item.exclude {
+  background: #da3633;
   color: #fff;
 }
 
