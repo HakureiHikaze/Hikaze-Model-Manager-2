@@ -16,5 +16,5 @@
 ## Phase 3: Property Logic & Cleanup
 - [x] Task: Implement logic to resolve `activeTab` on mount using `initialTab` prop and fetched types. b9ae411
 - [x] Task: Remove hardcoded mock tab navigation from `App.vue`. 33e3641
-- [ ] Task: Ensure `embedded` prop correctly toggles the visibility of the tab bar.
-- [ ] Task: Conductor - User Manual Verification 'Property Logic & Cleanup' (Protocol in workflow.md)
+- [x] Task: Ensure `embedded` prop correctly toggles the visibility of the tab bar. d595615
+- [~] Task: Conductor - User Manual Verification 'Property Logic & Cleanup' (Protocol in workflow.md)
