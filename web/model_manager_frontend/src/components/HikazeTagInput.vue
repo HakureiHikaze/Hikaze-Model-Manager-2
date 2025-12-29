@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { fetchTags, Tag } from '../api/models'
+import { fetchTags } from '../api/models'
+import type { Tag } from '../api/models'
 
 const props = defineProps<{
   modelValue: Tag[]

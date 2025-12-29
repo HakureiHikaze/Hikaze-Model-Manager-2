@@ -1,79 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { fetchImageCount, deleteImage } from '../api/models'
 
 const props = defineProps<{
   sha256: string
 }>()
-
-const emit = defineEmits(['update'])
-
-const imageCount = ref(0)
-const currentIndex = ref(0)
-const isLoading = ref(false)
-const isHovering = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
-
-const loadImages = async () => {
-  if (!props.sha256) return
-  isLoading.value = true
-  try {
-    imageCount.value = await fetchImageCount(props.sha256)
-    // If current index is out of bounds after count update, reset to last available or 0
-    if (currentIndex.value >= imageCount.value && imageCount.value > 0) {
-      currentIndex.value = imageCount.value - 1
-    } else if (imageCount.value === 0) {
-      currentIndex.value = 0
-    }
-  } catch (e) {
-    console.error('Failed to load image count:', e)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-watch(() => props.sha256, () => {
-  currentIndex.value = 0
-  loadImages()
-}, { immediate: true })
-
-const nextImage = () => {
-  if (imageCount.value > 0) {
-    currentIndex.value = (currentIndex.value + 1) % imageCount.value
-  }
-}
-
-const prevImage = () => {
-  if (imageCount.value > 0) {
-    currentIndex.value = (currentIndex.value - 1 + imageCount.value) % imageCount.value
-  }
-}
-
-const handleDelete = async () => {
-  if (imageCount.value === 0) return
-  if (!confirm('Are you sure you want to delete this image?')) return
-  
-  try {
-    await deleteImage(props.sha256, currentIndex.value)
-    await loadImages()
-    emit('update')
-  } catch (e) {
-    alert('Failed to delete image')
-  }
-}
-
-const triggerUpload = () => {
-  fileInput.value?.click()
-}
-
+// ... existing code ...
 const handleUpload = async (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files?.length) return
   
   const file = input.files[0]
+  if (!file) return
+
   const formData = new FormData()
   formData.append('image', file)
   formData.append('sha256', props.sha256)
+// ... existing code ...
   
   try {
     const response = await fetch('/api/images/upload', {
