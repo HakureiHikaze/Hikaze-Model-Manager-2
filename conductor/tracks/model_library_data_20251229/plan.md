@@ -1,6 +1,6 @@
 # Plan: Model Data Fetching, Local Caching, and Reactive Previews
 
-## Phase 1: Setup & Backend API Development
+## Phase 1: Setup & Backend API Development [checkpoint: 4101590]
 - [x] Task: Create and switch to a new development branch `model_lib_dev`. aaa42f7
 - [x] Task: Extend `DatabaseManager` in `backend/database/db.py` to support fetching models by type (including 'others' logic) with their associated tags. ffee8aa
 - [x] Task: Implement the `handle_get_models` handler in `backend/server/router.py` to expose the `GET /api/models` endpoint. 24cfde0
