@@ -15,7 +15,7 @@
 - [x] Task: Conductor - User Manual Verification 'Frontend Data & Cache Layer' (Protocol in workflow.md) 16f5d1d
 
 ## Phase 3: Reactive Library & Filtering
-- [ ] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data.
+- [x] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data. dabf77c
 - [ ] Task: Implement reactive local searching (by name/path) and tag-based filtering within `ModelLibrary.vue`.
 - [ ] Task: Add a "Refresh" button to the library toolbar to manually invalidate the cache and re-fetch the current type.
 - [ ] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md)
