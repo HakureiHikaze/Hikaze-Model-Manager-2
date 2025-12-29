@@ -16,6 +16,11 @@ This track implements the core data flow for retrieving model lists from the bac
     - `type`: Category string.
     - `tags`: List of associated tags (names/IDs) for immediate UI rendering and filtering.
 
+### Backend: Tag Retrieval API
+- **Endpoint:** `GET /api/tags`
+- **Response Shape:** A JSON object containing a list of all tags:
+    - `tags`: Array of objects with `id` and `name`.
+
 ### Frontend: Data Management & Persistent-Session Cache
 - **Tab-Triggered Loading:** On tab selection, check the local cache for that `type`.
     - If **Cache Hit:** Load instantly from memory.
@@ -24,6 +29,9 @@ This track implements the core data flow for retrieving model lists from the bac
 - **Local Reactive Operations:**
     - **Search:** Instant local filtering by name/path.
     - **Tag Filtering:** Re-ordering and highlighting items based on active tags chosen in the UI.
+- **Auto-Exclude NSFW:**
+    - On application load, fetch all tags via `/api/tags`.
+    - If a tag named "nsfw" (case-insensitive) exists, automatically set its filter state to 'exclude' to hide sensitive content by default.
 
 ### Frontend: Image Preview System
 - **Lazy Loading:** Use an Intersection Observer (or similar) to load model card backgrounds only when visible.
