@@ -170,6 +170,31 @@ async def handle_get_models(request):
         logger.exception("Error fetching models")
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_get_model_details(request):
+    """
+    GET /api/models/{sha256}
+    Return full details for a specific model.
+    """
+    sha256 = request.match_info.get("sha256", "")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+
+    db = DatabaseManager()
+    try:
+        row = db.get_model(sha256)
+        if not row:
+            return web.json_response({"error": "Model not found"}, status=404)
+        
+        model = dict(row)
+        # Fetch tags
+        tags_rows = db.get_tags_for_model(sha256)
+        model["tags"] = [dict(t) for t in tags_rows]
+        
+        return web.json_response(model)
+    except Exception as e:
+        logger.exception(f"Error fetching model details for {sha256}")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def handle_get_pending_models(request):
     """
     GET /api/migration/pending_models
@@ -469,6 +494,7 @@ async def handle_import_models(request):
 def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
     app.router.add_get("/api/models/get_types", handle_get_model_types)
+    app.router.add_get("/api/models/{sha256}", handle_get_model_details)
     app.router.add_get("/api/models", handle_get_models)
     app.router.add_get("/api/tags", handle_get_tags)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
