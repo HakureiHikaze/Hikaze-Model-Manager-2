@@ -18,8 +18,8 @@
    - If nodes only need flexible parsing, the current inline parsing in HikazeLoraPowerLoader may be sufficient; a dedicated parser may be optional.
 
 2) hasher.py
-   - The module is suitable for Stage 2 import-by-pending-id hashing.
-   - It is currently unused; wire it to the future import endpoint (not /api/models/sha256).
+   - The module is used for Stage 2 import-by-pending-id hashing.
+   - It is wired to the `import_models` endpoint.
 
 3) numbers.ts
    - Unused and safe to remove when frontend cleanup resumes.
