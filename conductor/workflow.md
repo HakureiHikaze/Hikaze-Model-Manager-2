@@ -22,6 +22,7 @@ All tasks follow a strict lifecycle:
 3. **Implement Task:**
    - Write the application code necessary to fulfill the task requirements.
    - Ensure the implementation aligns with the tech stack and product guidelines.
+   - **Critical for TypeScript/Frontend:** After completing development, you MUST run `npm run build` to verify the build passes. Analyze and fix any build errors immediately.
 
 4. **Document Deviations:** If implementation differs from tech stack:
    - **STOP** implementation
@@ -121,6 +122,7 @@ All tasks follow a strict lifecycle:
 Before marking any task complete, verify:
 
 - [ ] Code follows project's code style guidelines (as defined in `code_styleguides/`)
+- [ ] For TS/Frontend tasks: `npm run build` succeeds without errors.
 - [ ] All public functions/methods are documented (e.g., docstrings, JSDoc, GoDoc)
 - [ ] Type safety is enforced (e.g., type hints, TypeScript types, Go types)
 - [ ] Works correctly on mobile (if applicable)
@@ -233,10 +235,11 @@ A task is complete when:
 
 1. All code implemented to specification
 2. Code passes all configured linting and static analysis checks
-3. Works beautifully on mobile (if applicable)
-4. Implementation notes added to `plan.md`
-5. Changes committed with proper message
-6. Git note with task summary attached to the commit
+3. **Build Verification:** `npm run build` passes successfully (for frontend/TS tasks).
+4. Works beautifully on mobile (if applicable)
+5. Implementation notes added to `plan.md`
+6. Changes committed with proper message
+7. Git note with task summary attached to the commit
 
 ## Emergency Procedures
 
