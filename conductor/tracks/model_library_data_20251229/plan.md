@@ -6,7 +6,7 @@
 - [x] Task: Implement the `handle_get_models` handler in `backend/server/router.py` to expose the `GET /api/models` endpoint. 24cfde0
 - [x] Task: Register the `GET /api/models` route in `setup_routes`. 24cfde0
 - [x] Task: Refactor `handle_get_models` in `backend/server/router.py` to return simplified model objects (excluding full `meta_json`). df68154
-- [~] Task: Conductor - User Manual Verification 'Setup & Backend API Development' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Setup & Backend API Development' (Protocol in workflow.md) df68154
 
 ## Phase 2: Frontend Data & Cache Layer
 - [ ] Task: Update `web/model_manager_frontend/src/api/models.ts` with the `fetchModels` function and necessary TypeScript interfaces.
