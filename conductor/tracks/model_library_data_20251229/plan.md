@@ -24,5 +24,5 @@
 ## Phase 4: Image Preview & Lazy Loading
 - [x] Task: Implement a lazy-loading mechanism (Intersection Observer) for model card backgrounds in the library. ac05a10
 - [x] Task: Update the model card styling to use the `/api/images/{sha256}.webp?quality=medium` endpoint for background images. 9d6ecc5
-- [ ] Task: Add placeholder handling for models without a recorded preview image.
+- [x] Task: Add placeholder handling for models without a recorded preview image. f78584e
 - [ ] Task: Conductor - User Manual Verification 'Image Preview & Lazy Loading' (Protocol in workflow.md)
