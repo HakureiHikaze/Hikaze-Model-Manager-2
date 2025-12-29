@@ -15,9 +15,9 @@
 - [x] Task: Conductor - User Manual Verification 'Documentation Correction' (Protocol in workflow.md) [390ebcc]
 
 ## Phase 3: Frontend Image Gallery & Tag Components
-- [ ] Task: Create `HikazeImageGallery.vue` with 3:4 aspect ratio, navigation, and add/delete controls.
-- [ ] Task: Create `HikazeTagInput.vue` (Chip pattern) with autocomplete and multi-stage creation logic.
-- [ ] Task: Conductor - User Manual Verification 'Frontend Components' (Protocol in workflow.md)
+- [x] Task: Create `HikazeImageGallery.vue` with 3:4 aspect ratio, navigation, and add/delete controls. [ee27a87]
+- [x] Task: Create `HikazeTagInput.vue` (Chip pattern) with autocomplete and multi-stage creation logic. [ee27a87]
+- [~] Task: Conductor - User Manual Verification 'Frontend Components' (Protocol in workflow.md)
 
 ## Phase 4: Details Pane Integration
 - [ ] Task: Update `ModelDetails.vue` to integrate the new Gallery and Tag components.
