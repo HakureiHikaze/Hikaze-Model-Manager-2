@@ -77,7 +77,7 @@ onMounted(() => {
 
     <!-- Main Content Area (Library) -->
     <main class="hikaze-pane-library">
-      <slot name="library">Library</slot>
+      <slot name="library" :active-tab="activeTab">Library</slot>
     </main>
 
     <!-- Right Sidebar (Details) -->

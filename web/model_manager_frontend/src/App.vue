@@ -19,11 +19,13 @@ const initialTab = computed(() => {
 
   <HikazeManagerLayout :embedded="isEmbedded" :initialTab="initialTab">
 
-    <template #library>
+        <template #library="{ activeTab }">
 
-      <ModelLibrary />
+          <ModelLibrary :active-tab="activeTab" />
 
-    </template>
+        </template>
+
+    
 
     
 

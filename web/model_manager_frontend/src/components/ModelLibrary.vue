@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useModelStore } from '../store/models'
+
+const props = defineProps<{
+  activeTab: string
+}>()
+
+const modelStore = useModelStore()
 
 const viewMode = ref<'card' | 'list'>('card')
 const columnCount = ref(4)
-const hoveredId = ref<number | null>(null)
+const hoveredId = ref<string | null>(null)
 const tooltipPlacement = ref<'top' | 'bottom'>('bottom')
 const showTagFilter = ref(false)
 
-const models = Array.from({ length: 12 }, (_, i) => ({
-  id: i,
-  name: `Model ${i + 1} with a very long name that might overflow the card container`,
-  type: 'Checkpoint',
-  tags: ['Realistic', 'Anime', 'Portrait', 'Landscape', 'Cyberpunk', 'Oil Painting'].slice(0, (i % 6) + 1),
-  image: '' // Placeholder
-}))
+const models = modelStore.getModels(computed(() => props.activeTab))
+const isLoading = modelStore.isLoading(computed(() => props.activeTab))
+const error = modelStore.getError(computed(() => props.activeTab))
 
 const setView = (mode: 'card' | 'list') => {
   viewMode.value = mode
@@ -26,7 +29,7 @@ const gridStyle = computed(() => {
   }
 })
 
-const onMouseEnter = (e: MouseEvent, id: number) => {
+const onMouseEnter = (e: MouseEvent, id: string) => {
   hoveredId.value = id
   const target = e.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
@@ -69,22 +72,28 @@ const onMouseLeave = () => {
     </div>
 
     <div class="library-content" :class="viewMode" :style="gridStyle">
-      <template v-if="viewMode === 'card'">
-        <div v-for="model in models" :key="model.id" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
-          @mouseenter="(e) => onMouseEnter(e, model.id)" @mouseleave="onMouseLeave">
+      <div v-if="isLoading" class="library-loading">
+        <span class="spinner"></span> Loading models...
+      </div>
+      <div v-else-if="error" class="library-error">
+        {{ error }}
+      </div>
+      <template v-else-if="viewMode === 'card'">
+        <div v-for="model in models" :key="model.sha256" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
+          @mouseenter="(e) => onMouseEnter(e, model.sha256)" @mouseleave="onMouseLeave">
           <div class="card-image"></div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
-              <span v-for="tag in model.tags" :key="tag" class="tag">{{ tag }}</span>
+              <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
             </div>
           </div>
 
           <!-- Hover Tooltip -->
-          <div v-if="hoveredId === model.id" class="card-tooltip" :class="tooltipPlacement">
+          <div v-if="hoveredId === model.sha256" class="card-tooltip" :class="tooltipPlacement">
             <div class="tooltip-name">{{ model.name }}</div>
             <div class="tooltip-tags">
-              <span v-for="tag in model.tags" :key="tag" class="tag">{{ tag }}</span>
+              <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
             </div>
           </div>
         </div>
@@ -92,10 +101,10 @@ const onMouseLeave = () => {
 
       <template v-else>
         <div class="list-container">
-          <div v-for="model in models" :key="model.id" class="list-item">
+          <div v-for="model in models" :key="model.sha256" class="list-item">
             <div class="list-name">{{ model.name }}</div>
             <div class="list-tags">
-              <span v-for="tag in model.tags" :key="tag" class="tag">{{ tag }}</span>
+              <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
             </div>
           </div>
         </div>
@@ -210,6 +219,31 @@ const onMouseLeave = () => {
   color: #8b949e;
   font-size: 0.85rem;
   text-align: center;
+}
+
+.library-loading, .library-error {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: #8b949e;
+  font-size: 0.9rem;
+  gap: 12px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: #238636;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .library-content {

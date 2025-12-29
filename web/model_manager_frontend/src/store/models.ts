@@ -1,12 +1,11 @@
-import { reactive, computed } from 'vue';
+import { reactive, computed, type ComputedRef } from 'vue';
 import { fetchModels, type Model } from '../api/models';
 
-/**
- * Global reactive state for models to ensure caching across components.
- */
-const cachedModels = reactive<Record<string, Model[]>>({});
-const loadingTypes = reactive<Record<string, boolean>>({});
-const errorTypes = reactive<Record<string, string | null>>({});
+type TypeInput = string | ComputedRef<string>;
+
+function resolveType(t: TypeInput): string {
+  return typeof t === 'string' ? t : t.value;
+}
 
 export function useModelStore() {
   /**
@@ -43,29 +42,22 @@ export function useModelStore() {
   /**
    * Returns models for a specific type.
    */
-  function getModels(type: string) {
-    return computed(() => cachedModels[type] || []);
+  function getModels(type: TypeInput) {
+    return computed(() => cachedModels[resolveType(type)] || []);
   }
 
   /**
    * Returns loading status for a specific type.
    */
-  function isLoading(type: string) {
-    return computed(() => !!loadingTypes[type]);
+  function isLoading(type: TypeInput) {
+    return computed(() => !!loadingTypes[resolveType(type)]);
   }
 
   /**
    * Returns error status for a specific type.
    */
-  function getError(type: string) {
-    return computed(() => errorTypes[type] || null);
+  function getError(type: TypeInput) {
+    return computed(() => errorTypes[resolveType(type)] || null);
   }
 
-  return {
-    cachedModels,
-    loadModels,
-    getModels,
-    isLoading,
-    getError
-  };
 }
