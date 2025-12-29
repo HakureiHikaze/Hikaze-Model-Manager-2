@@ -103,33 +103,6 @@ const getImageUrl = (seq: number) => {
   return `/api/images/${props.sha256}.webp?seq=${seq}&quality=high&t=${Date.now()}` // t for cache busting
 }
 </script>
-  
-  try {
-    const response = await fetch('/api/images/upload', {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (response.ok) {
-      await loadImages()
-      currentIndex.value = imageCount.value - 1 // Go to the new image
-      emit('update')
-    } else {
-      const err = await response.json()
-      alert(`Upload failed: ${err.error || response.statusText}`)
-    }
-  } catch (e) {
-    alert('Upload error')
-  } finally {
-    input.value = '' // Reset
-  }
-}
-
-// Helper for image URL
-const getImageUrl = (seq: number) => {
-  return `/api/images/${props.sha256}.webp?seq=${seq}&quality=high&t=${Date.now()}` // t for cache busting
-}
-</script>
 
 <template>
   <div 
