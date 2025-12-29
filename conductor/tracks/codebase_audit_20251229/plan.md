@@ -1,6 +1,6 @@
 # Plan: Project Codebase Audit and Design Documentation Update
 
-## Phase 1: Discovery & Analysis
+## Phase 1: Discovery & Analysis [checkpoint: 3341f1e]
 - [x] Task: Audit `backend/` directory to identify database patterns, API structures, and utility logic not yet documented. 0ebc4fa
 - [x] Task: Audit `nodes/` directory to understand the current implementation of model loaders and their interaction with the backend. 0ebc4fa
 - [x] Task: Audit `web/` directory (both frontends) to map out the Vue.js architecture, state management, and communication protocols. 0ebc4fa
