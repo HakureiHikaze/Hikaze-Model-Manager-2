@@ -28,7 +28,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 
 ## Future Roadmap
 - **Model Auto-Discovery:** Automated scanning of ComfyUI model directories to populate the pending import queue.
-- **Advanced Metadata Form:** Extensible model detail forms based on `meta_json` schemas (e.g., trigger words, notes).
+- **Advanced Metadata Form:** Extensible model detail forms based on `meta_json` schemas (e.g., description, community links, prompts). (Implemented)
 - **Conflict Resolution UI:** Dedicated frontend interface for handling duplicates during model promotion.
 - **LoRA List Management:** Unified LoRA JSON protocol for power loaders.
 
