@@ -19,9 +19,11 @@ const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 
-// We parse meta_json to get trigger words and notes if they exist there
-const triggerWords = ref<string[]>([])
-const notes = ref('')
+// We parse meta_json to get extended fields
+const description = ref('')
+const communityLinks = ref('')
+const positivePrompt = ref('')
+const negativePrompt = ref('')
 
 const loadFullDetails = async (sha256: string) => {
   isLoading.value = true
@@ -33,14 +35,18 @@ const loadFullDetails = async (sha256: string) => {
     if (data.meta_json) {
       try {
         const meta = JSON.parse(data.meta_json)
-        triggerWords.value = Array.isArray(meta.trigger_words) ? meta.trigger_words : []
-        notes.value = meta.notes || ''
+        description.value = meta.description || ''
+        communityLinks.value = meta.community_links || ''
+        positivePrompt.value = meta.prompts?.positive || ''
+        negativePrompt.value = meta.prompts?.negative || ''
       } catch (e) {
         console.warn('Failed to parse meta_json', e)
       }
     } else {
-      triggerWords.value = []
-      notes.value = ''
+      description.value = ''
+      communityLinks.value = ''
+      positivePrompt.value = ''
+      negativePrompt.value = ''
     }
   } catch (e) {
     console.error('Failed to load model details', e)
@@ -83,8 +89,15 @@ const handleSave = async () => {
         meta = JSON.parse(localModel.value.meta_json)
       } catch {}
     }
-    meta.trigger_words = triggerWords.value
-    meta.notes = notes.value
+    meta.description = description.value
+    meta.community_links = communityLinks.value
+    meta.prompts = {
+      positive: positivePrompt.value,
+      negative: negativePrompt.value
+    }
+    // Clean up removed fields if they exist in legacy data
+    delete meta.trigger_words
+    delete meta.notes
     
     // 3. Update Model
     // We pass tags as number[] to a specialized update object to satisfy the backend expectation
@@ -115,27 +128,14 @@ const handleRevert = () => {
   }
 }
 
-const triggerInput = ref('')
-const addTriggerWord = () => {
-  const val = triggerInput.value.trim().replace(/,$/, '')
-  if (val && !triggerWords.value.includes(val)) {
-    triggerWords.value.push(val)
-  }
-  triggerInput.value = ''
-}
-const removeTriggerWord = (index: number) => {
-  triggerWords.value.splice(index, 1)
-}
-const handleTriggerInputKey = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault()
-    addTriggerWord()
+const openLink = () => {
+  if (communityLinks.value) {
+    window.open(communityLinks.value, '_blank')
   }
 }
 
-const calculateSHA256 = () => {
-  alert('SHA256 calculation feature pending implementation.')
-}
+
+
 </script>
 
 <template>
@@ -164,26 +164,13 @@ const calculateSHA256 = () => {
       <!-- SHA256 -->
       <div class="field-group">
         <label>SHA256 Hash</label>
-        <div class="hash-row">
-          <input type="text" :value="localModel.sha256" disabled class="hash-input" />
-          <button class="btn-calc" @click="calculateSHA256" title="Calculate Hash">
-            ⚡
-          </button>
-        </div>
+        <input type="text" :value="localModel.sha256" disabled class="hash-input" />
       </div>
 
-      <!-- Model Type (Editable) -->
+      <!-- Model Type (Read-only) -->
       <div class="field-group">
         <label>Model Type</label>
-        <select v-model="localModel.type">
-          <option value="Checkpoints">Checkpoints</option>
-          <option value="LoRA">LoRA</option>
-          <option value="Embeddings">Embeddings</option>
-          <option value="VAE">VAE</option>
-          <option value="ControlNet">ControlNet</option>
-          <option value="UpscaleModels">UpscaleModels</option>
-          <option value="Other">Other</option>
-        </select>
+        <div class="readonly-box">{{ localModel.type }}</div>
       </div>
 
       <!-- Tags Component -->
@@ -192,28 +179,49 @@ const calculateSHA256 = () => {
         <HikazeTagInput v-model="localModel.tags" />
       </div>
 
-      <!-- Trigger Words (Chips - simplified manual implementation for now) -->
+      <!-- Description -->
       <div class="field-group">
-        <label>Trigger Words</label>
-        <div class="chips-container">
-          <div v-for="(word, i) in triggerWords" :key="word" class="chip trigger">
-            {{ word }}
-            <button class="chip-remove" @click="removeTriggerWord(i)">×</button>
-          </div>
+        <label>Description</label>
+        <textarea 
+          v-model="description" 
+          placeholder="Model description..." 
+          rows="3"
+          class="resize-vertical"
+        ></textarea>
+      </div>
+
+      <!-- Community Links -->
+      <div class="field-group">
+        <label>Community Links</label>
+        <div class="link-group">
           <input 
             type="text" 
-            v-model="triggerInput" 
-            @keydown="handleTriggerInputKey"
-            placeholder="Add trigger word..."
-            class="chip-input"
+            v-model="communityLinks" 
+            placeholder="Link to Civitai, HuggingFace, etc..." 
+            class="link-input"
           />
+          <button class="btn-visit" @click="openLink" title="Visit Link">🔗</button>
         </div>
       </div>
 
-      <!-- Notes -->
+      <!-- Prompts -->
       <div class="field-group">
-        <label>Notes</label>
-        <textarea v-model="notes" placeholder="Additional details..." rows="3"></textarea>
+        <label>Positive Prompt</label>
+        <textarea 
+          v-model="positivePrompt" 
+          placeholder="Recommended positive prompt..." 
+          rows="3"
+          class="resize-vertical"
+        ></textarea>
+      </div>
+      <div class="field-group">
+        <label>Negative Prompt</label>
+        <textarea 
+          v-model="negativePrompt" 
+          placeholder="Recommended negative prompt..." 
+          rows="3"
+          class="resize-vertical"
+        ></textarea>
       </div>
 
       <div class="actions">
@@ -349,47 +357,34 @@ const calculateSHA256 = () => {
   cursor: pointer;
 }
 
-/* Chips Container (Reused for triggers) */
-.chips-container {
+.resize-vertical {
+  resize: vertical;
+  min-height: 38px; /* Approx one line + padding */
+}
+
+.link-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 6px;
-  background: #0f141a;
+  gap: 8px;
+}
+
+.link-input {
+  flex: 1;
+  text-overflow: ellipsis; /* Truncate if too long */
+}
+
+.btn-visit {
+  padding: 0 12px;
+  background: #21262d;
   border: 1px solid #30363d;
   border-radius: 6px;
-  min-height: 38px;
-}
-
-.chip {
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  background: #1f6feb; /* Blue for triggers */
-  color: white;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  justify-content: center;
+  font-size: 1.2rem;
 }
-
-.chip-remove {
-  background: none;
-  border: none;
-  color: white;
-  padding: 0;
-  font-size: 1rem;
-  cursor: pointer;
-  opacity: 0.7;
-  line-height: 1;
-}
-.chip-remove:hover { opacity: 1; }
-
-.chip-input {
-  border: none !important;
-  background: transparent !important;
-  padding: 2px 4px !important;
-  flex: 1;
-  min-width: 80px;
+.btn-visit:hover {
+  background: #30363d;
 }
 
 .actions {
