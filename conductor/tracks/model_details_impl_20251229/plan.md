@@ -3,8 +3,8 @@
 ## Phase 1: API Restoration & Extension (Backend)
 - [x] Task: Implement `GET /api/models/{sha256}` in `backend/server/router.py`. [d117a3c]
 - [x] Task: Implement `GET /api/images/get_img_num?sha256={sha256}` in `backend/server/router.py` and `ImageProcessor`. [20b0eae]
-- [ ] Task: Refactor `GET /api/images/{sha256}` to support `seq` query parameter.
-- [ ] Task: Implement `DELETE /api/images/delete` with sequence shifting logic in `ImageProcessor`.
+- [x] Task: Refactor `GET /api/images/{sha256}` to support `seq` query parameter. [c68c228]
+- [~] Task: Implement `DELETE /api/images/delete` with sequence shifting logic in `ImageProcessor`.
 - [ ] Task: Implement `POST /api/tags_add` to handle batch creation of new tags.
 - [ ] Task: Update `backend/server/router.py` with `PATCH /api/models/{sha256}` for model updates.
 - [ ] Task: Conductor - User Manual Verification 'API Restoration & Extension' (Protocol in workflow.md)
