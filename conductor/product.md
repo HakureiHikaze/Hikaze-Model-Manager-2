@@ -9,16 +9,18 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 - **AI Artists:** Creatives who require an organized, visually intuitive system to manage and select Checkpoints, LoRAs, and other assets.
 
 ## Primary Goals
-- **Unified Management Interface:** Introduce a dedicated manager page accessible via integrated buttons within custom nodes, facilitating seamless data feedback.
+- **Unified Management Interface:** Introduce a dedicated manager page accessible via integrated buttons within custom nodes. The UI currently serves as a functional prototype with high-fidelity mock data, ready for backend integration.
 - **Overlay-Driven Interaction:** Implement a Vue-based overlay system that sits atop native ComfyUI node regions, mapping complex UI form data to JSON strings within standard text inputs for backend consumption.
 - **Global Manager Accessibility:** Provide a full-screen, dedicated web interface (served on a separate port) for stable and immersive model management, accessible from the ComfyUI sidebar or directly via browser.
 - **Data Integrity & Evolution:** Transition the core data model from path-based identification to SHA256-prioritized indexing to ensure robust references even when files move.
+- **Stage 1 Migration:** Import legacy databases into a pending queue, preserving legacy tags and metadata, with reactive image migration. (Implemented)
+- **Stage 2 Migration:** Promotion of models from the pending queue to the active library with SHA256 deduplication and conflict resolution (override/merge/delete). (Implemented)
 
 ## Key Features
 - **Context-Aware Manager Entry:** When entering the manager from a node (e.g., a Checkpoint loader), the view automatically filters to the relevant model category (Checkpoints/LoRA/CLIP/etc.).
 - **Sophisticated Node Overlays:** Custom Vue overlays that replace or enhance standard node widgets, allowing for rich form elements that serialize their state into a hidden JSON input.
-- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and detailed metadata sidebars.
-- **Legacy Database Integration:** A multi-stage migration path to import legacy databases from the previous version. Models are first staged in a pending queue, preserving legacy tags and metadata, then processed into the active library with SHA256 deduplication and reactive image migration.
+- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and detailed metadata sidebars. (Frontend UI Prototype)
+- **Legacy Database Integration:** A multi-stage migration path to import legacy databases. (Backend APIs for Stage 1 and 2 are fully implemented).
 - **State Persistence:** Backend logic that parses incoming JSON from nodes based on versioned schemas, ensuring reliable execution and future-proofing.
 
 ## Visual Design & UX
