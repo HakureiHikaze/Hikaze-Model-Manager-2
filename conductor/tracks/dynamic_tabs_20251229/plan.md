@@ -13,8 +13,8 @@
 - [x] Task: Implement loading spinner and error retry UI for the tab bar. 1d2420b
 - [x] Task: Conductor - User Manual Verification 'Dynamic UI Implementation' (Protocol in workflow.md) 4b22cf0
 
-## Phase 3: Property Logic & Cleanup
+## Phase 3: Property Logic & Cleanup [checkpoint: d9774b5]
 - [x] Task: Implement logic to resolve `activeTab` on mount using `initialTab` prop and fetched types. b9ae411
 - [x] Task: Remove hardcoded mock tab navigation from `App.vue`. 33e3641
 - [x] Task: Ensure `embedded` prop correctly toggles the visibility of the tab bar. d595615
-- [~] Task: Conductor - User Manual Verification 'Property Logic & Cleanup' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Property Logic & Cleanup' (Protocol in workflow.md) d9774b5
