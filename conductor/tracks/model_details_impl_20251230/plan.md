@@ -8,7 +8,7 @@
 - [x] Task: Integrate resizable layout into the main App view.
 - [ ] Task: Conductor - User Manual Verification 'Sidebar Layout & Resizability' (Protocol in workflow.md)
 
-## Phase 2: Model Details Form Refactor
+## Phase 2: Model Details Form Refactor [checkpoint: d305ccd]
 - [x] Task: Update `ModelDetails.vue` to remove the "Calculate Hash" button and logic. [refactor]
 - [x] Task: Update `ModelDetails.vue` to remove the hardcoded "Model Type" selector (display as read-only text if needed). [refactor]
 - [x] Task: Implement the new `meta_json` form fields (`description`, `community_links`, `prompts`) in `ModelDetails.vue`.
