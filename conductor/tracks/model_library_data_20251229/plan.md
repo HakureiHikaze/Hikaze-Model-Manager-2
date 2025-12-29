@@ -18,7 +18,8 @@
 - [x] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data. dabf77c
 - [x] Task: Implement reactive local searching (by name/path) and tag-based filtering within `ModelLibrary.vue`. 05adab4
 - [x] Task: Add a "Refresh" button to the library toolbar to manually invalidate the cache and re-fetch the current type. 7c02e4a
-- [ ] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md)
+- [x] Task: Refine tag filtering logic in `ModelLibrary.vue` to support "AND" logic and tri-state selection (Include/Exclude/None). 686a079
+- [~] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md)
 
 ## Phase 4: Image Preview & Lazy Loading
 - [ ] Task: Implement a lazy-loading mechanism (Intersection Observer) for model card backgrounds in the library.
