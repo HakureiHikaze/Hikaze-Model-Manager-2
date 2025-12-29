@@ -8,12 +8,12 @@
 - [x] Task: Conductor - User Manual Verification 'Discovery & Analysis' (Protocol in workflow.md) 0ebc4fa
 
 ## Phase 2: Documentation Update
-- [ ] Task: Update `conductor/tech-stack.md` with any missing libraries, frameworks, or tools found during the audit.
-- [ ] Task: Update `conductor/product.md` to ensure the feature list and product goals align with the actual implementation.
-- [ ] Task: Update `_codex/design-current.md` to reflect the current architectural structure and data flow.
-- [ ] Task: Update `_codex/design-notes.md` with specific design decisions, patterns, and "gotchas" discovered in the code.
-- [ ] Task: Update `conductor/workflow.md` if any discovered development patterns (like migration steps) differ from the recorded workflow.
-- [ ] Task: Conductor - User Manual Verification 'Documentation Update' (Protocol in workflow.md)
+- [x] Task: Update `conductor/tech-stack.md` with any missing libraries, frameworks, or tools found during the audit. c204b74
+- [x] Task: Update `conductor/product.md` to ensure the feature list and product goals align with the actual implementation. f5da555
+- [x] Task: Update `_codex/design-current.md` to reflect the current architectural structure and data flow. 1751eca
+- [x] Task: Update `_codex/design-notes.md` with specific design decisions, patterns, and "gotchas" discovered in the code. 0e7c386
+- [x] Task: Update `conductor/workflow.md` if any discovered development patterns (like migration steps) differ from the recorded workflow. bc99941
+- [x] Task: Conductor - User Manual Verification 'Documentation Update' (Protocol in workflow.md) bc99941
 
 ## Phase 3: Final Review & Consistency Check
 - [ ] Task: Perform a cross-file consistency check to ensure terminology and architectural descriptions match across all updated documents.
