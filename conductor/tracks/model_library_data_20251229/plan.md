@@ -14,12 +14,12 @@
 - [x] Task: Update `HikazeManagerLayout.vue` to trigger model fetching (or cache retrieval) whenever the `activeTab` changes. a853e9b
 - [x] Task: Conductor - User Manual Verification 'Frontend Data & Cache Layer' (Protocol in workflow.md) 16f5d1d
 
-## Phase 3: Reactive Library & Filtering
+## Phase 3: Reactive Library & Filtering [checkpoint: 1a334f1]
 - [x] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data. dabf77c
 - [x] Task: Implement reactive local searching (by name/path) and tag-based filtering within `ModelLibrary.vue`. 05adab4
 - [x] Task: Add a "Refresh" button to the library toolbar to manually invalidate the cache and re-fetch the current type. 7c02e4a
 - [x] Task: Refine tag filtering logic in `ModelLibrary.vue` to support "AND" logic and tri-state selection (Include/Exclude/None). 686a079
-- [~] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md) 1a334f1
 
 ## Phase 4: Image Preview & Lazy Loading
 - [ ] Task: Implement a lazy-loading mechanism (Intersection Observer) for model card backgrounds in the library.
