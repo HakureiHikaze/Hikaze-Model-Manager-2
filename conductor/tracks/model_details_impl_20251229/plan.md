@@ -20,10 +20,10 @@
 - [x] Task: Conductor - User Manual Verification 'Frontend Components' (Protocol in workflow.md) [25d50f6]
 
 ## Phase 4: Details Pane Integration
-- [ ] Task: Update `ModelDetails.vue` to integrate the new Gallery and Tag components.
-- [ ] Task: Implement fetching logic for full model data and image count on selection.
-- [ ] Task: Implement multi-stage save logic (tags first, then model data).
-- [ ] Task: Conductor - User Manual Verification 'Details Pane Integration' (Protocol in workflow.md)
+- [x] Task: Update `ModelDetails.vue` to integrate the new Gallery and Tag components. [c62c946]
+- [x] Task: Implement fetching logic for full model data and image count on selection. [c62c946]
+- [x] Task: Implement multi-stage save logic (tags first, then model data). [c62c946]
+- [~] Task: Conductor - User Manual Verification 'Details Pane Integration' (Protocol in workflow.md)
 
 ## Phase 5: Model Library Card Enhancement (Refactor)
 - [ ] Task: Refactor `ModelLibrary.vue` card image logic to use the new sequence-based API.
