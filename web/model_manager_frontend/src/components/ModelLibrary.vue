@@ -466,6 +466,20 @@ const onMouseLeave = () => {
   opacity: 1;
 }
 
+.card-image.error {
+  opacity: 1;
+  background: #2a2f36; /* Distinct placeholder color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-image.error::after {
+  content: 'No Image';
+  color: #8b949e;
+  font-size: 0.75rem;
+}
+
 .card-meta {
   position: absolute;
   bottom: 0;
