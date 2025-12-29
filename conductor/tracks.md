@@ -11,7 +11,4 @@
 ## [~] Track: ID-Based Reactive Migration Refactor
 *Link: [./conductor/tracks/id_based_migration_refactor_20251227/](./conductor/tracks/id_based_migration_refactor_20251227/)*
 
----
 
-## [~] Track: Dynamic Tab Rendering and Navigation in HikazeManagerLayout
-*Link: [./conductor/tracks/dynamic_tabs_20251229/](./conductor/tracks/dynamic_tabs_20251229/)*
