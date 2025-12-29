@@ -2,10 +2,10 @@
 
 ## Phase 1: Setup & Backend API Development
 - [x] Task: Create and switch to a new development branch `model_lib_dev`. aaa42f7
-- [ ] Task: Extend `DatabaseManager` in `backend/database/db.py` to support fetching models by type (including 'others' logic) with their associated tags.
-- [ ] Task: Implement the `handle_get_models` handler in `backend/server/router.py` to expose the `GET /api/models` endpoint.
-- [ ] Task: Register the `GET /api/models` route in `setup_routes`.
-- [ ] Task: Conductor - User Manual Verification 'Setup & Backend API Development' (Protocol in workflow.md)
+- [x] Task: Extend `DatabaseManager` in `backend/database/db.py` to support fetching models by type (including 'others' logic) with their associated tags. ffee8aa
+- [x] Task: Implement the `handle_get_models` handler in `backend/server/router.py` to expose the `GET /api/models` endpoint. 24cfde0
+- [x] Task: Register the `GET /api/models` route in `setup_routes`. 24cfde0
+- [~] Task: Conductor - User Manual Verification 'Setup & Backend API Development' (Protocol in workflow.md)
 
 ## Phase 2: Frontend Data & Cache Layer
 - [ ] Task: Update `web/model_manager_frontend/src/api/models.ts` with the `fetchModels` function and necessary TypeScript interfaces.
