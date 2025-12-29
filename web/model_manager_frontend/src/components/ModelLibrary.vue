@@ -69,6 +69,10 @@ function clearTags() {
   selectedTagIds.value.clear()
 }
 
+function refresh() {
+  modelStore.loadModels(props.activeTab, true)
+}
+
 const setView = (mode: 'card' | 'list') => {
   viewMode.value = mode
 }
@@ -110,6 +114,10 @@ const onMouseLeave = () => {
           <button :class="{ active: viewMode === 'card' }" @click="setView('card')">Card</button>
           <button :class="{ active: viewMode === 'list' }" @click="setView('list')">List</button>
         </div>
+
+        <button class="btn-refresh" @click="refresh" :disabled="isLoading" title="Refresh model library">
+          Refresh
+        </button>
 
         <div class="tag-filter">
           <button class="btn-filter" :class="{ active: selectedTagIds.size > 0 }" @click="showTagFilter = !showTagFilter">
@@ -246,6 +254,27 @@ const onMouseLeave = () => {
   background: #1f6feb;
   border-color: #388bfd;
   color: #fff;
+}
+
+.btn-refresh {
+  padding: 4px 10px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #21262d;
+  color: #c9d1d9;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #2a2f36;
+  border-color: #8b949e;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tag-filter {
