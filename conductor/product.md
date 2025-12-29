@@ -6,7 +6,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 ## Target Users
 - **ComfyUI Power Users:** Users who demand more advanced and efficient ways to handle extensive model libraries.
 - **Workflow Developers:** Individuals building complex custom workflows who need reliable model loading and configuration.
-- **AI Artists:** Creatives who require an organized, visually intuitive system to manage and select Checkpoints, LoRAs, and other assets.
+- **AI Artists:** Creatives who require an organized, visually intuitive system to manage and select Checkpoints, LoRAs, and other assets, with safety-first defaults.
 
 ## Primary Goals
 - **Unified Management Interface:** Introduce a dedicated manager page accessible via integrated buttons within custom nodes. The UI currently serves as a functional prototype with high-fidelity mock data, ready for backend integration.
@@ -18,9 +18,12 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 
 ## Key Features
 - **Context-Aware Manager Entry:** When entering the manager from a node (e.g., a Checkpoint loader), the view automatically filters to the relevant model category (Checkpoints/LoRA/CLIP/etc.).
-- **Sophisticated Node Overlays:** Custom Vue overlays that replace or enhance standard node widgets, allowing for rich form elements that serialize their state into a hidden JSON input.
-- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and detailed metadata sidebars. (Frontend UI Prototype)
+- **Sophisticated Node Overlays:** Custom Vue overlays that replace or enhance standard node widgets, allowing for rich form elements that serialize their state into a hidden JSON input. (Implemented)
+- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and reactive local search/tag filtering.
+- **Lazy-Loaded Visuals:** High-performance card grid utilizing Intersection Observer to load model previews only when they enter the viewport, with multi-quality WebP support.
 - **Legacy Database Integration:** A multi-stage migration path to import legacy databases. (Backend APIs for Stage 1 and 2 are fully implemented). Supports dynamic model type detection from the backend.
+- **Persistent-Session Cache:** Model lists are fetched per category and cached in memory for instant tab switching, with manual refresh support.
+- **Safety-First Defaults:** Automatic identification and exclusion of sensitive content (e.g., NSFW tags) on application load.
 - **State Persistence:** Backend logic that parses incoming JSON from nodes based on versioned schemas, ensuring reliable execution and future-proofing.
 
 ## Visual Design & UX

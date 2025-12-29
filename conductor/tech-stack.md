@@ -11,7 +11,7 @@
 - **Framework:** Vue 3 (Composition API)
 - **Language:** TypeScript (Strict mode)
 - **Build Tool:** Vite
-- **Libraries:** Vue Use (observed in some contexts or planned), standard DOM APIs.
+- **Libraries:** Vue Use (planned), standard DOM APIs (including Intersection Observer).
 - **State Management:** Vue Composition API (Reactive/Ref) for local state; potential Pinia if global state complexity increases.
 - **Styling:** CSS3 (Standard) with a focus on CSS variables for theme consistency.
 - **Integration:** Custom Vue overlays injected via ComfyUI's frontend extension system (VueNodes).

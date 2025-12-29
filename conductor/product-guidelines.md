@@ -21,6 +21,7 @@
 - **Low-Latency & Direct:** Interactions should feel immediate. Minimize decorative animations in favor of raw speed.
 - **Chip Input Pattern:** Tag and trigger word inputs should utilize a "Chip" pattern. Users create chips via `Space` or `Comma` delimiters. Chips must support hover-to-delete interactions (`x` icon).
 - **Click-to-Action:** Primary actions (selecting a model, switching tabs) should execute on a single click without unnecessary confirmation steps.
+- **Safety-First Defaults:** The UI must proactively protect the user by automatically excluding sensitive content (identified via "nsfw" tags) on initialization. Users must explicitly opt-in to view this content via the filter settings.
 
 ## localization (i18n) Strategy
 - **Manager Interface:** The full-screen manager UI must be fully localized using a standard i18n JSON solution (e.g., `en-US`, `zh-CN`).

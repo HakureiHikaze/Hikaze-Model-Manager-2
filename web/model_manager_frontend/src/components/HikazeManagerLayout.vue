@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { fetchModelTypes } from '../api/models';
+import { useModelStore } from '../store/models';
 
 const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
+
+const modelStore = useModelStore();
 
 const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
@@ -15,6 +18,13 @@ const error = ref<string | null>(null);
 function setActiveTab(type: string) {
   activeTab.value = type;
 }
+
+// Watch for tab changes and load models
+watch(activeTab, (newTab) => {
+  if (newTab) {
+    modelStore.loadModels(newTab);
+  }
+});
 
 async function loadModelTypes() {
   isLoading.value = true;
@@ -28,7 +38,7 @@ async function loadModelTypes() {
     if (initial && modelTypes.value.includes(initial)) {
       activeTab.value = initial;
     } else if (modelTypes.value.length > 0) {
-      activeTab.value = modelTypes.value[0];
+      activeTab.value = modelTypes.value[0] || '';
     }
   } catch (e: any) {
     error.value = e.message || 'Failed to load model types';
@@ -67,7 +77,7 @@ onMounted(() => {
 
     <!-- Main Content Area (Library) -->
     <main class="hikaze-pane-library">
-      <slot name="library">Library</slot>
+      <slot name="library" :active-tab="activeTab">Library</slot>
     </main>
 
     <!-- Right Sidebar (Details) -->
@@ -99,11 +109,23 @@ onMounted(() => {
   display: flex;
   align-items: center;
   overflow-x: auto; /* Enable horizontal scroll for many tabs */
-  scrollbar-width: none; /* Hide scrollbar Firefox */
 }
 
 .hikaze-header::-webkit-scrollbar {
-  display: none; /* Hide scrollbar Chrome/Safari */
+  height: 4px;
+}
+
+.hikaze-header::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.hikaze-header::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+.hikaze-header::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
 }
 
 .type-tabs {

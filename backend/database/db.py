@@ -122,6 +122,37 @@ class DatabaseManager:
         with conn:
             conn.execute(sql, list(data.values()))
 
+    def get_models_by_type(self, model_type: str) -> List[Dict[str, Any]]:
+        """Retrieve all models of a specific type with their tags."""
+        conn = self.get_connection()
+        # Fetch models
+        cur = conn.execute("SELECT * FROM models WHERE type = ?", (model_type,))
+        models = [dict(row) for row in cur.fetchall()]
+        
+        # Fetch tags for each model (could be optimized with a single join if needed)
+        for model in models:
+            model["tags"] = [dict(row) for row in self.get_tags_for_model(model["sha256"])]
+            
+        return models
+
+    def get_other_models(self, system_types: List[str]) -> List[Dict[str, Any]]:
+        """Retrieve all models whose type is NULL, empty, or not in the system list, with tags."""
+        conn = self.get_connection()
+        placeholders = ", ".join(["?"] * len(system_types))
+        sql = f"""
+        SELECT * FROM models 
+        WHERE type IS NULL 
+           OR type = '' 
+           OR type NOT IN ({placeholders})
+        """
+        cur = conn.execute(sql, system_types)
+        models = [dict(row) for row in cur.fetchall()]
+        
+        for model in models:
+            model["tags"] = [dict(row) for row in self.get_tags_for_model(model["sha256"])]
+            
+        return models
+
     def get_model(self, sha256: str) -> Optional[sqlite3.Row]:
         """Retrieve a model by SHA256."""
         conn = self.get_connection()
@@ -259,6 +290,12 @@ class DatabaseManager:
             JOIN model_tags mt ON t.id = mt.tag_id
             WHERE mt.model_hash = ?
         """, (model_hash,))
+        return cur.fetchall()
+
+    def get_all_tags(self) -> List[sqlite3.Row]:
+        """Get all available tags."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM tags ORDER BY name")
         return cur.fetchall()
 
     def add_pending_model_tag(self, model_id: int, tag_id: int):

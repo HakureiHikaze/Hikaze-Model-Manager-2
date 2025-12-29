@@ -62,11 +62,11 @@
 - request: none
 - response: `{"types":["checkpoints","lora",...]}`
 
-## u GET /api/models
+## GET /api/models
 
-- desc: list models for left library with filters
-- request: query `type=...&q=...&tags=1,2&exclude_tags=3,4&limit=...&offset=...`
-- response: `{"total":n,"models":[{"sha256":"...","name":"...","type":"...","preview_base":"...","tag_ids":[...]}]}`
+- desc: list models by type (simplified for library view)
+- request: query `type=...` (required)
+- response: `{"models":[{"sha256":"...","name":"...","type":"...","path":"...","tags":[...]}]}`
 
 ## u GET /api/models/{sha256}
 
@@ -80,11 +80,11 @@
 - request: json body `{"name":"...","meta_json":{...},"tag_ids":[...]}`
 - response: `{"status":"success"}` or error
 
-## u GET /api/tags
+## GET /api/tags
 
-- desc: list tags for filter/select
-- request: query `type=...` (optional)
-- response: `{"tags":[{"id":1,"name":"...","count":n}]}`
+- desc: list all tags in the system
+- request: none
+- response: `{"tags":[{"id":1,"name":"..."}]}`
 
 ## u POST /api/models/scan
 

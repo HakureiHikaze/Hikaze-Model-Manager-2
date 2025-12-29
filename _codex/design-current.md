@@ -47,6 +47,9 @@
 - Active images use: <hash>_<seq>_<quality>.webp.
 - Pending images store original format under images/pending/ using pending id.
 - get_sample_imgs endpoint will list available seq variants for a hash.
+- Frontend uses IntersectionObserver for lazy loading:
+  - Cards init with placeholder/loading state.
+  - Image request (`/api/images/{hash}.webp`) triggers only when card enters viewport.
 
 ## API Surface (Current)
 - /api/migration/migrate_legacy_db (Stage 1 import). (Implemented)
@@ -55,17 +58,25 @@
 - /api/images/{hash}.webp?quality=high|medium|low (active images). (Implemented)
 - /api/images/pending/{name}.webp (pending images, original file lookup). (Implemented)
 - /api/images/upload (active image upload; uses sequence naming). (Implemented)
+- /api/models (list models by type with tags). (Implemented)
+- /api/tags (list all system tags). (Implemented)
+- /api/models/get_types (list available model types). (Implemented)
 
 ## Frontend Architecture
 - Vue 3 + TypeScript + Vite.
 - Two surfaces:
   - Node overlay UI (custom_node_frontend) for ComfyUI nodes. (Functional)
-  - Full-screen manager UI (model_manager_frontend). (High-fidelity Prototype / Mock)
+  - Full-screen manager UI (model_manager_frontend). (Functional MVP)
 - Manager layout:
   - Three panes: nav (optional), library, details.
   - Image-first cards; list mode optional.
   - Grid column limit: 2-10.
   - Details panel holds technical metadata only.
+- Data Strategy:
+  - "Client-Side Heavy" for model lists.
+  - Per-category caching in memory (Pinia/Composable) for instant tab switching.
+  - Local reactive search and tag filtering (AND logic, Include/Exclude).
+  - Auto-exclusion of 'nsfw' tag on load.
 - Type tabs:
   - In plugin or standalone manager mode, when the Vue control is not marked embedded, call GET /api/models/get_types.
   - Render the returned type list as the top tab bar.
