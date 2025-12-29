@@ -109,11 +109,23 @@ onMounted(() => {
   display: flex;
   align-items: center;
   overflow-x: auto; /* Enable horizontal scroll for many tabs */
-  scrollbar-width: none; /* Hide scrollbar Firefox */
 }
 
 .hikaze-header::-webkit-scrollbar {
-  display: none; /* Hide scrollbar Chrome/Safari */
+  height: 4px;
+}
+
+.hikaze-header::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.hikaze-header::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+.hikaze-header::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
 }
 
 .type-tabs {
