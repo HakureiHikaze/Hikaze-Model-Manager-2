@@ -10,74 +10,44 @@
 
 ## GET /api/images/{hash}.webp
 
-- desc: get active sample image by base name or hash + seq
-- request: query `quality=high|medium|low`, optional `seq=N`
+- desc: get active sample image by base name or hash + seq. **Primary method for fetching model visuals.**
+- request: query `quality=high|medium|low`, optional `seq=N` (defaults to 0)
 - response: webp file or 404
 
 ## GET /api/images/get_img_num
 
-- desc: get count of sample images for a model
+- desc: get count of sample images for a model (sha256). **Used to initialize sequential cycling.**
 - request: query `sha256=...`
 - response: `{"count": n}`
 
 ## DELETE /api/images/delete
 
-- desc: delete a specific image sequence and shift subsequent images
+- desc: delete a specific image sequence and shift subsequent images down (maintaining sequence integrity).
 - request: query `sha256=...`, `seq=N`
 - response: `{"status": "success"}` or error
 
-## GET /api/images/pending/{name}.webp
-
-- desc: get pending sample image by file name
-- request: query quality=high|medium|low
-- response: webp file or 404
-
-## POST /api/images/upload
-
-- desc: upload an image and generate thumbnails with seq
-- request: multipart/form-data, fields: image(file), sha256(text)
-- response: `{"status":"success","base_name":"<sha256>_<seq>"}` or error
-
 ## POST /api/images/get_sample_imgs
 
-- desc: list sample image urls for a model
+- desc: **DEPRECATED**. Use `get_img_num` + direct WebP sequence access.
 - request: json body {"sha256":"...","quality":"high|medium|low"}
 - response: `{"images":["/api/images/..."],"quality":"high","count":n}`
 
-## GET /api/migration/pending_models
-
-- desc: list pending models in staging
-- request: none
-- response: `{"models":[{...}]}`
-
-## POST /api/migration/migrate_legacy_db
-
-- desc: stage1 legacy db + images migration
-- request: json body `{"legacy_db_path":"...","legacy_images_dir":"..."}`
-- response: `{"status":"success|failed","db_migration":{...},"image_migration":{...}}`
-
 ## POST /api/migration/import_a_model
 
-- desc: deprecated single pending import
+- desc: **DEPRECATED**. Removed in favor of `import_models`.
 - request: json body `{"id":123,"conflict_strategy":"override|merge|ignore|delete"|null}`
 - response: `{"status":"success|conflict|ignored|deleted|error",...,"deprecated":true}`
 
 ## POST /api/migration/import_models
 
-- desc: batch pending import
+- desc: batch pending import. Promotes records from `pending_import` to `models`.
 - request: json body `{"id":[1,2,3],"conflict_strategy":"override|merge|ignore|delete"|null}`
 - response: `{"total":n,"success":[...],"conflict":[...],"ignored":[...],"deleted":[...],"failed":[...]}` (207)
 
-## GET /api/models/get_types
-
-- desc: list model types for top tabs
-- request: none
-- response: `{"types":["checkpoints","lora",...]}`
-
 ## GET /api/models
 
-- desc: list models by type (simplified for library view)
-- request: query `type=...` (required)
+- desc: list models by type. 
+- request: query `type=...` (required). If `type=others`, returns models with unknown/NULL types.
 - response: `{"models":[{"sha256":"...","name":"...","type":"...","path":"...","tags":[...]}]}`
 
 ## GET /api/models/{sha256}

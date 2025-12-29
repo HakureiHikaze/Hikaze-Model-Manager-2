@@ -20,7 +20,7 @@
 - [x] Task: Conductor - User Manual Verification 'Reporting & Recommendation' (Protocol in workflow.md)
 
 ## Phase 4: Design Consolidation & Documentation Update
-- [ ] Task: Interactively update `conductor/product.md` and `conductor/tech-stack.md` based on audit results. [docs]
-- [ ] Task: Interactively update `_codex/` design documents to reflect the reconciled reality. [docs]
-- [ ] Task: Finalize and "collapse" the design baseline to ensure a 1:1 match with the valid codebase. [docs]
+- [x] Task: Interactively update `conductor/product.md` and `conductor/tech-stack.md` based on audit results. [docs]
+- [x] Task: Interactively update `_codex/` design documents to reflect the reconciled reality. [docs]
+- [~] Task: Finalize and "collapse" the design baseline to ensure a 1:1 match with the valid codebase. [docs]
 - [ ] Task: Conductor - User Manual Verification 'Design Consolidation & Documentation Update' (Protocol in workflow.md)
