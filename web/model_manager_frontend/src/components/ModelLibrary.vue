@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useModelStore } from '../store/models'
 import { useIntersectionObserver } from '../util/intersectionObserver'
+import { fetchTags } from '../api/models'
 
 const props = defineProps<{
   activeTab: string
@@ -57,9 +58,20 @@ function setupObserver() {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (viewMode.value === 'card') {
     setupObserver()
+  }
+
+  // Auto-exclude NSFW
+  try {
+    const tags = await fetchTags()
+    const nsfwTag = tags.find(t => t.name.toLowerCase() === 'nsfw')
+    if (nsfwTag) {
+      tagFilters.value.set(nsfwTag.id, 'exclude')
+    }
+  } catch (e) {
+    console.error('Failed to fetch tags for auto-exclude:', e)
   }
 })
 

@@ -292,6 +292,12 @@ class DatabaseManager:
         """, (model_hash,))
         return cur.fetchall()
 
+    def get_all_tags(self) -> List[sqlite3.Row]:
+        """Get all available tags."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM tags ORDER BY name")
+        return cur.fetchall()
+
     def add_pending_model_tag(self, model_id: int, tag_id: int):
         """Associate a legacy tag with a pending legacy model id."""
         conn = self.get_connection()

@@ -121,6 +121,20 @@ async def handle_get_model_types(request):
     """
     return web.json_response({"types": list(get_model_types())})
 
+async def handle_get_tags(request):
+    """
+    GET /api/tags
+    Return all available tags in the system.
+    """
+    db = DatabaseManager()
+    try:
+        raw_tags = db.get_all_tags()
+        tags = [{"id": t["id"], "name": t["name"]} for t in raw_tags]
+        return web.json_response({"tags": tags})
+    except Exception as e:
+        logger.exception("Error fetching tags")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def handle_get_models(request):
     """
     GET /api/models?type=...
@@ -456,6 +470,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/hello", handle_hello)
     app.router.add_get("/api/models/get_types", handle_get_model_types)
     app.router.add_get("/api/models", handle_get_models)
+    app.router.add_get("/api/tags", handle_get_tags)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
