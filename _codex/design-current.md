@@ -48,19 +48,19 @@
 - Pending images store original format under images/pending/ using pending id.
 - get_sample_imgs endpoint will list available seq variants for a hash.
 
-## API Surface (Current/Planned)
-- /api/migration/migrate_legacy_db (Stage 1 import).
-- /api/migration/import_a_model (Stage 2 import by pending id).
-- /api/images/get_sample_imgs (list sequences for a hash).
-- /api/images/{hash}.webp?quality=high|medium|low (active images).
-- /api/images/pending/{name}.webp (pending images, original file lookup).
-- /api/images/upload (active image upload; must align with seq naming).
+## API Surface (Current)
+- /api/migration/migrate_legacy_db (Stage 1 import). (Implemented)
+- /api/migration/import_models (Stage 2 import by pending ids). (Implemented)
+- /api/images/get_sample_imgs (list sequences for a hash). (Implemented)
+- /api/images/{hash}.webp?quality=high|medium|low (active images). (Implemented)
+- /api/images/pending/{name}.webp (pending images, original file lookup). (Implemented)
+- /api/images/upload (active image upload; uses sequence naming). (Implemented)
 
 ## Frontend Architecture
 - Vue 3 + TypeScript + Vite.
 - Two surfaces:
-  - Node overlay UI (custom_node_frontend) for ComfyUI nodes.
-  - Full-screen manager UI (model_manager_frontend).
+  - Node overlay UI (custom_node_frontend) for ComfyUI nodes. (Functional)
+  - Full-screen manager UI (model_manager_frontend). (High-fidelity Prototype / Mock)
 - Manager layout:
   - Three panes: nav (optional), library, details.
   - Image-first cards; list mode optional.
@@ -75,7 +75,7 @@
 - Base model field is removed from design scope.
 - Tags are stored via tags + model_tags relations.
 - i18n and Settings API integration are deferred.
-- Frontend work is paused until backend import flow stabilizes.
+- Frontend work is paused until backend import flow stabilizes and integration begins.
 
 ## Deprecated (Removed from Current Design)
 - MigrationManager/MigrationWorker/processor/merger architecture.
