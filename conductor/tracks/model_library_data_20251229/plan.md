@@ -21,8 +21,19 @@
 - [x] Task: Refine tag filtering logic in `ModelLibrary.vue` to support "AND" logic and tri-state selection (Include/Exclude/None). 686a079
 - [x] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md) 1a334f1
 
-## Phase 4: Image Preview & Lazy Loading
+## Phase 4: Image Preview & Lazy Loading [checkpoint: e7f84d9]
 - [x] Task: Implement a lazy-loading mechanism (Intersection Observer) for model card backgrounds in the library. ac05a10
 - [x] Task: Update the model card styling to use the `/api/images/{sha256}.webp?quality=medium` endpoint for background images. 9d6ecc5
 - [x] Task: Add placeholder handling for models without a recorded preview image. f78584e
-- [ ] Task: Conductor - User Manual Verification 'Image Preview & Lazy Loading' (Protocol in workflow.md)
+- [x] Task: Fix frontend ModelLibrary.vue to correctly implement IntersectionObserver for lazy loading. 4e952c9
+- [x] Task: Conductor - User Manual Verification 'Image Preview & Lazy Loading' (Protocol in workflow.md) e7f84d9
+
+## Phase 5: User Requested Enhancements [checkpoint: e7f84d9]
+- [x] Task: Extend `DatabaseManager` in `backend/database/db.py` to support `get_all_tags`.
+- [x] Task: Implement `handle_get_tags` in `backend/server/router.py` to expose `GET /api/tags`.
+- [x] Task: Update `_codex/backend_apis.md` with the new `GET /api/tags` endpoint.
+- [x] Task: Update `web/model_manager_frontend/src/api/models.ts` to include `fetchTags`.
+- [x] Task: Update `ModelLibrary.vue` to fetch tags on mount and automatically set 'nsfw' tag to 'exclude'.
+- [x] Task: Conductor - User Manual Verification 'User Requested Enhancements' (Protocol in workflow.md) e7f84d9
+- [ ] Task: Update `ModelLibrary.vue` to fetch tags on mount and automatically set 'nsfw' tag to 'exclude'.
+- [ ] Task: Conductor - User Manual Verification 'User Requested Enhancements' (Protocol in workflow.md)
