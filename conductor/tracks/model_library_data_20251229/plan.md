@@ -17,7 +17,7 @@
 ## Phase 3: Reactive Library & Filtering
 - [x] Task: Refactor `ModelLibrary.vue` to consume the real model data from the state/cache instead of mock data. dabf77c
 - [x] Task: Implement reactive local searching (by name/path) and tag-based filtering within `ModelLibrary.vue`. 05adab4
-- [ ] Task: Add a "Refresh" button to the library toolbar to manually invalidate the cache and re-fetch the current type.
+- [x] Task: Add a "Refresh" button to the library toolbar to manually invalidate the cache and re-fetch the current type. 7c02e4a
 - [ ] Task: Conductor - User Manual Verification 'Reactive Library & Filtering' (Protocol in workflow.md)
 
 ## Phase 4: Image Preview & Lazy Loading
