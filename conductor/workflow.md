@@ -127,6 +127,21 @@ Before marking any task complete, verify:
 - [ ] Documentation updated if needed
 - [ ] No security vulnerabilities introduced
 
+## Auxiliary Development Tools
+
+### Discrepancy Reporting
+
+**Purpose:** Document and resolve architectural or implementation gaps discovered during audits or development.
+
+**Location:** `conductor/discrepancies/`
+
+**Workflow:**
+1.  **Identify Discrepancy:** During development or audit, identify a gap between design and implementation.
+2.  **Draft Report:** Create a markdown file named `<YYYYMMDD-HHmm>-discrepancies.md` in the current track folder (move to `conductor/discrepancies/` upon completion).
+3.  **Review & Fix:** Discuss findings with the Product Owner. Update the report based on decisions (e.g., "To Fix", "Won't Fix", "Planned").
+4.  **Finalize:** When the analysis is stable (conflicts resolved), rename the file with a `_fixed` suffix (e.g., `...-discrepancies_fixed.md`) and move it to `conductor/discrepancies/`.
+5.  **Reference:** Use these fixed reports as authoritative sources for future refactoring tracks.
+
 ## Development Commands
 
 **AI AGENT INSTRUCTION: This section should be adapted to the project's specific language, framework, and build tools.**
