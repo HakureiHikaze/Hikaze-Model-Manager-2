@@ -82,6 +82,17 @@ All tasks follow a strict lifecycle:
         3.  **Confirm that you receive:** A JSON response with a status of `201 Created`.
         ```
 
+        **For a Migration (Database/Schema) Change:**
+        ```
+        The phase implementation is complete. For manual verification, please follow these steps:
+
+        **Manual Verification Steps:**
+        1. **Stage 1 (Legacy Import):** Call `/api/migration/migrate_legacy_db` with a valid legacy path.
+        2. **Verify Pending Queue:** Call `GET /api/migration/pending_models` and confirm the presence of unhashed models.
+        3. **Stage 2 (Promotion):** Call `/api/migration/import_models` with a pending ID and a conflict strategy (e.g., 'override').
+        4. **Verify Active Catalog:** Verify the model now appears in the `models` table with a valid SHA256.
+        ```
+
 3.  **Await Explicit User Feedback:**
     -   After presenting the detailed plan, ask the user for confirmation: "**Does this meet your expectations? Please confirm with yes or provide feedback on what needs to be changed.**"
     -   **PAUSE** and await the user's response. Do not proceed without an explicit yes or confirmation.

@@ -3,9 +3,11 @@ import json
 import logging
 import os
 import glob
+import shutil
 from typing import Dict, Any, Optional, List
 from backend.database import DatabaseManager
 from backend.util.image_processor import ImageProcessor
+from backend.util import config
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ def migrate_legacy_db(legacy_db_path: str) -> Dict[str, int]:
     
     if not os.path.exists(legacy_db_path):
         logger.error(f"Legacy DB not found: {legacy_db_path}")
+        report["errors"] = 1
         return report
 
     def get_value(row: sqlite3.Row, key: str, default: Any) -> Any:
@@ -54,6 +57,19 @@ def migrate_legacy_db(legacy_db_path: str) -> Dict[str, int]:
         # 2. Models
         logger.info("Migrating models...")
         models = conn.execute("SELECT * FROM models").fetchall()
+        tag_map: Dict[int, List[int]] = {}
+        try:
+            tag_rows = conn.execute(
+                "SELECT model_id, tag_id FROM model_tags"
+            ).fetchall()
+            for row in tag_rows:
+                model_id = get_value(row, "model_id", 0)
+                tag_id = get_value(row, "tag_id", 0)
+                if model_id <= 0 or tag_id <= 0:
+                    continue
+                tag_map.setdefault(model_id, []).append(tag_id)
+        except Exception as e:
+            logger.error(f"Error migrating model tags: {e}")
         
         for row in models:
             try:
@@ -62,7 +78,7 @@ def migrate_legacy_db(legacy_db_path: str) -> Dict[str, int]:
                 filename = get_value(row, "name", "")
                 
                 # Tags
-                tag_ids = [r["tag_id"] for r in conn.execute("SELECT tag_id FROM model_tags WHERE model_id = ?", (model_id,)).fetchall()]
+                tag_ids = tag_map.get(model_id, [])
                 
                 # Meta
                 extra_json = get_value(row, "extra_json", "")
@@ -88,10 +104,10 @@ def migrate_legacy_db(legacy_db_path: str) -> Dict[str, int]:
                     pending_data = common_data.copy()
                     pending_data["id"] = model_id
                     pending_data["sha256"] = None
-                    db.add_pending_import(pending_data)
-                    for tid in tag_ids:
-                        db.add_pending_model_tag(model_id, tid)
-                    report["pending"] += 1
+                    if db.add_pending_import(pending_data):
+                        for tid in tag_ids:
+                            db.add_pending_model_tag(model_id, tid)
+                        report["pending"] += 1
 
             except Exception as e:
                 logger.error(f"Error migrating model {get_value(row, 'id', '?')}: {e}")
@@ -196,12 +212,10 @@ def migrate_legacy_images(legacy_images_dir: str) -> Dict[str, int]:
                 src_path = find_legacy_image(filename)
                 
                 if src_path:
-                    with open(src_path, "rb") as f:
-                        img_data = f.read()
-                    
-                    # Save Pending (Original)
-                    # Requirement: save in data/images/pending
-                    ImageProcessor.save_pending_image_original(img_data, str(row["id"]))
+                    # Save Pending (Original) with original filename
+                    dest_path = os.path.join(config.PENDING_IMAGES_DIR, filename)
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    shutil.copy2(src_path, dest_path)
                     report["images_processed"] += 1
             except Exception as e:
                 pass
@@ -209,7 +223,7 @@ def migrate_legacy_images(legacy_images_dir: str) -> Dict[str, int]:
     return report
 
 def strip_meta_images():
-    """Remove image-related keys from meta_json in both models and pending_import tables."""
+    """Remove image-related keys from meta_json in the models table."""
     db = DatabaseManager()
     conn = db.get_connection()
     
@@ -238,18 +252,4 @@ def strip_meta_images():
                     "UPDATE models SET meta_json = ? WHERE sha256 = ?",
                     (cleaned, row["sha256"])
                 )
-
-    # 2. Clean pending_import
-    logger.info("Cleaning meta_json in pending_import table...")
-    cursor = conn.execute("SELECT id, meta_json FROM pending_import")
-    rows = cursor.fetchall()
-    with conn:
-        for row in rows:
-            cleaned = clean_json(row["meta_json"])
-            if cleaned != row["meta_json"]:
-                conn.execute(
-                    "UPDATE pending_import SET meta_json = ? WHERE id = ?",
-                    (cleaned, row["id"])
-                )
-
 
