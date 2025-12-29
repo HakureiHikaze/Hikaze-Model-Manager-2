@@ -79,13 +79,6 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-// Re-setup observer when models or view mode changes
-watch([filteredModels, viewMode], () => {
-  if (viewMode.value === 'card') {
-    setupObserver()
-  }
-}, { deep: true })
-
 // Extract unique tags from current models for the filter dropdown
 const availableTags = computed(() => {
   const tagsMap = new Map<number, string>()
@@ -134,6 +127,13 @@ const filteredModels = computed(() => {
 
   return result
 })
+
+// Re-setup observer when models or view mode changes
+watch([filteredModels, viewMode], () => {
+  if (viewMode.value === 'card') {
+    setupObserver()
+  }
+}, { deep: true })
 
 function toggleTag(tagId: number) {
   const currentState = tagFilters.value.get(tagId)

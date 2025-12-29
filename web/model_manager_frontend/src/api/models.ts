@@ -53,18 +53,6 @@ export async function fetchTags(): Promise<Tag[]> {
  * Fetch models of a specific type from the backend.
  */
 export async function fetchModels(type: string): Promise<Model[]> {
-  const response = await fetch('/api/models/get_types');
-  if (!response.ok) {
-    throw new Error(`Failed to fetch model types: ${response.statusText}`);
-  }
-  const data: ModelTypesResponse = await response.json();
-  return data.types;
-}
-
-/**
- * Fetch models of a specific type from the backend.
- */
-export async function fetchModels(type: string): Promise<Model[]> {
   const response = await fetch(`/api/models?type=${encodeURIComponent(type)}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch models: ${response.statusText}`);
