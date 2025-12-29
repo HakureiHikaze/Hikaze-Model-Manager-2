@@ -153,6 +153,11 @@ class ImageProcessor:
         return sorted(bases)
 
     @staticmethod
+    def get_image_count(hash_str: str) -> int:
+        """Return the number of images associated with a hash."""
+        return len(ImageProcessor.get_image_list(hash_str))
+
+    @staticmethod
     def get_next_sequence_index(hash_str: str) -> int:
         """Find the next available sequence index for a hash."""
         seq = 0

@@ -34,6 +34,18 @@ async def handle_get_image(request):
         return web.FileResponse(path)
     return web.Response(status=404, text="Image not found")
 
+async def handle_get_img_num(request):
+    """
+    GET /api/images/get_img_num?sha256=...
+    Return count of images for a model.
+    """
+    sha256 = request.query.get("sha256")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+    
+    count = ImageProcessor.get_image_count(sha256)
+    return web.json_response({"count": count})
+
 async def handle_get_pending_image(request):
     """
     Serve a pending image by name.
@@ -497,6 +509,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/models/{sha256}", handle_get_model_details)
     app.router.add_get("/api/models", handle_get_models)
     app.router.add_get("/api/tags", handle_get_tags)
+    app.router.add_get("/api/images/get_img_num", handle_get_img_num)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
