@@ -26,7 +26,7 @@
 - [x] Task: Conductor - User Manual Verification 'Details Pane Integration' (Protocol in workflow.md) [46ff806]
 
 ## Phase 5: Model Library Card Enhancement (Refactor)
-- [ ] Task: Refactor `ModelLibrary.vue` card image logic to use the new sequence-based API.
-- [ ] Task: Implement asynchronous cycling logic (looping) for card previews with fade transitions.
-- [ ] Task: Ensure the preview queue updates in real-time when images are added or deleted.
-- [ ] Task: Conductor - User Manual Verification 'Model Library Card Enhancement' (Protocol in workflow.md)
+- [x] Task: Refactor `ModelLibrary.vue` card image logic to use the new sequence-based API. [6f79d49]
+- [x] Task: Implement asynchronous cycling logic (looping) for card previews with fade transitions. [6f79d49]
+- [x] Task: Ensure the preview queue updates in real-time when images are added or deleted. [6f79d49]
+- [~] Task: Conductor - User Manual Verification 'Model Library Card Enhancement' (Protocol in workflow.md)
