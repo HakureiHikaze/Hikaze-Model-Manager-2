@@ -18,7 +18,7 @@
 - [x] Task: Refine `ModelDetails.vue`: remove notes/triggers, fix textarea resizing, enhance community links. [refactor]
 - [ ] Task: Conductor - User Manual Verification 'Model Details Form Refactor' (Protocol in workflow.md)
 
-## Phase 3: Build Verification & Final Polish
+## Phase 3: Build Verification & Final Polish [checkpoint: 28d63a6]
 - [x] Task: Execute `npm run build` to verify full TypeScript compilation. [build]
 - [x] Task: Fix any build errors arising from the refactor. [fix]
 - [x] Task: Conductor - User Manual Verification 'Build Verification & Final Polish' (Protocol in workflow.md)
