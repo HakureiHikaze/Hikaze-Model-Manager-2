@@ -2,7 +2,7 @@
 
 ## Phase 1: Preparation & Information Gathering
 - [x] Task: Review `conductor/` and `_codex/` for canonical project structure and architectural definitions. [docs]
-- [ ] Task: Scan `backend/` directory to map current implementation of routers, database modules, and utilities.
+- [x] Task: Scan `backend/` directory to map current implementation of routers, database modules, and utilities. [scan]
 - [ ] Task: Scan `web/model_manager_frontend/` to map current implementation of components, state, and API layers.
 - [ ] Task: Conductor - User Manual Verification 'Preparation & Information Gathering' (Protocol in workflow.md)
 
