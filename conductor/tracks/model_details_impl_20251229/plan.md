@@ -6,8 +6,8 @@
 - [x] Task: Refactor `GET /api/images/{sha256}` to support `seq` query parameter. [c68c228]
 - [x] Task: Implement `DELETE /api/images/delete` with sequence shifting logic in `ImageProcessor`. [9d9bb80]
 - [x] Task: Implement `POST /api/tags_add` to handle batch creation of new tags. [a77c609]
-- [~] Task: Update `backend/server/router.py` with `PATCH /api/models/{sha256}` for model updates.
-- [ ] Task: Conductor - User Manual Verification 'API Restoration & Extension' (Protocol in workflow.md)
+- [x] Task: Update `backend/server/router.py` with `PATCH /api/models/{sha256}` for model updates. [966eb3b]
+- [~] Task: Conductor - User Manual Verification 'API Restoration & Extension' (Protocol in workflow.md)
 
 ## Phase 2: Documentation Correction
 - [ ] Task: Update `_codex/backend_apis.md` to reflect new and refactored endpoints.
