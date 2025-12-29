@@ -14,7 +14,7 @@
 - [x] Task: Conductor - User Manual Verification 'Dynamic UI Implementation' (Protocol in workflow.md) 4b22cf0
 
 ## Phase 3: Property Logic & Cleanup
-- [ ] Task: Implement logic to resolve `activeTab` on mount using `initialTab` prop and fetched types.
+- [x] Task: Implement logic to resolve `activeTab` on mount using `initialTab` prop and fetched types. b9ae411
 - [ ] Task: Remove hardcoded mock tab navigation from `App.vue`.
 - [ ] Task: Ensure `embedded` prop correctly toggles the visibility of the tab bar.
 - [ ] Task: Conductor - User Manual Verification 'Property Logic & Cleanup' (Protocol in workflow.md)
