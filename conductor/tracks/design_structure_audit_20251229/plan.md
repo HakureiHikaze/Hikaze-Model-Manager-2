@@ -6,7 +6,7 @@
 - [x] Task: Scan `web/model_manager_frontend/` to map current implementation of components, state, and API layers. [scan]
 - [ ] Task: Conductor - User Manual Verification 'Preparation & Information Gathering' (Protocol in workflow.md)
 
-## Phase 2: Cross-Analysis & Identification
+## Phase 2: Cross-Analysis & Identification [checkpoint: 749f7f9]
 - [x] Task: Compare `backend/` structure against the "Backend APIs" and "Design" docs in `_codex/` and `conductor/tech-stack.md`. [analysis]
 - [x] Task: Compare `web/model_manager_frontend/` structure and state management against `conductor/tech-stack.md` and product goals. [analysis]
 - [x] Task: Identify discrepancies in naming conventions, file placement, and architectural layering. [analysis]
