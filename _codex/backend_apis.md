@@ -1,6 +1,6 @@
 # Backend APIs
 
-- `u`means not implemented
+- `u` means not implemented
 
 ## GET /api/hello
 
@@ -10,9 +10,21 @@
 
 ## GET /api/images/{hash}.webp
 
-- desc: get active sample image by base name
-- request: query quality=high|medium|low
+- desc: get active sample image by base name or hash + seq
+- request: query `quality=high|medium|low`, optional `seq=N`
 - response: webp file or 404
+
+## GET /api/images/get_img_num
+
+- desc: get count of sample images for a model
+- request: query `sha256=...`
+- response: `{"count": n}`
+
+## DELETE /api/images/delete
+
+- desc: delete a specific image sequence and shift subsequent images
+- request: query `sha256=...`, `seq=N`
+- response: `{"status": "success"}` or error
 
 ## GET /api/images/pending/{name}.webp
 
@@ -68,23 +80,29 @@
 - request: query `type=...` (required)
 - response: `{"models":[{"sha256":"...","name":"...","type":"...","path":"...","tags":[...]}]}`
 
-## u GET /api/models/{sha256}
+## GET /api/models/{sha256}
 
-- desc: get model detail for right panel
+- desc: get full model record (including meta_json) for right panel
 - request: none
-- response: `{"model":{...,"tags":[{"id":1,"name":"..."}]}}`
+- response: `{"sha256":"...", "name":"...", "meta_json":"...", "tags":[{"id":1,"name":"..."}], ...}`
 
-## u PATCH /api/models/{sha256}
+## PATCH /api/models/{sha256}
 
-- desc: update editable model fields
-- request: json body `{"name":"...","meta_json":{...},"tag_ids":[...]}`
-- response: `{"status":"success"}` or error
+- desc: update editable model fields and tag associations
+- request: json body `{"name":"...","type":"...","tags":[id1, id2],"meta_json":"..."}`
+- response: `{<updated_model_object>}` or error
 
 ## GET /api/tags
 
 - desc: list all tags in the system
 - request: none
 - response: `{"tags":[{"id":1,"name":"..."}]}`
+
+## POST /api/tags_add
+
+- desc: batch create/resolve tags by name
+- request: json body `{"newtags": ["tag1", "tag2"]}`
+- response: `{"tags": [{"id":1, "name":"tag1"}, ...]}`
 
 ## u POST /api/models/scan
 
