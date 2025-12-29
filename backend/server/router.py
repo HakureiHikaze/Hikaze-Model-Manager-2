@@ -24,12 +24,17 @@ async def handle_hello(request):
 async def handle_get_image(request):
     """
     Serve an active image by hash.
-    URL: /api/images/{hash}.webp?quality=high|medium|low
+    URL: /api/images/{hash}.webp?quality=high|medium|low&seq=N
     """
     img_hash = request.match_info.get("hash", "")
     quality = request.query.get("quality", "high")
+    seq = request.query.get("seq")
     
-    path = ImageProcessor.get_image_path(img_hash, quality=quality, is_pending=False)
+    identifier = img_hash
+    if seq is not None:
+        identifier = f"{img_hash}_{seq}"
+    
+    path = ImageProcessor.get_image_path(identifier, quality=quality, is_pending=False)
     if os.path.exists(path):
         return web.FileResponse(path)
     return web.Response(status=404, text="Image not found")
