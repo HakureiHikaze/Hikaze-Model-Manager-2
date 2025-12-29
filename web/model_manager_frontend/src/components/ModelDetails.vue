@@ -1,100 +1,150 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-
-interface ModelData {
-  sha256?: string
-  path: string
-  name: string
-  type: string
-  base?: string
-  tags: string[]
-  triggerWords: string[]
-  notes: string
-  image?: string
-  isPending?: boolean
-}
+import HikazeImageGallery from './HikazeImageGallery.vue'
+import HikazeTagInput from './HikazeTagInput.vue'
+import { 
+  Model, 
+  Tag, 
+  ModelFull,
+  fetchModelDetails, 
+  addTags, 
+  updateModel 
+} from '../api/models'
 
 const props = defineProps<{
-  model?: ModelData
+  model?: Model
 }>()
 
-const localModel = ref<ModelData>({
-  path: '',
-  name: '',
-  type: '',
-  tags: [],
-  triggerWords: [],
-  notes: '',
-})
+const emit = defineEmits(['update-list'])
 
-// Update local state when prop changes
+const localModel = ref<ModelFull | null>(null)
+const isLoading = ref(false)
+const isSaving = ref(false)
+const isHoveringImage = ref(false)
+
+// We parse meta_json to get trigger words and notes if they exist there
+const triggerWords = ref<string[]>([])
+const notes = ref('')
+
+const loadFullDetails = async (sha256: string) => {
+  isLoading.value = true
+  try {
+    const data = await fetchModelDetails(sha256)
+    localModel.value = data
+    
+    // Parse meta_json for extended fields
+    if (data.meta_json) {
+      try {
+        const meta = JSON.parse(data.meta_json)
+        triggerWords.value = Array.isArray(meta.trigger_words) ? meta.trigger_words : []
+        notes.value = meta.notes || ''
+      } catch (e) {
+        console.warn('Failed to parse meta_json', e)
+      }
+    } else {
+      triggerWords.value = []
+      notes.value = ''
+    }
+  } catch (e) {
+    console.error('Failed to load model details', e)
+  } finally {
+    isLoading.value = false
+  }
+}
+
 watch(() => props.model, (newVal) => {
-  if (newVal) {
-    localModel.value = { ...newVal }
+  if (newVal?.sha256) {
+    loadFullDetails(newVal.sha256)
+  } else {
+    localModel.value = null
   }
 }, { immediate: true })
 
-const tagInput = ref('')
+const handleSave = async () => {
+  if (!localModel.value || !localModel.value.sha256) return
+  isSaving.value = true
+  
+  try {
+    const sha256 = localModel.value.sha256
+    
+    // 1. Resolve Tags (New tags have id -1)
+    const tagsToResolve = localModel.value.tags
+    const newTagNames = tagsToResolve.filter(t => t.id === -1).map(t => t.name)
+    const existingTagIds = tagsToResolve.filter(t => t.id !== -1).map(t => t.id)
+    
+    let resolvedTagIds = [...existingTagIds]
+    
+    if (newTagNames.length > 0) {
+      const createdTags = await addTags(newTagNames)
+      resolvedTagIds = [...resolvedTagIds, ...createdTags.map(t => t.id)]
+    }
+    
+    // 2. Prepare meta_json
+    let meta: any = {}
+    if (localModel.value.meta_json) {
+      try {
+        meta = JSON.parse(localModel.value.meta_json)
+      } catch {}
+    }
+    meta.trigger_words = triggerWords.value
+    meta.notes = notes.value
+    
+    // 3. Update Model
+    const updated = await updateModel(sha256, {
+      name: localModel.value.name,
+      type: localModel.value.type,
+      tags: resolvedTagIds,
+      meta_json: JSON.stringify(meta)
+    })
+    
+    // Refresh local state
+    localModel.value = updated
+    emit('update-list') // Notify parent to refresh library view
+    alert('Saved successfully!')
+  } catch (e) {
+    alert(`Save failed: ${e}`)
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleRevert = () => {
+  if (props.model?.sha256) {
+    loadFullDetails(props.model.sha256)
+  }
+}
+
 const triggerInput = ref('')
-const isHoveringImage = ref(false)
-
-const addChip = (type: 'tags' | 'triggerWords', value: string) => {
-  const val = value.trim().replace(/,$/, '')
-  if (val && !localModel.value[type].includes(val)) {
-    localModel.value[type].push(val)
+const addTriggerWord = () => {
+  const val = triggerInput.value.trim().replace(/,$/, '')
+  if (val && !triggerWords.value.includes(val)) {
+    triggerWords.value.push(val)
   }
+  triggerInput.value = ''
 }
-
-const handleTagInput = (e: KeyboardEvent) => {
-  if (e.key === ' ' || e.key === ',') {
+const removeTriggerWord = (index: number) => {
+  triggerWords.value.splice(index, 1)
+}
+const handleTriggerInputKey = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault()
-    addChip('tags', tagInput.value)
-    tagInput.value = ''
+    addTriggerWord()
   }
-}
-
-const handleTriggerInput = (e: KeyboardEvent) => {
-  if (e.key === ' ' || e.key === ',') {
-    e.preventDefault()
-    addChip('triggerWords', triggerInput.value)
-    triggerInput.value = ''
-  }
-}
-
-const removeChip = (type: 'tags' | 'triggerWords', index: number) => {
-  localModel.value[type].splice(index, 1)
 }
 
 const calculateSHA256 = () => {
-  console.log('Requesting SHA256 calculation for:', localModel.value.path)
-  // Placeholder for API call
-  alert('SHA256 calculation started in background...')
-}
-
-const uploadImage = () => {
-  console.log('Upload image triggered')
+  alert('SHA256 calculation feature pending implementation.')
 }
 </script>
 
 <template>
-  <div class="model-details" v-if="localModel.path">
-    <!-- Image Preview Area -->
-    <div 
-      class="preview-area" 
-      @mouseenter="isHoveringImage = true" 
-      @mouseleave="isHoveringImage = false"
-    >
-      <img v-if="localModel.image" :src="localModel.image" class="preview-img" />
-      <div v-else class="no-image">No Preview</div>
-      
-      <div class="image-overlay" v-show="isHoveringImage">
-        <button v-if="localModel.image" class="overlay-btn" title="Open in new tab">
-          <span class="icon">🔗</span>
-        </button>
-        <button class="overlay-btn" @click="uploadImage" title="Upload new image">
-          <span class="icon">📁</span>
-        </button>
-      </div>
+  <div class="model-details" v-if="localModel">
+    <!-- Gallery Component -->
+    <div class="gallery-wrapper">
+      <HikazeImageGallery 
+        :sha256="localModel.sha256" 
+        @update="emit('update-list')"
+      />
     </div>
     
     <div class="details-body">
@@ -114,56 +164,45 @@ const uploadImage = () => {
       <div class="field-group">
         <label>SHA256 Hash</label>
         <div class="hash-row">
-          <input type="text" :value="localModel.sha256 || 'Unknown'" disabled class="hash-input" />
+          <input type="text" :value="localModel.sha256" disabled class="hash-input" />
           <button class="btn-calc" @click="calculateSHA256" title="Calculate Hash">
             ⚡
           </button>
         </div>
       </div>
 
-      <!-- Base Model -->
+      <!-- Model Type (Editable) -->
       <div class="field-group">
-        <label>Base Model</label>
-        <select v-model="localModel.base">
-          <option value="SD1.5">SD 1.5</option>
-          <option value="SD2.1">SD 2.1</option>
-          <option value="SDXL">SDXL</option>
-          <option value="SD3">SD3</option>
-          <option value="Pony">Pony</option>
+        <label>Model Type</label>
+        <select v-model="localModel.type">
+          <option value="Checkpoints">Checkpoints</option>
+          <option value="LoRA">LoRA</option>
+          <option value="Embeddings">Embeddings</option>
+          <option value="VAE">VAE</option>
+          <option value="ControlNet">ControlNet</option>
+          <option value="UpscaleModels">UpscaleModels</option>
           <option value="Other">Other</option>
         </select>
       </div>
 
-      <!-- Tags (Chips) -->
+      <!-- Tags Component -->
       <div class="field-group">
         <label>Tags</label>
-        <div class="chips-container">
-          <div v-for="(tag, i) in localModel.tags" :key="tag" class="chip">
-            {{ tag }}
-            <button class="chip-remove" @click="removeChip('tags', i)">×</button>
-          </div>
-          <input 
-            type="text" 
-            v-model="tagInput" 
-            @keydown="handleTagInput"
-            placeholder="Add tag..."
-            class="chip-input"
-          />
-        </div>
+        <HikazeTagInput v-model="localModel.tags" />
       </div>
 
-      <!-- Trigger Words (Chips) -->
-      <div class="field-group" v-if="localModel.type === 'LoRA' || localModel.type === 'Checkpoint'">
+      <!-- Trigger Words (Chips - simplified manual implementation for now) -->
+      <div class="field-group">
         <label>Trigger Words</label>
         <div class="chips-container">
-          <div v-for="(word, i) in localModel.triggerWords" :key="word" class="chip trigger">
+          <div v-for="(word, i) in triggerWords" :key="word" class="chip trigger">
             {{ word }}
-            <button class="chip-remove" @click="removeChip('triggerWords', i)">×</button>
+            <button class="chip-remove" @click="removeTriggerWord(i)">×</button>
           </div>
           <input 
             type="text" 
             v-model="triggerInput" 
-            @keydown="handleTriggerInput"
+            @keydown="handleTriggerInputKey"
             placeholder="Add trigger word..."
             class="chip-input"
           />
@@ -173,19 +212,24 @@ const uploadImage = () => {
       <!-- Notes -->
       <div class="field-group">
         <label>Notes</label>
-        <textarea v-model="localModel.notes" placeholder="Additional details..."></textarea>
+        <textarea v-model="notes" placeholder="Additional details..." rows="3"></textarea>
       </div>
 
       <div class="actions">
-        <button class="btn primary">Save Changes</button>
-        <button class="btn secondary">Revert</button>
+        <button class="btn primary" @click="handleSave" :disabled="isSaving">
+          {{ isSaving ? 'Saving...' : 'Save Changes' }}
+        </button>
+        <button class="btn secondary" @click="handleRevert" :disabled="isSaving">Revert</button>
       </div>
     </div>
   </div>
   
   <div v-else class="empty-details">
-    <div class="placeholder-icon">📭</div>
-    <p>Select a model from the library to view and edit details.</p>
+    <div v-if="isLoading" class="loading-state">Loading details...</div>
+    <div v-else>
+      <div class="placeholder-icon">📭</div>
+      <p>Select a model from the library to view and edit details.</p>
+    </div>
   </div>
 </template>
 
@@ -215,58 +259,9 @@ const uploadImage = () => {
   margin-bottom: 1rem;
 }
 
-.preview-area {
-  width: 100%;
-  aspect-ratio: 3/4;
-  background: #151b23;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.gallery-wrapper {
   margin-bottom: 20px;
   flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.preview-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.image-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.overlay-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.overlay-btn:hover {
-  background: rgba(255,255,255,0.3);
-  transform: scale(1.1);
 }
 
 .details-body {
@@ -278,7 +273,7 @@ const uploadImage = () => {
   padding-right: 4px;
 }
 
-/* Custom Scrollbar for Details Body */
+/* Custom Scrollbar */
 .details-body::-webkit-scrollbar {
   width: 4px;
 }
@@ -353,12 +348,7 @@ const uploadImage = () => {
   cursor: pointer;
 }
 
-.btn-calc:hover {
-  background: #30363d;
-  color: #f0f6fc;
-}
-
-/* Chips Container */
+/* Chips Container (Reused for triggers) */
 .chips-container {
   display: flex;
   flex-wrap: wrap;
@@ -375,15 +365,10 @@ const uploadImage = () => {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: #238636; /* Success/Green for tags */
+  background: #1f6feb; /* Blue for triggers */
   color: white;
   border-radius: 12px;
   font-size: 0.8rem;
-  position: relative;
-}
-
-.chip.trigger {
-  background: #1f6feb; /* Blue for trigger words */
 }
 
 .chip-remove {
@@ -393,18 +378,10 @@ const uploadImage = () => {
   padding: 0;
   font-size: 1rem;
   cursor: pointer;
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-  transition: all 0.2s;
+  opacity: 0.7;
   line-height: 1;
 }
-
-.chip:hover .chip-remove {
-  opacity: 1;
-  width: 14px;
-  margin-left: 4px;
-}
+.chip-remove:hover { opacity: 1; }
 
 .chip-input {
   border: none !important;
@@ -438,12 +415,8 @@ const uploadImage = () => {
   border-color: #2ea043;
   color: #fff;
 }
+.btn.primary:hover { background: #2ea043; }
+.btn.primary:disabled { background: #238636; opacity: 0.5; cursor: not-allowed; }
 
-.btn.primary:hover {
-  background: #2ea043;
-}
-
-.btn.secondary:hover {
-  background: #30363d;
-}
+.btn.secondary:hover { background: #30363d; }
 </style>
