@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 from backend.util.image_processor import ImageProcessor
 from backend.util import hasher
 from backend.util import config
@@ -125,6 +126,45 @@ async def handle_delete_image(request):
     except Exception as e:
         logger.exception(f"Error deleting image {sha256}_{seq}")
         return web.json_response({"error": str(e)}, status=500)
+
+async def handle_add_tags(request):
+    """
+    POST /api/tags_add
+    Body: { "newtags": ["name1", "name2"] }
+    Returns: { "tags": [{ "id": 1, "name": "name1" }, ...] }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+        
+    new_tags = data.get("newtags")
+    if not isinstance(new_tags, list):
+        return web.json_response({"error": "newtags must be a list"}, status=400)
+        
+    db = DatabaseManager()
+    created_tags = []
+    
+    for name in new_tags:
+        if not isinstance(name, str) or not name.strip():
+            continue
+        
+        name = name.strip()
+        # Try to create
+        try:
+            tag = db.create_tag(name)
+            created_tags.append({"id": tag["id"], "name": tag["name"]})
+        except sqlite3.IntegrityError:
+            # Already exists
+            tag = db.get_tag(name)
+            if tag:
+                created_tags.append({"id": tag["id"], "name": tag["name"]})
+            else:
+                logger.warning(f"Tag {name} failed creation but not found?")
+        except Exception as e:
+            logger.error(f"Error creating tag {name}: {e}")
+            
+    return web.json_response({"tags": created_tags})
 
 async def handle_get_sample_imgs(request):
     """
@@ -538,6 +578,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/models/{sha256}", handle_get_model_details)
     app.router.add_get("/api/models", handle_get_models)
     app.router.add_get("/api/tags", handle_get_tags)
+    app.router.add_post("/api/tags_add", handle_add_tags)
     app.router.add_get("/api/images/get_img_num", handle_get_img_num)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
