@@ -3,13 +3,11 @@ import { ref, watch } from 'vue'
 import HikazeImageGallery from './HikazeImageGallery.vue'
 import HikazeTagInput from './HikazeTagInput.vue'
 import { 
-  Model, 
-  Tag, 
-  ModelFull,
   fetchModelDetails, 
   addTags, 
   updateModel 
 } from '../api/models'
+import type { Model, ModelFull } from '../api/models'
 
 const props = defineProps<{
   model?: Model
@@ -20,7 +18,6 @@ const emit = defineEmits(['update-list'])
 const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
-const isHoveringImage = ref(false)
 
 // We parse meta_json to get trigger words and notes if they exist there
 const triggerWords = ref<string[]>([])
@@ -90,12 +87,16 @@ const handleSave = async () => {
     meta.notes = notes.value
     
     // 3. Update Model
-    const updated = await updateModel(sha256, {
+    // We pass tags as number[] to a specialized update object to satisfy the backend expectation
+    // while casting to satisfy TS Partial<ModelFull> intersection
+    const updatePayload: any = {
       name: localModel.value.name,
       type: localModel.value.type,
-      tags: resolvedTagIds,
+      tags: resolvedTagIds, // This is expected by backend as number[]
       meta_json: JSON.stringify(meta)
-    })
+    }
+
+    const updated = await updateModel(sha256, updatePayload)
     
     // Refresh local state
     localModel.value = updated
