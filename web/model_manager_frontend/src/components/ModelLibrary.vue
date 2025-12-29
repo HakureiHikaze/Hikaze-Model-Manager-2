@@ -171,7 +171,7 @@ const onMouseLeave = () => {
       <template v-else-if="viewMode === 'card'">
         <div v-for="model in filteredModels" :key="model.sha256" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
           @mouseenter="(e) => onMouseEnter(e, model.sha256)" @mouseleave="onMouseLeave">
-          <div class="card-image"></div>
+          <div class="card-image lazy" :data-sha256="model.sha256"></div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
@@ -453,6 +453,17 @@ const onMouseLeave = () => {
   background: #222;
   border-radius: 9px;
   overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 0.3s;
+}
+
+.card-image.lazy {
+  opacity: 0;
+}
+
+.card-image.loaded {
+  opacity: 1;
 }
 
 .card-meta {
