@@ -7,6 +7,10 @@ function resolveType(t: TypeInput): string {
   return typeof t === 'string' ? t : t.value;
 }
 
+const cachedModels = reactive<Record<string, Model[]>>({});
+const loadingTypes = reactive<Record<string, boolean>>({});
+const errorTypes = reactive<Record<string, string | null>>({});
+
 export function useModelStore() {
   /**
    * Fetch models for a specific type and update the cache.
@@ -56,8 +60,15 @@ export function useModelStore() {
   /**
    * Returns error status for a specific type.
    */
-  function getError(type: TypeInput) {
-    return computed(() => errorTypes[resolveType(type)] || null);
+    function getError(type: TypeInput) {
+      return computed(() => errorTypes[resolveType(type)] || null);
+    }
+  
+    return {
+      loadModels,
+      getModels,
+      isLoading,
+      getError
+    };
   }
-
-}
+  

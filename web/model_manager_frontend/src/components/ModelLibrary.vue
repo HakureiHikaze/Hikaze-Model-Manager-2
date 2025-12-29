@@ -24,8 +24,8 @@ const error = modelStore.getError(computed(() => props.activeTab))
 // Extract unique tags from current models for the filter dropdown
 const availableTags = computed(() => {
   const tagsMap = new Map<number, string>()
-  rawModels.value.forEach(model => {
-    model.tags.forEach(tag => {
+  rawModels.value.forEach((model: any) => {
+    model.tags.forEach((tag: any) => {
       tagsMap.set(tag.id, tag.name)
     })
   })
@@ -38,7 +38,7 @@ const filteredModels = computed(() => {
   // Apply search filter
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter(m => 
+    result = result.filter((m: any) => 
       m.name.toLowerCase().includes(q) || 
       m.path.toLowerCase().includes(q)
     )
@@ -46,8 +46,8 @@ const filteredModels = computed(() => {
 
   // Apply tag filter
   if (selectedTagIds.value.size > 0) {
-    result = result.filter(m => 
-      m.tags.some(tag => selectedTagIds.value.has(tag.id))
+    result = result.filter((m: any) => 
+      m.tags.some((tag: any) => selectedTagIds.value.has(tag.id))
     )
     
     // Sort: models matching ALL selected tags first? 
