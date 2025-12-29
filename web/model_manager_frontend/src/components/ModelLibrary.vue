@@ -14,9 +14,60 @@ const hoveredId = ref<string | null>(null)
 const tooltipPlacement = ref<'top' | 'bottom'>('bottom')
 const showTagFilter = ref(false)
 
-const models = modelStore.getModels(computed(() => props.activeTab))
+const searchQuery = ref('')
+const selectedTagIds = ref<Set<number>>(new Set())
+
+const rawModels = modelStore.getModels(computed(() => props.activeTab))
 const isLoading = modelStore.isLoading(computed(() => props.activeTab))
 const error = modelStore.getError(computed(() => props.activeTab))
+
+// Extract unique tags from current models for the filter dropdown
+const availableTags = computed(() => {
+  const tagsMap = new Map<number, string>()
+  rawModels.value.forEach(model => {
+    model.tags.forEach(tag => {
+      tagsMap.set(tag.id, tag.name)
+    })
+  })
+  return Array.from(tagsMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const filteredModels = computed(() => {
+  let result = rawModels.value
+
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(m => 
+      m.name.toLowerCase().includes(q) || 
+      m.path.toLowerCase().includes(q)
+    )
+  }
+
+  // Apply tag filter
+  if (selectedTagIds.value.size > 0) {
+    result = result.filter(m => 
+      m.tags.some(tag => selectedTagIds.value.has(tag.id))
+    )
+    
+    // Sort: models matching ALL selected tags first? 
+    // For now, just keep original order but filtered.
+  }
+
+  return result
+})
+
+function toggleTag(tagId: number) {
+  if (selectedTagIds.value.has(tagId)) {
+    selectedTagIds.value.delete(tagId)
+  } else {
+    selectedTagIds.value.add(tagId)
+  }
+}
+
+function clearTags() {
+  selectedTagIds.value.clear()
+}
 
 const setView = (mode: 'card' | 'list') => {
   viewMode.value = mode
@@ -46,7 +97,7 @@ const onMouseLeave = () => {
   <div class="model-library">
     <div class="library-toolbar">
       <div class="search-box">
-        <input type="text" placeholder="Search models..." />
+        <input type="text" v-model="searchQuery" placeholder="Search models..." />
       </div>
 
       <div class="controls-right">
@@ -61,11 +112,25 @@ const onMouseLeave = () => {
         </div>
 
         <div class="tag-filter">
-          <button class="btn-filter" @click="showTagFilter = !showTagFilter">
-            Tags Filter
+          <button class="btn-filter" :class="{ active: selectedTagIds.size > 0 }" @click="showTagFilter = !showTagFilter">
+            Tags Filter {{ selectedTagIds.size > 0 ? `(${selectedTagIds.size})` : '' }}
           </button>
           <div v-if="showTagFilter" class="tag-dropdown">
-            <div class="placeholder-msg">No tags available</div>
+            <div v-if="availableTags.length === 0" class="placeholder-msg">No tags available</div>
+            <div v-else class="tag-list">
+              <div 
+                v-for="tag in availableTags" 
+                :key="tag.id" 
+                class="tag-item"
+                :class="{ selected: selectedTagIds.has(tag.id) }"
+                @click="toggleTag(tag.id)"
+              >
+                {{ tag.name }}
+              </div>
+              <div class="tag-dropdown-actions">
+                <button @click="clearTags" class="btn-clear">Clear All</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -79,7 +144,7 @@ const onMouseLeave = () => {
         {{ error }}
       </div>
       <template v-else-if="viewMode === 'card'">
-        <div v-for="model in models" :key="model.sha256" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
+        <div v-for="model in filteredModels" :key="model.sha256" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
           @mouseenter="(e) => onMouseEnter(e, model.sha256)" @mouseleave="onMouseLeave">
           <div class="card-image"></div>
           <div class="card-meta">
@@ -101,7 +166,7 @@ const onMouseLeave = () => {
 
       <template v-else>
         <div class="list-container">
-          <div v-for="model in models" :key="model.sha256" class="list-item">
+          <div v-for="model in filteredModels" :key="model.sha256" class="list-item">
             <div class="list-name">{{ model.name }}</div>
             <div class="list-tags">
               <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
@@ -201,6 +266,12 @@ const onMouseLeave = () => {
   background: #2a2f36;
 }
 
+.btn-filter.active {
+  background: #1f6feb;
+  border-color: #388bfd;
+  color: #fff;
+}
+
 .tag-dropdown {
   position: absolute;
   top: 100%;
@@ -210,9 +281,56 @@ const onMouseLeave = () => {
   border: 1px solid #30363d;
   border-radius: 6px;
   min-width: 200px;
-  padding: 12px;
+  padding: 8px;
   z-index: 200;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tag-item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #c9d1d9;
+  transition: background 0.2s;
+}
+
+.tag-item:hover {
+  background: #161b22;
+}
+
+.tag-item.selected {
+  background: #238636;
+  color: #fff;
+}
+
+.tag-dropdown-actions {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #30363d;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-clear {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.btn-clear:hover {
+  color: #f85149;
 }
 
 .placeholder-msg {
