@@ -27,7 +27,7 @@
 - [x] Task: Integrate `HikazeFloatingPanel` into the main `HikazeManagerModal.vue` (or `App.vue` depending on modal structure).
 - [x] Task: Conductor - User Manual Verification 'Floating Panel Component' (Protocol in workflow.md)
 
-## Phase 4: Integration & Polish
+## Phase 4: Integration & Polish [checkpoint: 89c3279]
 - [x] Task: Verify persistence of panel position when switching tabs (ensure component is kept alive or state is lifted).
 - [x] Task: Execute `npm run build` to verify full TypeScript compilation. [build]
 - [x] Task: Fix any build errors arising from the new component. [fix]
