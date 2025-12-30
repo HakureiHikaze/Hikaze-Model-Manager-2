@@ -1,0 +1,8 @@
+{
+  "description?": "string",
+  "community_links?": "string",
+  "prompts?": {
+    "positive?": "string",
+    "negative?": "string"
+  }
+}

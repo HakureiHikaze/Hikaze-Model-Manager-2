@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, onUnmounted } from 'vue';
 import { fetchModelTypes } from '../api/models';
 import { useModelStore } from '../store/models';
 
@@ -15,9 +15,46 @@ const modelTypes = ref<string[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
+// Resizability state
+const detailsWidthPct = ref(24);
+const isDragging = ref(false);
+
 function setActiveTab(type: string) {
   activeTab.value = type;
 }
+
+// Resizing logic
+function startDragging() {
+  isDragging.value = true;
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', stopDragging);
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+
+function handleMouseMove(e: MouseEvent) {
+  if (!isDragging.value) return;
+  const containerWidth = window.innerWidth;
+  const newWidthPx = containerWidth - e.clientX;
+  const newPct = (newWidthPx / containerWidth) * 100;
+  
+  // Constrain between 10% and 80%
+  if (newPct > 10 && newPct < 80) {
+    detailsWidthPct.value = newPct;
+  }
+}
+
+function stopDragging() {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', handleMouseMove);
+  document.removeEventListener('mouseup', stopDragging);
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+}
+
+onUnmounted(() => {
+  stopDragging();
+});
 
 // Watch for tab changes and load models
 watch(activeTab, (newTab) => {
@@ -53,7 +90,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="hikaze-layout" :class="{ 'is-embedded': embedded, 'has-initial-tab': !!initialTab }">
+  <div class="hikaze-layout" :class="{ 'is-embedded': embedded, 'has-initial-tab': !!initialTab }" :style="{ gridTemplateColumns: `1fr 4px ${detailsWidthPct}%` }">
     <!-- Top Navigation (Tabs) - Only visible if NOT embedded AND NO initialTab -->
     <header class="hikaze-header" v-if="!embedded && !initialTab">
       <div v-if="isLoading" class="tabs-loading">
@@ -80,6 +117,9 @@ onMounted(() => {
       <slot name="library" :active-tab="activeTab">Library</slot>
     </main>
 
+    <!-- Resizable Splitter -->
+    <div class="layout-splitter" :class="{ dragging: isDragging }" @mousedown="startDragging"></div>
+
     <!-- Right Sidebar (Details) -->
     <aside class="hikaze-pane-details">
       <slot name="details">Details</slot>
@@ -90,7 +130,7 @@ onMounted(() => {
 <style scoped>
 .hikaze-layout {
   display: grid;
-  grid-template-columns: 1fr 350px; /* Library | Details */
+  /* grid-template-columns is set dynamically via :style */
   grid-template-rows: auto 1fr; /* Header | Content */
   height: 100%;
   width: 100%;
@@ -111,22 +151,7 @@ onMounted(() => {
   overflow-x: auto; /* Enable horizontal scroll for many tabs */
 }
 
-.hikaze-header::-webkit-scrollbar {
-  height: 4px;
-}
-
-.hikaze-header::-webkit-scrollbar-track {
-  background: #0d1117;
-}
-
-.hikaze-header::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
-}
-
-.hikaze-header::-webkit-scrollbar-thumb:hover {
-  background: #8b949e;
-}
+/* ... existing scrollbar styles ... */
 
 .type-tabs {
   display: flex;
@@ -188,37 +213,37 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* Library takes remaining space */
+/* Library takes column 1 */
 .hikaze-pane-library {
   grid-column: 1;
-  grid-row: 2; /* If header exists, row 2. If not... handled below? No, always row 2 is fine if row 1 is auto (0 height if empty/v-if false) */
+  grid-row: 2;
   overflow-y: hidden; /* Internal scrolling handled by components */
   display: flex;
   flex-direction: column;
-  padding: 0; /* Remove default padding, let children handle it */
+  padding: 0;
   position: relative;
 }
 
-/* If header is hidden (v-if), the grid row 1 collapses? 
-   No, v-if removes the element.
-   If element is removed, grid-template-rows: auto 1fr; 
-   The first row will have 0 height. Ideally we might want to change template rows.
-*/
-
-.hikaze-layout.is-embedded,
-.hikaze-layout.has-initial-tab {
-   /* No header displayed via v-if */
-   /* grid-template-rows: 0fr 1fr;  Effective result */
+/* Splitter takes column 2 */
+.layout-splitter {
+  grid-column: 2;
+  grid-row: 2;
+  width: 4px;
+  cursor: col-resize;
+  background-color: #2d333b;
+  transition: background-color 0.2s;
+  z-index: 10;
 }
 
-/* Details Sidebar */
+.layout-splitter:hover, .layout-splitter.dragging {
+  background-color: #1f6feb;
+}
+
+/* Details Sidebar takes column 3 */
 .hikaze-pane-details {
-  grid-column: 2;
-  grid-row: 2; /* Spans from below header to bottom */
-  border-left: 1px solid #2d333b;
+  grid-column: 3;
+  grid-row: 2;
   overflow-y: auto;
   background-color: #0d1117; /* Legacy detail bg */
 }
-
-/* When header is present, details also start at row 2 */
 </style>

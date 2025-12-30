@@ -2,11 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useModelStore } from '../store/models'
 import { useIntersectionObserver } from '../util/intersectionObserver'
-import { fetchTags } from '../api/models'
+import { fetchTags, fetchImageCount } from '../api/models'
 
 const props = defineProps<{
   activeTab: string
 }>()
+const emit = defineEmits(['select-model'])
 
 const modelStore = useModelStore()
 
@@ -23,6 +24,9 @@ const rawModels = modelStore.getModels(computed(() => props.activeTab))
 const isLoading = modelStore.isLoading(computed(() => props.activeTab))
 const error = modelStore.getError(computed(() => props.activeTab))
 
+// Preview cycling state
+const previewState = ref<Map<string, { count: number, current: number, interval: number | null }>>(new Map())
+
 // Lazy loading logic
 let observer: IntersectionObserver | null = null
 
@@ -34,11 +38,12 @@ function setupObserver() {
     const sha256 = target.dataset.sha256
     if (!sha256) return
 
+    // Just check for the first image to determine "loaded" or "error"
+    // The actual background image is now bound via :style in template
     const img = new Image()
-    const url = `/api/images/${sha256}.webp?quality=medium`
+    const url = `/api/images/${sha256}.webp?seq=0&quality=medium`
     
     img.onload = () => {
-      target.style.backgroundImage = `url(${url})`
       target.classList.remove('lazy')
       target.classList.add('loaded')
     }
@@ -56,6 +61,65 @@ function setupObserver() {
     const elements = document.querySelectorAll('.card-image.lazy')
     elements.forEach(el => observer?.observe(el))
   })
+}
+
+// Preview Cycling Logic
+const startCycling = async (sha256: string) => {
+  if (!previewState.value.has(sha256)) {
+    try {
+      const count = await fetchImageCount(sha256)
+      previewState.value.set(sha256, { count, current: 0, interval: null })
+    } catch {
+      return // Failed to get count
+    }
+  }
+
+  const state = previewState.value.get(sha256)
+  if (!state || state.count <= 1) return
+
+  // Clear any existing interval just in case
+  if (state.interval) clearInterval(state.interval)
+
+  state.interval = setInterval(() => {
+    state.current = (state.current + 1) % state.count
+  }, 1000) // 1 second per slide
+}
+
+const stopCycling = (sha256: string) => {
+  const state = previewState.value.get(sha256)
+  if (state && state.interval) {
+    clearInterval(state.interval)
+    state.interval = null
+    state.current = 0 // Reset to first image
+  }
+}
+
+const getPreviewStyle = (sha256: string) => {
+  const state = previewState.value.get(sha256)
+  const seq = state ? state.current : 0
+  // Cache busting optional here depending on backend caching strategy
+  return {
+    backgroundImage: `url(/api/images/${sha256}.webp?seq=${seq}&quality=medium)`
+  }
+}
+
+const onMouseEnter = (e: MouseEvent, id: string) => {
+  hoveredId.value = id
+  const target = e.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - rect.bottom
+  tooltipPlacement.value = spaceBelow < 250 ? 'top' : 'bottom'
+  
+  startCycling(id)
+}
+
+const onMouseLeave = (id: string) => {
+  hoveredId.value = null
+  stopCycling(id)
+}
+
+const selectModel = (model: any) => {
+  emit('select-model', model)
 }
 
 onMounted(async () => {
@@ -77,8 +141,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
+  // Clear all intervals
+  previewState.value.forEach(state => {
+    if (state.interval) clearInterval(state.interval)
+  })
 })
 
+// ... (existing computed/filter logic) ...
 // Extract unique tags from current models for the filter dropdown
 const availableTags = computed(() => {
   const tagsMap = new Map<number, string>()
@@ -165,18 +234,6 @@ const gridStyle = computed(() => {
     gridTemplateColumns: `repeat(${columnCount.value}, 1fr)`
   }
 })
-
-const onMouseEnter = (e: MouseEvent, id: string) => {
-  hoveredId.value = id
-  const target = e.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
-  const spaceBelow = window.innerHeight - rect.bottom
-  tooltipPlacement.value = spaceBelow < 250 ? 'top' : 'bottom'
-}
-
-const onMouseLeave = () => {
-  hoveredId.value = null
-}
 </script>
 
 <template>
@@ -234,9 +291,20 @@ const onMouseLeave = () => {
         {{ error }}
       </div>
       <template v-else-if="viewMode === 'card'">
-        <div v-for="model in filteredModels" :key="model.sha256" class="card-item" :class="{ 'dense-view': columnCount > 6 }"
-          @mouseenter="(e) => onMouseEnter(e, model.sha256)" @mouseleave="onMouseLeave">
-          <div class="card-image lazy" :data-sha256="model.sha256"></div>
+        <div 
+          v-for="model in filteredModels" 
+          :key="model.sha256" 
+          class="card-item" 
+          :class="{ 'dense-view': columnCount > 6 }"
+          @click="selectModel(model)"
+          @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
+          @mouseleave="onMouseLeave(model.sha256)"
+        >
+          <div 
+            class="card-image lazy" 
+            :data-sha256="model.sha256"
+            :style="getPreviewStyle(model.sha256)"
+          ></div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
@@ -256,7 +324,12 @@ const onMouseLeave = () => {
 
       <template v-else>
         <div class="list-container">
-          <div v-for="model in filteredModels" :key="model.sha256" class="list-item">
+          <div 
+            v-for="model in filteredModels" 
+            :key="model.sha256" 
+            class="list-item"
+            @click="selectModel(model)"
+          >
             <div class="list-name">{{ model.name }}</div>
             <div class="list-tags">
               <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>

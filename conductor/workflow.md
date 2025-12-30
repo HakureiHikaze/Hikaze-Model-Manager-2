@@ -7,7 +7,7 @@
 3. **User Experience First:** Every decision should prioritize user experience
 4. **Non-Interactive & CI-Aware:** Prefer non-interactive commands.
 5. **Branch Out:** Branch out from the main development branch before starting the entire agent development process.
-6. **No Automatic Testing:** Do NOT execute any automatic unit tests (e.g., `pytest`, `npm test`). All testing, including writing and verifying tests, is the exclusive responsibility of the human developer. The agent must strictly rely on manual verification steps provided to the user.
+6. **No Automatic Testing:** Do NOT execute any automatic unit tests (e.g., `pytest`, `npm test`). All testing, including writing and verifying tests, is the exclusive responsibility of the human developer. The agent must strictly rely on manual verification steps provided to the user. **Exception:** You MUST run build commands (e.g., `npm run build`) to verify compilation/transpilation as part of the implementation process.
 
 ## Task Workflow
 
@@ -22,6 +22,7 @@ All tasks follow a strict lifecycle:
 3. **Implement Task:**
    - Write the application code necessary to fulfill the task requirements.
    - Ensure the implementation aligns with the tech stack and product guidelines.
+   - **Critical for TypeScript/Frontend:** After completing development, you MUST run `npm run build` to verify the build passes. Analyze and fix any build errors immediately.
 
 4. **Document Deviations:** If implementation differs from tech stack:
    - **STOP** implementation
@@ -29,27 +30,10 @@ All tasks follow a strict lifecycle:
    - Add dated note explaining the change
    - Resume implementation
 
-5. **Commit Code Changes:**
-   - Stage all code changes related to the task.
-   - Propose a clear, concise commit message e.g, `feat(ui): Create basic HTML structure for calculator`.
-   - Perform the commit.
-
-6. **Attach Task Summary with Git Notes:**
-   - **Step 6.1: Get Commit Hash:** Obtain the hash of the *just-completed commit* (`git log -1 --format="%H"`).
-   - **Step 6.2: Draft Note Content:** Create a detailed summary for the completed task. This should include the task name, a summary of changes, a list of all created/modified files, and the core "why" for the change.
-   - **Step 6.3: Attach Note:** Use the `git notes` command to attach the summary to the commit.
-     ```bash
-     # The note content from the previous step is passed via the -m flag.
-     git notes add -m "<note content>" <commit_hash>
-     ```
-
-7. **Get and Record Task Commit SHA:**
-   - **Step 7.1: Update Plan:** Read `plan.md`, find the line for the completed task, update its status from `[~]` to `[x]`, and append the first 7 characters of the *just-completed commit's* commit hash.
-   - **Step 7.2: Write Plan:** Write the updated content back to `plan.md`.
-
-8. **Commit Plan Update:**
-   - **Action:** Stage the modified `plan.md` file.
-   - **Action:** Commit this change with a descriptive message (e.g., `conductor(plan): Mark task 'Create user model' as complete`).
+5. **Update Plan:**
+   - Read `plan.md`, find the line for the completed task.
+   - Update its status from `[~]` to `[x]`.
+   - **Do NOT commit yet.** Commits are performed at the end of the phase.
 
 ### Phase Completion Verification and Checkpointing Protocol
 
@@ -121,6 +105,7 @@ All tasks follow a strict lifecycle:
 Before marking any task complete, verify:
 
 - [ ] Code follows project's code style guidelines (as defined in `code_styleguides/`)
+- [ ] For TS/Frontend tasks: `npm run build` succeeds without errors.
 - [ ] All public functions/methods are documented (e.g., docstrings, JSDoc, GoDoc)
 - [ ] Type safety is enforced (e.g., type hints, TypeScript types, Go types)
 - [ ] Works correctly on mobile (if applicable)
@@ -233,10 +218,10 @@ A task is complete when:
 
 1. All code implemented to specification
 2. Code passes all configured linting and static analysis checks
-3. Works beautifully on mobile (if applicable)
-4. Implementation notes added to `plan.md`
-5. Changes committed with proper message
-6. Git note with task summary attached to the commit
+3. **Build Verification:** `npm run build` passes successfully (for frontend/TS tasks).
+4. Works beautifully on mobile (if applicable)
+5. Implementation notes added to `plan.md` (if any)
+6. Task marked as `[x]` in `plan.md`
 
 ## Emergency Procedures
 
