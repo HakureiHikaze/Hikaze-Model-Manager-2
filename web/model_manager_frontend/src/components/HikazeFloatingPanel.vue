@@ -4,6 +4,7 @@ import { useUIStore } from '../store/ui';
 
 const props = defineProps<{
   containerSelector?: string; // Selector for the parent container to constrain movement
+  embedded?: boolean;
 }>();
 
 const uiStore = useUIStore();
@@ -16,8 +17,8 @@ const panelRef = ref<HTMLElement | null>(null);
 const onMouseDown = (e: MouseEvent) => {
   if (!panelRef.value) return;
   
-  // Don't drag if clicking a button
-  if ((e.target as HTMLElement).closest('button')) return;
+  // Only drag if clicking the handle
+  if (!(e.target as HTMLElement).closest('.drag-handle')) return;
 
   isDragging.value = true;
   const rect = panelRef.value.getBoundingClientRect();
@@ -71,7 +72,6 @@ onMounted(() => {
 const panelStyle = computed(() => ({
   right: `${uiStore.panelPosition.x}px`,
   bottom: `${uiStore.panelPosition.y}px`,
-  cursor: isDragging.value ? 'grabbing' : 'grab'
 }));
 
 const handlePendingClick = () => {
@@ -85,9 +85,16 @@ const handlePendingClick = () => {
     ref="panelRef"
     class="hikaze-floating-panel"
     :style="panelStyle"
-    @mousedown="onMouseDown"
+    :class="{ 'is-dragging': isDragging }"
   >
     <div class="panel-content">
+      <!-- Drag Handle -->
+      <div class="drag-handle" @mousedown="onMouseDown">
+        <span class="grip-icon">⋮⋮</span>
+      </div>
+
+      <div class="divider"></div>
+
       <div class="fixed-actions">
         <button 
           class="panel-btn pending" 
@@ -136,12 +143,43 @@ const handlePendingClick = () => {
   user-select: none;
   display: flex;
   align-items: center;
-  transition: background 0.3s, border-color 0.3s;
+  transition: background 0.3s, border-color 0.3s, transform 0.1s;
 }
 
 .hikaze-floating-panel:hover {
   background: rgba(22, 27, 34, 0.95);
   border-color: #444c56;
+}
+
+.hikaze-floating-panel.is-dragging {
+  transform: scale(1.02);
+  border-color: #388bfd;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
+}
+
+.drag-handle {
+  width: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: #484f58;
+  transition: color 0.2s;
+}
+
+.drag-handle:hover {
+  color: #8b949e;
+}
+
+.hikaze-floating-panel.is-dragging .drag-handle {
+  cursor: grabbing;
+  color: #388bfd;
+}
+
+.grip-icon {
+  font-size: 1.2rem;
+  letter-spacing: -2px;
 }
 
 .divider {

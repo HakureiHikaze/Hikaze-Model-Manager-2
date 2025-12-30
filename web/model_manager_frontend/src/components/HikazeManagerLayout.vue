@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import { fetchModelTypes } from '../api/models';
 import { useModelStore } from '../store/models';
+import HikazeFloatingPanel from './HikazeFloatingPanel.vue';
 
 const props = defineProps<{
   embedded?: boolean;
@@ -129,8 +130,11 @@ onMounted(() => {
       <slot name="details">Details</slot>
     </aside>
 
-    <!-- Overlays / Default Slot -->
-    <slot></slot>
+    <!-- Global Floating Panel -->
+    <HikazeFloatingPanel 
+      container-selector=".hikaze-layout" 
+      :embedded="embedded"
+    />
   </div>
 </template>
 
