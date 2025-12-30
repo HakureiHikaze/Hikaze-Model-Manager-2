@@ -23,8 +23,16 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 - **Lazy-Loaded Visuals:** High-performance card grid utilizing Intersection Observer to load model previews only when they enter the viewport, with multi-quality WebP support.
 - **Legacy Database Integration:** A multi-stage migration path to import legacy databases. (Backend APIs for Stage 1 and 2 are fully implemented). Supports dynamic model type detection from the backend.
 - **Persistent-Session Cache:** Model lists are fetched per category and cached in memory for instant tab switching, with manual refresh support.
+- **Global Floating Panel:** A persistent, draggable control hub for cross-context actions (e.g., Confirm/Exit) and pending migration status tracking. (Implemented)
 - **Safety-First Defaults:** Automatic identification and exclusion of sensitive content (e.g., NSFW tags) on application load.
-- **State Persistence:** Backend logic that parses incoming JSON from nodes based on versioned schemas, ensuring reliable execution and future-proofing.
+- **State Persistence:** Nodes rely on path-only data from the `hikaze_payload` for execution, ensuring a decoupled architecture. (Implemented)
+
+## Future Roadmap
+- **Model Auto-Discovery:** Automated scanning of ComfyUI model directories to populate the pending import queue.
+- **Advanced Metadata Form:** Extensible model detail forms based on `meta_json` schemas (e.g., description, community links, prompts). (Implemented)
+- **Conflict Resolution UI:** Dedicated frontend interface for handling duplicates during model promotion.
+- **Pending Models API:** Full backend support for querying and detailing staged models from legacy imports. (Implemented)
+- **LoRA List Management:** Unified LoRA JSON protocol for power loaders.
 
 ## Visual Design & UX
 - **Evolutionary Aesthetic:** Inspired by the original [Hikaze Model Manager](https://github.com/HakureiHikaze/hikaze-model-manager), but rebuilt using Vue 3 for a more responsive and maintainable frontend experience.
