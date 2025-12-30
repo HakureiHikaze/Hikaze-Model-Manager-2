@@ -198,6 +198,21 @@ class DatabaseManager:
         cur = conn.execute("SELECT * FROM pending_import ORDER BY created_at")
         return cur.fetchall()
 
+    def get_pending_imports_by_type(self, model_type: str) -> List[sqlite3.Row]:
+        """Get pending imports filtered by type, sorted by creation time."""
+        conn = self.get_connection()
+        cur = conn.execute(
+            "SELECT * FROM pending_import WHERE type = ? ORDER BY created_at",
+            (model_type,)
+        )
+        return cur.fetchall()
+
+    def get_pending_count(self) -> int:
+        """Get the total count of pending imports."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT COUNT(*) as count FROM pending_import")
+        return cur.fetchone()["count"]
+
     def get_pending_import_by_id(self, item_id: int) -> Optional[sqlite3.Row]:
         """Get a single pending import by its ID."""
         conn = self.get_connection()

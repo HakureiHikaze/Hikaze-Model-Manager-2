@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { fetchModelTypes } from '../api/models';
 import { useModelStore } from '../store/models';
 
@@ -14,6 +14,38 @@ const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+// Sidebar Resize Logic
+const sidebarWidth = ref(350);
+const isResizing = ref(false);
+
+const startResize = () => {
+  isResizing.value = true;
+  window.addEventListener('mousemove', onResize);
+  window.addEventListener('mouseup', stopResize);
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+};
+
+const onResize = (e: MouseEvent) => {
+  if (!isResizing.value) return;
+  const newWidth = window.innerWidth - e.clientX;
+  if (newWidth > 200 && newWidth < 800) {
+    sidebarWidth.value = newWidth;
+  }
+};
+
+const stopResize = () => {
+  isResizing.value = false;
+  window.removeEventListener('mousemove', onResize);
+  window.removeEventListener('mouseup', stopResize);
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+};
+
+const layoutStyle = computed(() => ({
+  gridTemplateColumns: `1fr ${sidebarWidth.value}px`
+}));
 
 function setActiveTab(type: string) {
   activeTab.value = type;
@@ -49,11 +81,20 @@ async function loadModelTypes() {
 
 onMounted(() => {
   loadModelTypes();
+  // Initialize width to ~24% if window allows
+  const preferred = window.innerWidth * 0.24;
+  if (preferred > 200 && preferred < 800) {
+    sidebarWidth.value = preferred;
+  }
 });
 </script>
 
 <template>
-  <div class="hikaze-layout" :class="{ 'is-embedded': embedded, 'has-initial-tab': !!initialTab }">
+  <div 
+    class="hikaze-layout" 
+    :class="{ 'is-embedded': embedded, 'has-initial-tab': !!initialTab }"
+    :style="layoutStyle"
+  >
     <!-- Top Navigation (Tabs) - Only visible if NOT embedded AND NO initialTab -->
     <header class="hikaze-header" v-if="!embedded && !initialTab">
       <div v-if="isLoading" class="tabs-loading">
@@ -80,23 +121,30 @@ onMounted(() => {
       <slot name="library" :active-tab="activeTab">Library</slot>
     </main>
 
+    <!-- Drag Handle -->
+    <div class="resize-handle" @mousedown="startResize"></div>
+
     <!-- Right Sidebar (Details) -->
     <aside class="hikaze-pane-details">
       <slot name="details">Details</slot>
     </aside>
+
+    <!-- Overlays / Default Slot -->
+    <slot></slot>
   </div>
 </template>
 
 <style scoped>
 .hikaze-layout {
   display: grid;
-  grid-template-columns: 1fr 350px; /* Library | Details */
+  /* Columns defined via style binding */
   grid-template-rows: auto 1fr; /* Header | Content */
   height: 100%;
   width: 100%;
   overflow: hidden;
   background-color: var(--color-bg-primary, #0f1115);
   color: var(--color-text-primary, #c9d1d9);
+  position: relative; /* Critical for absolute positioned overlays */
 }
 
 /* Header spans full width */
@@ -209,6 +257,22 @@ onMounted(() => {
 .hikaze-layout.has-initial-tab {
    /* No header displayed via v-if */
    /* grid-template-rows: 0fr 1fr;  Effective result */
+}
+
+/* Resize Handle */
+.resize-handle {
+  grid-column: 2; /* Sits on left edge of col 2, basically */
+  grid-row: 2;
+  width: 4px;
+  margin-left: -2px; /* Center over border */
+  cursor: col-resize;
+  z-index: 10;
+  height: 100%;
+  background: transparent; /* Invisible hit area */
+  position: relative; /* To place it */
+}
+.resize-handle:hover, .resize-handle:active {
+  background: #1f6feb; /* Blue highlight on hover */
 }
 
 /* Details Sidebar */

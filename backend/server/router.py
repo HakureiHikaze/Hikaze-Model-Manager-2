@@ -186,6 +186,73 @@ async def handle_get_pending_models(request):
         logger.exception("Error fetching pending models")
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_get_pending_count(request):
+    """
+    GET /api/migration/get_pending_count
+    Return total count of models in staging.
+    """
+    db = DatabaseManager()
+    try:
+        count = db.get_pending_count()
+        return web.json_response({"count": count})
+    except Exception as e:
+        logger.exception("Error fetching pending count")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_pending_models_filtered(request):
+    """
+    GET /api/migration/get_pending_models?type=...
+    List pending models, optionally filtered by type.
+    """
+    model_type = request.query.get("type")
+    db = DatabaseManager()
+    try:
+        if model_type:
+            pending = db.get_pending_imports_by_type(model_type)
+        else:
+            pending = db.get_pending_imports()
+        return web.json_response({
+            "models": [dict(row) for row in pending]
+        })
+    except Exception as e:
+        logger.exception("Error fetching filtered pending models")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_pending_model_details(request):
+    """
+    GET /api/migration/get_pending_model?id=...
+    Get full details for a single pending model.
+    """
+    pending_id = request.query.get("id")
+    if not pending_id:
+        return web.json_response({"error": "id parameter is required"}, status=400)
+    
+    try:
+        pending_id = int(pending_id)
+    except ValueError:
+        return web.json_response({"error": "id must be an integer"}, status=400)
+
+    db = DatabaseManager()
+    try:
+        row = db.get_pending_import_by_id(pending_id)
+        if not row:
+            return web.json_response({"error": "Pending model not found"}, status=404)
+        
+        # Merge in tags
+        data = dict(row)
+        tag_ids = db.get_pending_tag_ids(pending_id)
+        tags = []
+        for tid in tag_ids:
+            tag_row = db.get_tag_by_id(tid)
+            if tag_row:
+                tags.append(dict(tag_row))
+        data["tags"] = tags
+        
+        return web.json_response(data)
+    except Exception as e:
+        logger.exception("Error fetching pending model details")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def handle_migrate_legacy_db(request):
     """
     POST /api/migration/migrate_legacy_db
@@ -478,6 +545,9 @@ def setup_routes(app: web.Application):
     
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
+    app.router.add_get("/api/migration/get_pending_count", handle_get_pending_count)
+    app.router.add_get("/api/migration/get_pending_models", handle_get_pending_models_filtered)
+    app.router.add_get("/api/migration/get_pending_model", handle_get_pending_model_details)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
     app.router.add_post("/api/migration/import_a_model", handle_import_a_model)
     app.router.add_post("/api/migration/import_models", handle_import_models)

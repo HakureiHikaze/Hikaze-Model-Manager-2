@@ -14,6 +14,7 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(__dirname, '../dist/manager'),
+    sourcemap: true,
     emptyOutDir: true
   },
   test: {
