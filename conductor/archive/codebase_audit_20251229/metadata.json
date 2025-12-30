@@ -1,8 +1,0 @@
-{
-  "track_id": "codebase_audit_20251229",
-  "type": "chore",
-  "status": "new",
-  "created_at": "2025-12-29T10:25:00Z",
-  "updated_at": "2025-12-29T10:25:00Z",
-  "description": "Analyze project code structure, verify design concepts, and update missing design ideas in conductor files."
-}
