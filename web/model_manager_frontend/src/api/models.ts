@@ -116,7 +116,7 @@ export async function updateModel(sha256: string, data: Partial<ModelFull> & { t
  * Fetch image count for a model.
  */
 export async function fetchImageCount(sha256: string): Promise<number> {
-  const response = await fetch(`/api/images/get_img_num?sha256=${sha256}`);
+  const response = await fetch(`/api/images/get_img_count?sha256=${sha256}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch image count: ${response.statusText}`);
   }

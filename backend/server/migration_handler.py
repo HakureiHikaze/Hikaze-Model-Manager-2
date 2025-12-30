@@ -1,15 +1,17 @@
 import asyncio
 import json
 from logging import config
+import logging
 import os
 from aiohttp import web
 
 from backend.database.db import DatabaseManager
 from backend.util import hasher
 from backend.util.image_processor import ImageProcessor
-from .router import logger
 
 from backend.database.migration.importer import migrate_legacy_db, migrate_legacy_images, strip_meta_images
+
+logger = logging.getLogger(__name__)
 
 async def handle_migrate_legacy_db(request):
     """
@@ -50,6 +52,22 @@ async def handle_migrate_legacy_db(request):
         })
     except Exception as e:
         logger.exception("Migration error")
+        return web.json_response({"error": str(e)}, status=500)
+    
+async def handle_get_pending_models(request):
+    """
+    GET /api/migration/pending_models
+    List pending models from the NEW database (staging area).
+    """
+    db = DatabaseManager()
+    try:
+        pending = db.get_pending_imports()
+        # Convert rows to dicts
+        return web.json_response({
+            "models": [dict(row) for row in pending]
+        })
+    except Exception as e:
+        logger.exception("Error fetching pending models")
         return web.json_response({"error": str(e)}, status=500)
 
 def _import_pending_model(pending_id: int, conflict_strategy: str | None) -> dict:

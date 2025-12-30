@@ -570,7 +570,7 @@ const gridStyle = computed(() => {
 
 .card-item {
   aspect-ratio: 3/4;
-  border: 1px solid #30363d;
+  border: 2px solid #30363d;
   border-radius: 10px;
   overflow: visible;
   background: #11161c;
