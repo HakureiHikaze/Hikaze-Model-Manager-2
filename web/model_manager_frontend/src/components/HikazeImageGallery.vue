@@ -118,8 +118,8 @@ const getImageUrl = (seq: number) => {
         <!-- Navigation Arrows -->
         <transition name="fade">
           <div v-show="isHovering && imageCount > 1" class="nav-controls">
-            <button class="nav-btn prev" @click.stop="prevImage">‹</button>
-            <button class="nav-btn next" @click.stop="nextImage">›</button>
+            <button class="nav-btn prev" @click.stop="prevImage">&#10094;</button>
+            <button class="nav-btn next" @click.stop="nextImage">&#10095;</button>
           </div>
         </transition>
 
