@@ -7,13 +7,13 @@
 - [x] Task: Conductor - User Manual Verification 'Dataclass Finalization and Integration' (Protocol in workflow.md)
 
 ## Phase 2: DatabaseManager Streamlining
-- [ ] Task: Refactor `DatabaseManager` to a strict singleton pattern with a primary connection to the internal database.
-- [ ] Task: Implement typed retrieval methods in `DatabaseManager`:
+- [x] Task: Refactor `DatabaseManager` to a strict singleton pattern with a primary connection to the internal database.
+- [x] Task: Implement typed retrieval methods in `DatabaseManager`:
     - `get_model_by_sha256(sha256: str) -> Optional[ModelRecord]`
     - `get_pending_model_by_id(id: int) -> Optional[PendingModelRecord]`
     - `get_tag_names(tag_ids: List[int]) -> Dict[int, str]`
-- [ ] Task: Implement the generic parameterized query interface `execute_query(sql, params)`.
-- [ ] Task: Remove business-logic-heavy methods from `DatabaseManager` that are no longer needed or belong in handlers.
+- [x] Task: Implement the generic parameterized query interface `execute_query(sql, params)`.
+- [x] Task: Remove business-logic-heavy methods from `DatabaseManager` that are no longer needed or belong in handlers.
 - [ ] Task: Conductor - User Manual Verification 'DatabaseManager Streamlining' (Protocol in workflow.md)
 
 ## Phase 3: Legacy Adapter and Migration Handler Refactor

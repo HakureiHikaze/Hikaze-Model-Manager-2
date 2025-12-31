@@ -1,15 +1,19 @@
 import sqlite3
 import threading
-import time
+import json
+import logging
 from typing import Optional, Dict, List, Any
 from backend.util import config
-
+from shared.types.model_record import ModelRecord, PendingModelRecord
+from shared.types.data_adapters import DataAdapters
 from ..util.consts import SCHEMA_SQL
+
+logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     _instance = None
     _lock = threading.Lock()
-    #singleton
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -27,7 +31,18 @@ class DatabaseManager:
             raise ValueError("Database path is not configured.")
         self.local = threading.local()
 
-    def get_connection(self) -> sqlite3.Connection:
+    def get_connection(self, path: Optional[str] = None) -> sqlite3.Connection:
+        """
+        Get a connection to the database. 
+        If path is provided, returns a connection to that specific DB (not cached in thread local).
+        Otherwise returns the default cached connection.
+        """
+        if path:
+            conn = sqlite3.connect(path)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            return conn
+
         if not hasattr(self.local, "conn"):
             self.local.conn = sqlite3.connect(self.db_path)
             self.local.conn.row_factory = sqlite3.Row
@@ -40,85 +55,108 @@ class DatabaseManager:
         with conn:
             conn.executescript(SCHEMA_SQL)
             
-            # Initialize db_version if not present
+            # Initialize db_meta defaults
             cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'db_version'")
             if not cur.fetchone():
-                conn.execute(
-                    "INSERT INTO db_meta (key, value) VALUES ('db_version', '2')"
-                )
+                conn.execute("INSERT INTO db_meta (key, value) VALUES ('db_version', '2')")
             
-            # Initialize tags_id_max if not present
             cur = conn.execute("SELECT 1 FROM db_meta WHERE key = 'tags_id_max'")
             if not cur.fetchone():
-                # Get current max tag id
                 cur_tags = conn.execute("SELECT MAX(id) as max_id FROM tags")
                 max_id = cur_tags.fetchone()["max_id"] or 0
-                conn.execute(
-                    "INSERT INTO db_meta (key, value) VALUES ('tags_id_max', ?)",
-                    (str(max_id),)
-                )
+                conn.execute("INSERT INTO db_meta (key, value) VALUES ('tags_id_max', ?)", (str(max_id),))
 
-    def upsert_model(self, data: Dict[str, Any]):
-        """Insert or update a model."""
+    # --- Typed Retrieval Methods ---
+
+    def get_model_by_sha256(self, sha256: str) -> Optional[ModelRecord]:
+        """Retrieve a ModelRecord by SHA256."""
         conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM models WHERE sha256 = ?", (sha256,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        
+        m_dict = dict(row)
+        # Handle JSON parsing for meta_json string in DB
+        if isinstance(m_dict.get("meta_json"), str):
+            try:
+                m_dict["meta_json"] = json.loads(m_dict["meta_json"])
+            except:
+                m_dict["meta_json"] = {}
+        
+        return DataAdapters.dict_to_model_record(m_dict)
+
+    def get_pending_model_by_id(self, item_id: int) -> Optional[PendingModelRecord]:
+        """Retrieve a PendingModelRecord by ID."""
+        conn = self.get_connection()
+        cur = conn.execute("SELECT * FROM pending_import WHERE id = ?", (item_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+            
+        m_dict = dict(row)
+        if isinstance(m_dict.get("meta_json"), str):
+            try:
+                m_dict["meta_json"] = json.loads(m_dict["meta_json"])
+            except:
+                m_dict["meta_json"] = {}
+
+        return DataAdapters.dict_to_pending_model_record(m_dict)
+
+    def get_tag_names(self, tag_ids: List[int]) -> Dict[int, str]:
+        """Resolve a list of Tag IDs to their names."""
+        if not tag_ids:
+            return {}
+        conn = self.get_connection()
+        placeholders = ", ".join(["?"] * len(tag_ids))
+        cur = conn.execute(f"SELECT id, name FROM tags WHERE id IN ({placeholders})", tag_ids)
+        return {row["id"]: row["name"] for row in cur.fetchall()}
+
+    # --- Generic Execution ---
+
+    def execute_query(self, sql: str, params: tuple = ()) -> List[sqlite3.Row]:
+        """Execute a custom parameterized query and return all results."""
+        conn = self.get_connection()
+        cur = conn.execute(sql, params)
+        return cur.fetchall()
+
+    def execute_non_query(self, sql: str, params: tuple = ()):
+        """Execute a custom parameterized command (INSERT/UPDATE/DELETE)."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute(sql, params)
+
+    # --- Core CRUD (Simplified) ---
+
+    def upsert_model(self, record: ModelRecord):
+        """Insert or update a model using a ModelRecord."""
+        conn = self.get_connection()
+        data = DataAdapters.to_dict(record)
+        # Serialize meta_json for DB
+        data["meta_json"] = json.dumps(data["meta_json"])
+        
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        # Update all fields except sha256 on conflict
         updates = ", ".join([f"{k}=excluded.{k}" for k in data.keys() if k != "sha256"])
         
-        sql = f"""
-        INSERT INTO models ({columns}) VALUES ({placeholders})
-        ON CONFLICT(sha256) DO UPDATE SET {updates}
-        """
+        sql = f"INSERT INTO models ({columns}) VALUES ({placeholders}) ON CONFLICT(sha256) DO UPDATE SET {updates}"
         with conn:
             conn.execute(sql, list(data.values()))
 
-    def get_models_by_type(self, model_type: str) -> List[Dict[str, Any]]:
-        """Retrieve all models of a specific type with their tags."""
+    def delete_model(self, sha256: str):
+        """Remove a model by SHA256."""
+        self.execute_non_query("DELETE FROM models WHERE sha256 = ?", (sha256,))
+
+    def add_pending_import(self, record: PendingModelRecord) -> bool:
+        """Add a model to the pending import table."""
         conn = self.get_connection()
-        # Fetch models
-        cur = conn.execute("SELECT * FROM models WHERE type = ?", (model_type,))
-        models = [dict(row) for row in cur.fetchall()]
+        data = DataAdapters.to_dict(record)
+        # Remove 'id' if it's 0 (let DB autoincrement if needed, though pending_import.id is PK)
+        if data.get("id") == 0:
+            del data["id"]
         
-        # Fetch tags for each model (could be optimized with a single join if needed)
-        for model in models:
-            model["tags"] = [dict(row) for row in self.get_tags_for_model(model["sha256"])]
-            
-        return models
-
-    def get_other_models(self, system_types: List[str]) -> List[Dict[str, Any]]:
-        """Retrieve all models whose type is NULL, empty, or not in the system list, with tags."""
-        conn = self.get_connection()
-        placeholders = ", ".join(["?"] * len(system_types))
-        sql = f"""
-        SELECT * FROM models 
-        WHERE type IS NULL 
-           OR type = '' 
-           OR type NOT IN ({placeholders})
-        """
-        cur = conn.execute(sql, system_types)
-        models = [dict(row) for row in cur.fetchall()]
+        data["meta_json"] = json.dumps(data["meta_json"])
         
-        for model in models:
-            model["tags"] = [dict(row) for row in self.get_tags_for_model(model["sha256"])]
-            
-        return models
-
-    def get_model(self, sha256: str) -> Optional[sqlite3.Row]:
-        """Retrieve a model by SHA256."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM models WHERE sha256 = ?", (sha256,))
-        return cur.fetchone()
-
-    def get_model_by_path(self, path: str) -> Optional[sqlite3.Row]:
-        """Retrieve a model by file path."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM models WHERE path = ?", (path,))
-        return cur.fetchone()
-
-    def add_pending_import(self, data: Dict[str, Any]) -> bool:
-        """Add a model to the pending import staging table. Logs and skips on path conflict."""
-        conn = self.get_connection()
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
         
@@ -127,168 +165,45 @@ class DatabaseManager:
             with conn:
                 conn.execute(sql, list(data.values()))
             return True
-        except sqlite3.IntegrityError as e:
-            if "UNIQUE constraint failed: pending_import.path" in str(e):
-                # Fetch existing record for logging
-                path = data.get("path")
-                existing = conn.execute("SELECT * FROM pending_import WHERE path = ?", (path,)).fetchone()
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Conflict: Path already exists in pending_import.\n"
-                    f"Existing: {dict(existing) if existing else 'Unknown'}\n"
-                    f"Incoming: {data}"
-                )
-                return False
-            else:
-                raise
-
-    def get_pending_imports(self) -> List[sqlite3.Row]:
-        """Get all pending imports sorted by creation time."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM pending_import ORDER BY created_at")
-        return cur.fetchall()
-
-    def get_pending_import_by_id(self, item_id: int) -> Optional[sqlite3.Row]:
-        """Get a single pending import by its ID."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM pending_import WHERE id = ?", (item_id,))
-        return cur.fetchone()
+        except sqlite3.IntegrityError:
+            return False
 
     def remove_pending_import(self, item_id: int):
-        """Remove a model from the pending import staging table by ID."""
-        conn = self.get_connection()
-        with conn:
-            # Cascading delete should handle pending_model_tags
-            conn.execute("DELETE FROM pending_import WHERE id = ?", (item_id,))
+        """Remove a model from the pending import table."""
+        self.execute_non_query("DELETE FROM pending_import WHERE id = ?", (item_id,))
 
-    def create_tag(self, name: str) -> sqlite3.Row:
-        """Create a new tag."""
+    # --- Tag Operations ---
+
+    def create_tag(self, name: str) -> int:
+        """Create a new tag and return its ID."""
         conn = self.get_connection()
         with conn:
-            cur = conn.execute(
-                "INSERT INTO tags (name) VALUES (?)",
-                (name,)
-            )
+            cur = conn.execute("INSERT INTO tags (name) VALUES (?)", (name,))
             tag_id = cur.lastrowid
-            
-            # Update tags_id_max
-            conn.execute(
-                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
-                (str(tag_id), tag_id)
-            )
-            
-        return self.get_tag_by_id(tag_id)
-
-    def upsert_tag_with_id(
-        self,
-        tag_id: int,
-        name: str
-    ) -> sqlite3.Row:
-        """Insert or update a tag with an explicit ID."""
-        conn = self.get_connection()
-        safe_name = name or ""
-        with conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO tags (id, name) "
-                "VALUES (?, ?)",
-                (tag_id, safe_name)
-            )
-            
-            # Update tags_id_max
-            conn.execute(
-                "UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?",
-                (str(tag_id), tag_id)
-            )
-            
-        return self.get_tag_by_id(tag_id)
-
-    def get_tag(self, name: str) -> Optional[sqlite3.Row]:
-        """Retrieve a tag by name."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM tags WHERE name = ?", (name,))
-        return cur.fetchone()
-    
-    def get_tag_by_id(self, tag_id: int) -> Optional[sqlite3.Row]:
-        """Retrieve a tag by ID."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM tags WHERE id = ?", (tag_id,))
-        return cur.fetchone()
+            conn.execute("UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?", (str(tag_id), tag_id))
+            return tag_id
 
     def tag_model(self, model_hash: str, tag_id: int):
-        """Associate a tag with a model."""
-        conn = self.get_connection()
-        with conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO model_tags (model_hash, tag_id) VALUES (?, ?)",
-                (model_hash, tag_id)
-            )
+        self.execute_non_query("INSERT OR IGNORE INTO model_tags (model_hash, tag_id) VALUES (?, ?)", (model_hash, tag_id))
 
     def untag_model(self, model_hash: str, tag_id: int):
-        """Remove a tag association from a model."""
-        conn = self.get_connection()
-        with conn:
-            conn.execute(
-                "DELETE FROM model_tags WHERE model_hash = ? AND tag_id = ?",
-                (model_hash, tag_id)
-            )
+        self.execute_non_query("DELETE FROM model_tags WHERE model_hash = ? AND tag_id = ?", (model_hash, tag_id))
 
     def get_tags_for_model(self, model_hash: str) -> List[sqlite3.Row]:
-        """Get all tags associated with a model."""
-        conn = self.get_connection()
-        cur = conn.execute("""
+        return self.execute_query("""
             SELECT t.* FROM tags t
             JOIN model_tags mt ON t.id = mt.tag_id
             WHERE mt.model_hash = ?
         """, (model_hash,))
-        return cur.fetchall()
 
     def get_all_tags(self) -> List[sqlite3.Row]:
-        """Get all available tags."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT * FROM tags ORDER BY name")
-        return cur.fetchall()
+        return self.execute_query("SELECT * FROM tags ORDER BY name")
 
-    def add_pending_model_tag(self, model_id: int, tag_id: int):
-        """Associate a legacy tag with a pending legacy model id."""
-        conn = self.get_connection()
-        with conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO pending_model_tags (model_id, tag_id) "
-                "VALUES (?, ?)",
-                (model_id, tag_id)
-            )
-
-    def get_pending_tag_ids(self, model_id: int) -> List[int]:
-        """Get legacy tag IDs associated with a pending legacy model id."""
-        conn = self.get_connection()
-        cur = conn.execute(
-            "SELECT tag_id FROM pending_model_tags WHERE model_id = ?",
-            (model_id,)
-        )
-        return [row["tag_id"] for row in cur.fetchall()]
-
-    def remove_pending_model_tags(self, model_id: int):
-        """Remove pending tag mappings for a legacy model id."""
-        conn = self.get_connection()
-        with conn:
-            conn.execute(
-                "DELETE FROM pending_model_tags WHERE model_id = ?",
-                (model_id,)
-            )
+    # --- Meta Operations ---
 
     def get_meta(self, key: str, default: Any = None) -> Any:
-        """Retrieve a metadata value."""
-        conn = self.get_connection()
-        cur = conn.execute("SELECT value FROM db_meta WHERE key = ?", (key,))
-        row = cur.fetchone()
-        return row["value"] if row else default
+        cur = self.execute_query("SELECT value FROM db_meta WHERE key = ?", (key,))
+        return cur[0]["value"] if cur else default
 
     def set_meta(self, key: str, value: Any):
-        """Set a metadata value."""
-        conn = self.get_connection()
-        with conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO db_meta (key, value) VALUES (?, ?)",
-                (key, str(value))
-            )
+        self.execute_non_query("INSERT OR REPLACE INTO db_meta (key, value) VALUES (?, ?)", (key, str(value)))

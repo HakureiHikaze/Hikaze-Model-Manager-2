@@ -58,13 +58,13 @@ async def handle_add_tags(request):
         name = name.strip()
         # Try to create
         try:
-            tag = db.create_tag(name)
-            created_tags.append({"id": tag["id"], "name": tag["name"]})
+            tag_id = db.create_tag(name)
+            created_tags.append({"id": tag_id, "name": name})
         except sqlite3.IntegrityError:
             # Already exists
-            tag = db.get_tag(name)
-            if tag:
-                created_tags.append({"id": tag["id"], "name": tag["name"]})
+            tag_row = db.execute_query("SELECT * FROM tags WHERE name = ?", (name,))
+            if tag_row:
+                created_tags.append({"id": tag_row[0]["id"], "name": tag_row[0]["name"]})
             else:
                 logger.warning(f"Tag {name} failed creation but not found?")
         except Exception as e:
@@ -85,20 +85,21 @@ async def handle_get_models(request):
     try:
         if model_type.lower() == "others":
             system_types = list(get_model_types())
-            raw_models = db.get_other_models(system_types)
+            placeholders = ", ".join(["?"] * len(system_types))
+            sql = f"""
+            SELECT * FROM models 
+            WHERE type IS NULL 
+               OR type = '' 
+               OR type NOT IN ({placeholders})
+            """
+            raw_models = db.execute_query(sql, tuple(system_types))
         else:
-            raw_models = db.get_models_by_type(model_type)
+            raw_models = db.execute_query("SELECT * FROM models WHERE type = ?", (model_type,))
             
-        # Refactor: Use Dataclasses
         models = []
         for m in raw_models:
-            # 1. Parse raw DB dict (with meta_json string) into ModelRecord
-            # Note: DatabaseManager currently returns dicts where meta_json is a string or already parsed dict?
-            # Looking at db.py: it returns dict(row). sqlite3 row access.
-            # meta_json in DB is TEXT. we need to parse it if it's a string before passing to adapter
-            # OR adapter handles it? DataAdapters.dict_to_model_record expects a dict structure for meta_json key?
-            
             m_dict = dict(m)
+            # Handle JSON parsing
             if isinstance(m_dict.get("meta_json"), str):
                  try:
                      m_dict["meta_json"] = json.loads(m_dict["meta_json"])
@@ -106,13 +107,13 @@ async def handle_get_models(request):
                      m_dict["meta_json"] = {}
             
             record = DataAdapters.dict_to_model_record(m_dict)
-            
-            # 2. Convert to Simple Record
             simple = DataAdapters.full_model_to_simple_model(record)
             
-            # 3. Add tags (kept separate in DB response for now)
+            # Fetch tags for each model
+            tag_rows = db.get_tags_for_model(record.sha256)
+            
             simple_dict = asdict(simple)
-            simple_dict["tags"] = m.get("tags", [])
+            simple_dict["tags"] = [dict(t) for t in tag_rows]
             models.append(simple_dict)
             
         return web.json_response({"models": models})
@@ -133,22 +134,10 @@ async def handle_get_model_details(request):
 
     db = DatabaseManager()
     try:
-        row = db.get_model(sha256)
-        if not row:
+        record = db.get_model_by_sha256(sha256)
+        if not record:
             return web.json_response({"error": "Model not found"}, status=404)
         
-        m_dict = dict(row)
-        # Handle JSON parsing
-        if isinstance(m_dict.get("meta_json"), str):
-             try:
-                 m_dict["meta_json"] = json.loads(m_dict["meta_json"])
-             except:
-                 m_dict["meta_json"] = {}
-
-        # Convert to Dataclass
-        record = DataAdapters.dict_to_model_record(m_dict)
-        
-        # Back to dict for response
         response_dict = DataAdapters.to_dict(record)
         
         # Fetch tags
@@ -176,33 +165,24 @@ async def handle_update_model(request):
         
     db = DatabaseManager()
     
-    # 1. Check existence
-    existing_row = db.get_model(sha256)
-    if not existing_row:
+    # 1. Get existing record
+    record = db.get_model_by_sha256(sha256)
+    if not record:
         return web.json_response({"error": "Model not found"}, status=404)
-        
-    existing = dict(existing_row)
-    if isinstance(existing.get("meta_json"), str):
-        try:
-            existing["meta_json"] = json.loads(existing["meta_json"])
-        except:
-            existing["meta_json"] = {}
-            
-    # Convert to record to ensure we are working with typed object
-    record = DataAdapters.dict_to_model_record(existing)
     
-    # 2. Update logic (using dataclass)
+    # 2. Update logic
     has_changes = False
     
     if "name" in data:
         record.name = data["name"]
         has_changes = True
+    if "path" in data:
+        record.path = data["path"]
+        has_changes = True
     if "type" in data:
         record.type = data["type"]
         has_changes = True
     if "meta_json" in data:
-        # data["meta_json"] comes from frontend, likely a dict.
-        # We need to parse it into MetaJson dataclass using adapter
         new_meta = DataAdapters.dict_to_meta_json(data["meta_json"])
         record.meta_json = new_meta
         has_changes = True
@@ -210,18 +190,12 @@ async def handle_update_model(request):
     # 3. Apply model updates
     if has_changes:
         try:
-            # We need to serialize record back to dict for legacy upsert_model
-            # upsert_model expects flattened dict where meta_json is a string
-            update_dict = DataAdapters.to_dict(record)
-            # Serialize meta_json object to string for DB storage
-            update_dict["meta_json"] = json.dumps(update_dict["meta_json"])
-            
-            db.upsert_model(update_dict)
+            db.upsert_model(record)
         except Exception as e:
             logger.error(f"Error updating model {sha256}: {e}")
             return web.json_response({"error": f"Database update failed: {str(e)}"}, status=500)
             
-    # 4. Handle Tags (unchanged logic)
+    # 4. Handle Tags
     if "tags" in data:
         new_tag_ids = data["tags"]
         if not isinstance(new_tag_ids, list):
@@ -244,17 +218,8 @@ async def handle_update_model(request):
             
     # 5. Return updated model
     try:
-        updated_row = db.get_model(sha256)
-        m_dict = dict(updated_row)
-        if isinstance(m_dict.get("meta_json"), str):
-             try:
-                 m_dict["meta_json"] = json.loads(m_dict["meta_json"])
-             except:
-                 m_dict["meta_json"] = {}
-                 
-        updated_record = DataAdapters.dict_to_model_record(m_dict)
+        updated_record = db.get_model_by_sha256(sha256)
         result = DataAdapters.to_dict(updated_record)
-        
         tags_rows = db.get_tags_for_model(sha256)
         result["tags"] = [dict(t) for t in tags_rows]
         return web.json_response(result)
