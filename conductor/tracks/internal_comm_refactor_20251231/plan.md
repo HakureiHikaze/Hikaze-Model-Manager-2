@@ -6,7 +6,7 @@
 - [x] Task: Refactor existing model-fetching logic in `backend/server/library_info_handler.py` and `backend/server/images_handler.py` to use dataclass signatures.
 - [x] Task: Conductor - User Manual Verification 'Dataclass Finalization and Integration' (Protocol in workflow.md)
 
-## Phase 2: DatabaseManager Streamlining
+## Phase 2: DatabaseManager Streamlining [checkpoint: d58aa55]
 - [x] Task: Refactor `DatabaseManager` to a strict singleton pattern with a primary connection to the internal database.
 - [x] Task: Implement typed retrieval methods in `DatabaseManager`:
     - `get_model_by_sha256(sha256: str) -> Optional[ModelRecord]`
@@ -14,7 +14,7 @@
     - `get_tag_names(tag_ids: List[int]) -> Dict[int, str]`
 - [x] Task: Implement the generic parameterized query interface `execute_query(sql, params)`.
 - [x] Task: Remove business-logic-heavy methods from `DatabaseManager` that are no longer needed or belong in handlers.
-- [ ] Task: Conductor - User Manual Verification 'DatabaseManager Streamlining' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'DatabaseManager Streamlining' (Protocol in workflow.md)
 
 ## Phase 3: Legacy Adapter and Migration Handler Refactor
 - [ ] Task: Create `backend/database/migration/legacy_database_adapter.py` with hardcoded extraction logic for the old schema.
