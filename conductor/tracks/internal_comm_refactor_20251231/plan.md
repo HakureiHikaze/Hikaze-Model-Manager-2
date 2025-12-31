@@ -23,7 +23,7 @@
 - [x] Task: Update all references in `backend/database/migration/importer.py` to align with the new dataclass-based flow.
 - [x] Task: Conductor - User Manual Verification 'Legacy Adapter and Migration Handler Refactor' (Protocol in workflow.md)
 
-## Phase 4: Final Integrity Check & Clean-up
+## Phase 4: Final Integrity Check & Clean-up [checkpoint: c173925]
 - [x] Task: Perform a global search for any remaining raw dictionary model manipulations and convert them to dataclass operations.
 - [x] Task: Ensure `npm run build` (for frontend integration) and basic backend startup tests pass.
-- [ ] Task: Conductor - User Manual Verification 'Final Integrity Check & Clean-up' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Final Integrity Check & Clean-up' (Protocol in workflow.md)
