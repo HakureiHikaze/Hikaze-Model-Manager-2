@@ -7,13 +7,6 @@ from dataclasses import dataclass
 class LoRAEntry:
     """
     A single LoRA record used by Hikaze nodes.
-
-    This is the Python-side canonical representation; JSON key mapping is handled by
-    `nodes.util.lora_list_parser` to match `loraListExample.json`:
-      - `strength_model` <-> `MStrength`
-      - `strength_clip`  <-> `CStrength`
-      - `enabled`        <-> `toggleOn`
-      - `loras`          <-> `LoRAList`
     """
 
     full_path: str
@@ -34,5 +27,5 @@ class LoRAListDocument:
       {"version": 1, "LoRAList": [ ... ]}
     """
 
-    version: int
+    version: int=2
     loras: list[LoRAEntry]
