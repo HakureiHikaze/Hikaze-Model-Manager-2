@@ -9,7 +9,7 @@ class Prompts:
 class OldMetaJson :
   description: str
   community_links: str
-  images:list[str]
+  images: list[str]
   prompts: Prompts
 
 @dataclass(slots=True)

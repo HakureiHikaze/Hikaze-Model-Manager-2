@@ -8,6 +8,11 @@ This track aims to replace implicit dictionary-based data passing with explicit,
 ### 1. Explicit Data Models
 - Use `ModelRecord` and `PendingModelRecord` (defined in `shared/types/model_record.py`) as the primary vehicles for model data.
 - Refactor all internal signatures to use these classes instead of raw dictionaries.
+- **No None Values Policy:**
+    - Explicitly discard the "not provided" semantic (None).
+    - All fields must have a concrete value. Use `""` (empty string) for missing string fields and `0` for missing integer fields.
+    - Nested objects (e.g., `prompts` within `MetaJson`) must be fully constructed with empty values even if the parent data is incomplete.
+    - Example: A partial input `{sha256:"aaa", ...}` must result in a full object `{sha256:"aaa", type:"", created_at:0, meta_json:{..., prompts:{positive:"", negative:""}}}`.
 
 ### 2. Streamlined `DatabaseManager`
 - **Responsibilities:**
