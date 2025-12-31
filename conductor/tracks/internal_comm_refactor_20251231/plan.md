@@ -1,10 +1,10 @@
 # Plan - Internal Communication Refactor & Database Streamlining
 
-## Phase 1: Dataclass Finalization and Integration
+## Phase 1: Dataclass Finalization and Integration [checkpoint: b8c541f]
 - [x] Task: Review and finalize `ModelRecord` and `PendingModelRecord` in `shared/types/model_record.py` to match the current DB schema.
 - [x] Task: Update utility functions (e.g., `data_adapters.py`) to handle conversion between these dataclasses and JSON/dict for frontend communication.
 - [x] Task: Refactor existing model-fetching logic in `backend/server/library_info_handler.py` and `backend/server/images_handler.py` to use dataclass signatures.
-- [ ] Task: Conductor - User Manual Verification 'Dataclass Finalization and Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Dataclass Finalization and Integration' (Protocol in workflow.md)
 
 ## Phase 2: DatabaseManager Streamlining
 - [ ] Task: Refactor `DatabaseManager` to a strict singleton pattern with a primary connection to the internal database.
