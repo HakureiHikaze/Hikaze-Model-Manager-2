@@ -17,10 +17,10 @@
 - [x] Task: Conductor - User Manual Verification 'DatabaseManager Streamlining' (Protocol in workflow.md)
 
 ## Phase 3: Legacy Adapter and Migration Handler Refactor
-- [ ] Task: Create `backend/database/migration/legacy_database_adapter.py` with hardcoded extraction logic for the old schema.
-- [ ] Task: Implement the extraction function that returns `(List[ModelRecord], List[PendingModelRecord], List[Tuple])`.
-- [ ] Task: Update `migration_handler.py` to call the legacy adapter and pass the resulting objects to a placeholder migration function.
-- [ ] Task: Update all references in `backend/database/migration/importer.py` to align with the new dataclass-based flow.
+- [x] Task: Create `backend/database/migration/legacy_database_adapter.py` with hardcoded extraction logic for the old schema.
+- [x] Task: Implement the extraction function that returns `(List[ModelRecord], List[PendingModelRecord], List[Tuple])`.
+- [x] Task: Update `migration_handler.py` to call the legacy adapter and pass the resulting objects to a placeholder migration function.
+- [x] Task: Update all references in `backend/database/migration/importer.py` to align with the new dataclass-based flow.
 - [ ] Task: Conductor - User Manual Verification 'Legacy Adapter and Migration Handler Refactor' (Protocol in workflow.md)
 
 ## Phase 4: Final Integrity Check & Clean-up
