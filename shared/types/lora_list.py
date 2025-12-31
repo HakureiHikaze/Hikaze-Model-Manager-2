@@ -21,8 +21,8 @@ class LoRAEntry:
     strength_clip: float
     enabled: bool
 
-    name: str | None = None
-    sha256: str | None = None
+    name: str
+    sha256: str
 
 
 @dataclass(frozen=True, slots=True)

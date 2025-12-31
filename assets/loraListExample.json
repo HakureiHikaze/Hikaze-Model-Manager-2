@@ -1,21 +1,21 @@
 {
-  "version": 1,
-  "LoRAs": [
+  "version": 2,
+  "loras": [
     {
       "name": "example1",
       "full_path": "./example1.safetensors",
-      "MStrength": 1.0,
-      "CStrength": 1.0,
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
       "sha256": "0123456789abcdef0123456789abcdef",
-      "toggleOn": true
+      "enabled": true
     },
     {
       "name": "example2",
       "full_path": "./example2.safetensors",
-      "MStrength": 0.7,
-      "CStrength": 1.0,
+      "strength_model": 0.7,
+      "strength_clip": 1.0,
       "sha256": "f123456789abcdef0123456789abcdef",
-      "toggleOn": true
+      "enabled": true
     }
   ]
 }

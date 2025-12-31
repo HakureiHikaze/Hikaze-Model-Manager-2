@@ -1,0 +1,29 @@
+# Plan - Internal Communication Refactor & Database Streamlining
+
+## Phase 1: Dataclass Finalization and Integration
+- [ ] Task: Review and finalize `ModelRecord` and `PendingModelRecord` in `shared/types/model_record.py` to match the current DB schema.
+- [ ] Task: Update utility functions (e.g., `data_adapters.py`) to handle conversion between these dataclasses and JSON/dict for frontend communication.
+- [ ] Task: Refactor existing model-fetching logic in `backend/server/library_info_handler.py` and `backend/server/images_handler.py` to use dataclass signatures.
+- [ ] Task: Conductor - User Manual Verification 'Dataclass Finalization and Integration' (Protocol in workflow.md)
+
+## Phase 2: DatabaseManager Streamlining
+- [ ] Task: Refactor `DatabaseManager` to a strict singleton pattern with a primary connection to the internal database.
+- [ ] Task: Implement typed retrieval methods in `DatabaseManager`:
+    - `get_model_by_sha256(sha256: str) -> Optional[ModelRecord]`
+    - `get_pending_model_by_id(id: int) -> Optional[PendingModelRecord]`
+    - `get_tag_names(tag_ids: List[int]) -> Dict[int, str]`
+- [ ] Task: Implement the generic parameterized query interface `execute_query(sql, params)`.
+- [ ] Task: Remove business-logic-heavy methods from `DatabaseManager` that are no longer needed or belong in handlers.
+- [ ] Task: Conductor - User Manual Verification 'DatabaseManager Streamlining' (Protocol in workflow.md)
+
+## Phase 3: Legacy Adapter and Migration Handler Refactor
+- [ ] Task: Create `backend/database/migration/legacy_database_adapter.py` with hardcoded extraction logic for the old schema.
+- [ ] Task: Implement the extraction function that returns `(List[ModelRecord], List[PendingModelRecord], List[Tuple])`.
+- [ ] Task: Update `migration_handler.py` to call the legacy adapter and pass the resulting objects to a placeholder migration function.
+- [ ] Task: Update all references in `backend/database/migration/importer.py` to align with the new dataclass-based flow.
+- [ ] Task: Conductor - User Manual Verification 'Legacy Adapter and Migration Handler Refactor' (Protocol in workflow.md)
+
+## Phase 4: Final Integrity Check & Clean-up
+- [ ] Task: Perform a global search for any remaining raw dictionary model manipulations and convert them to dataclass operations.
+- [ ] Task: Ensure `npm run build` (for frontend integration) and basic backend startup tests pass.
+- [ ] Task: Conductor - User Manual Verification 'Final Integrity Check & Clean-up' (Protocol in workflow.md)
