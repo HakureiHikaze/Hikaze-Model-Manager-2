@@ -1,12 +1,12 @@
 # Plan: Frontend Data Structure Refactor & Unification
 
-## Phase 1: Shared Foundation & Baseline Analysis
+## Phase 1: Shared Foundation & Baseline Analysis [checkpoint: 4fd3bf0]
 - [x] Task: Create centralized structure in `web/shared/types` and `web/shared/adapters`.
 - [x] Task: Analyze current types in `web/model_manager_frontend/src/types` and migrate as the "Gold Standard".
 - [x] Task: Analyze anonymous structures and internal types in both frontends for abstraction opportunities.
 - [x] Task: Propose updated/unified interfaces to the user for confirmation.
 - [x] Task: Configure `tsconfig.json` and Vite in both frontend projects to support `@shared` (or relative) imports from `web/shared`.
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Shared Foundation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Shared Foundation' (Protocol in workflow.md)
 
 ## Phase 2: Type Unification & Cleanup
 - [ ] Task: Scan `web/model_manager_frontend` for scattered/local interfaces and replace with shared types.
