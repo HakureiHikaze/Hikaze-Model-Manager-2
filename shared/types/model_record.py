@@ -1,4 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+@dataclass(slots=True)
+class Tag:
+  id: int
+  name: str
 
 @dataclass(slots=True)
 class Prompts:
@@ -28,6 +33,7 @@ class ModelRecord:
   size_bytes: int
   created_at: int
   meta_json: MetaJson
+  tags: list[Tag] = field(default_factory=list)
 
 @dataclass(slots=True)
 class PendingModelRecord:
@@ -39,15 +45,19 @@ class PendingModelRecord:
   size_bytes: int
   created_at: int
   meta_json: OldMetaJson
+  tags: list[Tag] = field(default_factory=list)
 
 @dataclass(frozen=True,slots=True)
 class ModelSimpleRecord:
   sha256: str
   name: str
   images_count: int
+  tags: list[Tag] = field(default_factory=list)
 
 @dataclass(frozen=True,slots=True)
 class PendingModelSimpleRecord:
   id: int
   name: str
   image: str
+  tags: list[Tag] = field(default_factory=list)
+

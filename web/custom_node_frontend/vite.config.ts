@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       "@": resolve(__dirname, "src"),
       "@manager": resolve(__dirname, "../model_manager_frontend/src"),
+      "@shared": resolve(__dirname, "../shared"),
     },
   },
   build: {

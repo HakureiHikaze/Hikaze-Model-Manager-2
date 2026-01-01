@@ -1,0 +1,30 @@
+# Plan: Frontend Data Structure Refactor & Unification
+
+## Phase 1: Shared Foundation & Baseline Analysis
+- [x] Task: Create centralized structure in `web/shared/types` and `web/shared/adapters`.
+- [x] Task: Analyze current types in `web/model_manager_frontend/src/types` and migrate as the "Gold Standard".
+- [x] Task: Analyze anonymous structures and internal types in both frontends for abstraction opportunities.
+- [x] Task: Propose updated/unified interfaces to the user for confirmation.
+- [x] Task: Configure `tsconfig.json` and Vite in both frontend projects to support `@shared` (or relative) imports from `web/shared`.
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Shared Foundation' (Protocol in workflow.md)
+
+## Phase 2: Type Unification & Cleanup
+- [ ] Task: Scan `web/model_manager_frontend` for scattered/local interfaces and replace with shared types.
+- [ ] Task: Scan `web/custom_node_frontend` for scattered/local interfaces and replace with shared types.
+- [ ] Task: Update component props, emits, and internal reactive states to use unified types.
+- [ ] Task: Verify build stability for both frontends (`npm run build`).
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Type Unification' (Protocol in workflow.md)
+
+## Phase 3: Data Adapter Implementation
+- [ ] Task: Implement adapters in `web/shared/adapters` for all core entities (Models, Tags, LoRA Lists).
+- [ ] Task: Ensure adapters enforce the "No Null/Undefined" policy (injecting `""`, `0`, `false`).
+- [ ] Task: Implement high-frequency conversion logic (e.g., raw backend JSON to `ModelRecord`).
+- [ ] Task: Verify build stability for both frontends (`npm run build`).
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Data Adapters' (Protocol in workflow.md)
+
+## Phase 4: Integration & Final Integrity
+- [ ] Task: Refactor API calling layers in both frontends to use the new adapters immediately after fetching data.
+- [ ] Task: Remove any remaining manual data mapping logic in components.
+- [ ] Task: Final comprehensive build check for both projects.
+- [ ] Task: Perform manual functional verification of the Model Manager and Custom Nodes.
+- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)

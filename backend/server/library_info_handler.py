@@ -7,7 +7,7 @@ from dataclasses import asdict
 from backend.database.db import DatabaseManager
 from backend.util.model_type_sniffer import get_model_types
 from shared.types.data_adapters import DataAdapters
-from shared.types.model_record import ModelRecord
+from shared.types.model_record import ModelRecord, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -107,13 +107,14 @@ async def handle_get_models(request):
                      m_dict["meta_json"] = {}
             
             record = DataAdapters.dict_to_model_record(m_dict)
-            simple = DataAdapters.full_model_to_simple_model(record)
             
             # Fetch tags for each model
             tag_rows = db.get_tags_for_model(record.sha256)
+            record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
+
+            simple = DataAdapters.full_model_to_simple_model(record)
             
             simple_dict = asdict(simple)
-            simple_dict["tags"] = [dict(t) for t in tag_rows]
             models.append(simple_dict)
             
         return web.json_response({"models": models})
@@ -139,10 +140,6 @@ async def handle_get_model_details(request):
             return web.json_response({"error": "Model not found"}, status=404)
         
         response_dict = DataAdapters.to_dict(record)
-        
-        # Fetch tags
-        tags_rows = db.get_tags_for_model(sha256)
-        response_dict["tags"] = [dict(t) for t in tags_rows]
         
         return web.json_response(response_dict)
     except Exception as e:
@@ -220,8 +217,6 @@ async def handle_update_model(request):
     try:
         updated_record = db.get_model_by_sha256(sha256)
         result = DataAdapters.to_dict(updated_record)
-        tags_rows = db.get_tags_for_model(sha256)
-        result["tags"] = [dict(t) for t in tags_rows]
         return web.json_response(result)
     except Exception as e:
         logger.exception(f"Error fetching updated model {sha256}")

@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from typing import Any, Dict, List
-from .model_record import ModelRecord, ModelSimpleRecord, PendingModelRecord, PendingModelSimpleRecord, MetaJson, OldMetaJson, Prompts
+from .model_record import ModelRecord, ModelSimpleRecord, PendingModelRecord, PendingModelSimpleRecord, MetaJson, OldMetaJson, Prompts, Tag
 from ..util.tools import _path2filename
 
 class DataAdapters:
@@ -18,7 +18,8 @@ class DataAdapters:
         return ModelSimpleRecord(
             fullModel.sha256,
             name,
-            images_count
+            images_count,
+            fullModel.tags
         )
         
     @staticmethod
@@ -30,11 +31,13 @@ class DataAdapters:
         return PendingModelSimpleRecord(
             fullPending.id,
             name,
-            first_image
+            first_image,
+            fullPending.tags
         )
 
     @staticmethod
     def dict_to_prompts(data: Dict[str, Any] | None) -> Prompts:
+
         """Construct Prompts from dict, ensuring no None values."""
         if data is None:
             data = {}

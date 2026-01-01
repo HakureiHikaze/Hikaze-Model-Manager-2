@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Optional, Dict, List, Any
 from backend.util import config
-from shared.types.model_record import ModelRecord, PendingModelRecord
+from shared.types.model_record import ModelRecord, PendingModelRecord, Tag
 from shared.types.data_adapters import DataAdapters
 from ..util.consts import SCHEMA_SQL
 
@@ -84,7 +84,11 @@ class DatabaseManager:
             except:
                 m_dict["meta_json"] = {}
         
-        return DataAdapters.dict_to_model_record(m_dict)
+        record = DataAdapters.dict_to_model_record(m_dict)
+        # Fetch tags
+        tag_rows = self.get_tags_for_model(sha256)
+        record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
+        return record
 
     def get_pending_model_by_id(self, item_id: int) -> Optional[PendingModelRecord]:
         """Retrieve a PendingModelRecord by ID."""
@@ -132,6 +136,10 @@ class DatabaseManager:
         """Insert or update a model using a ModelRecord."""
         conn = self.get_connection()
         data = DataAdapters.to_dict(record)
+        
+        if "tags" in data:
+            del data["tags"]
+
         # Serialize meta_json for DB
         data["meta_json"] = json.dumps(data["meta_json"])
         
@@ -154,6 +162,9 @@ class DatabaseManager:
         # Remove 'id' if it's 0 (let DB autoincrement if needed, though pending_import.id is PK)
         if data.get("id") == 0:
             del data["id"]
+            
+        if "tags" in data:
+            del data["tags"]
         
         data["meta_json"] = json.dumps(data["meta_json"])
         
@@ -182,6 +193,14 @@ class DatabaseManager:
             tag_id = cur.lastrowid
             conn.execute("UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?", (str(tag_id), tag_id))
             return tag_id
+
+    def upsert_tag_with_id(self, tag_id: int, name: str):
+        """Insert or replace a tag with a specific ID. Useful for migrations."""
+        conn = self.get_connection()
+        with conn:
+            conn.execute("INSERT OR REPLACE INTO tags (id, name) VALUES (?, ?)", (tag_id, name))
+            # Update max ID tracker if necessary
+            conn.execute("UPDATE db_meta SET value = ? WHERE key = 'tags_id_max' AND CAST(value AS INTEGER) < ?", (str(tag_id), tag_id))
 
     def tag_model(self, model_hash: str, tag_id: int):
         self.execute_non_query("INSERT OR IGNORE INTO model_tags (model_hash, tag_id) VALUES (?, ?)", (model_hash, tag_id))
