@@ -187,6 +187,13 @@ def _import_pending_model(pending_id: int, conflict_strategy: str | None) -> dic
 
     pending_image_path = import_meta_images(record)
 
+    # Convert OldMetaJson (pending) to MetaJson (active)
+    new_meta = DataAdapters.dict_to_meta_json(asdict(record.meta_json))
+    
+    # FIX: Set images_count if we successfully imported an image
+    if pending_image_path:
+        new_meta.images_count = 1
+
     active_record = ModelRecord(
         sha256=record.sha256,
         path=record.path,
@@ -194,7 +201,7 @@ def _import_pending_model(pending_id: int, conflict_strategy: str | None) -> dic
         type=record.type,
         size_bytes=record.size_bytes,
         created_at=record.created_at,
-        meta_json=DataAdapters.dict_to_meta_json(asdict(record.meta_json))
+        meta_json=new_meta
     )
 
     if existing and conflict_strategy == "merge":

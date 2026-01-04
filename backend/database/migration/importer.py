@@ -59,6 +59,18 @@ def migrate_legacy_images(legacy_images_dir: str) -> Dict[str, int]:
                         img_data = f.read()
                     ImageProcessor.save_legacy_active_image(img_data, record.sha256)
                     report["images_processed"] += 1
+
+                    # FIX: Update database with images_count
+                    try:
+                        meta_to_update = m_dict.get("meta_json") or {}
+                        meta_to_update["images_count"] = 1
+                        
+                        db.execute_non_query(
+                            "UPDATE models SET meta_json = ? WHERE sha256 = ?",
+                            (json.dumps(meta_to_update), record.sha256)
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to update images_count for {record.sha256}: {e}")
             except Exception:
                 continue
     except Exception as e:

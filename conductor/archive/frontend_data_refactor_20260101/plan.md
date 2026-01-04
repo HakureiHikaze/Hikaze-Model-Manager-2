@@ -16,10 +16,10 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Type Unification' (Protocol in workflow.md)
 
 ## Phase 2.5: Backend Migration Repair (Images & Counts)
-- [ ] Task: Investigate Stage 1 migration logic to identify why `images_count` is 0 and images are not processed.
-- [ ] Task: Fix the legacy importer to correctly process `images[]` from legacy metadata.
-- [ ] Task: Implement/Verify image compression logic (3 sizes) for migrated images.
-- [ ] Task: Update the `images_count` field in the main database table during migration.
+- [x] Task: Investigate Stage 1 migration logic to identify why `images_count` is 0 and images are not processed.
+- [x] Task: Fix the legacy importer to correctly process `images[]` from legacy metadata.
+- [x] Task: Implement/Verify image compression logic (3 sizes) for migrated images.
+- [x] Task: Update the `images_count` field in the main database table during migration.
 - [ ] Task: Verify the fix by running a test migration and checking database/filesystem.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2.5: Backend Migration Repair' (Protocol in workflow.md)
 
