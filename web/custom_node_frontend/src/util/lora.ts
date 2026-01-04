@@ -27,33 +27,33 @@ function coerceBool(value: unknown): boolean | null {
 function normalizeEntry(value: unknown): LoRAEntry | null {
   if (!isRecord(value)) return null
 
-  const name = coerceString(value.name) ?? undefined
+  // Use unified keys, but support fallbacks during migration/parsing
+  const name = coerceString(value.name) ?? ''
 
   const fullPath =
     coerceString(value.full_path) ??
     coerceString((value as any).fullPath) ??
     coerceString((value as any).path) ??
-    coerceString(value.name) ??
     ''
 
   const strengthModel =
+    coerceNumber(value.strength_model) ??
     coerceNumber((value as any).MStrength) ??
-    coerceNumber((value as any).strength_model) ??
     coerceNumber((value as any).strengthModel) ??
     1
 
   const strengthClip =
+    coerceNumber(value.strength_clip) ??
     coerceNumber((value as any).CStrength) ??
-    coerceNumber((value as any).strength_clip) ??
     coerceNumber((value as any).strengthClip) ??
     1
 
   const enabled =
+    coerceBool(value.enabled) ??
     coerceBool((value as any).toggleOn) ??
-    coerceBool((value as any).enabled) ??
     true
 
-  const sha256 = coerceString((value as any).sha256) ?? undefined
+  const sha256 = coerceString(value.sha256) ?? ''
 
   return {
     name,
@@ -71,12 +71,6 @@ export function createEmptyLoRAListDocument(): LoRAListDocument {
 
 /**
  * Parse various legacy/current JSON shapes into the canonical LoRAListDocument.
- *
- * Accepted shapes:
- * - `{ version, LoRAs: [...] }` (canonical)
- * - `{ version, LoRAList: [...] }` (example file / legacy key)
- * - `{ loras: [...] }` (older experimental format)
- * - `[...]` (array of entry objects)
  */
 export function parseLoRAListJson(text: string): LoRAListDocument {
   const raw = text.trim()
@@ -116,21 +110,24 @@ export function parseLoRAListJson(text: string): LoRAListDocument {
   return { version, LoRAs: loras }
 }
 
+/**
+ * Stringify using ONLY unified keys.
+ * Discard legacy keys like MStrength, toggleOn.
+ */
 export function stringifyLoRAListDocument(doc: LoRAListDocument): string {
   return JSON.stringify(
     {
       version: Number(doc.version) || 1,
       LoRAs: doc.LoRAs.map((item) => ({
-        ...(item.name ? { name: item.name } : {}),
+        name: String(item.name ?? ''),
         full_path: String(item.full_path ?? ''),
-        MStrength: Number(item.strength_model) || 0,
-        CStrength: Number(item.strength_clip) || 0,
-        ...(item.sha256 ? { sha256: item.sha256 } : {}),
-        toggleOn: !!item.enabled
+        strength_model: Number(item.strength_model) || 0,
+        strength_clip: Number(item.strength_clip) || 0,
+        sha256: String(item.sha256 ?? ''),
+        enabled: !!item.enabled
       }))
     },
     null,
     2
   )
 }
-

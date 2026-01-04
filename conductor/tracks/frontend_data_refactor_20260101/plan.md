@@ -9,11 +9,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Shared Foundation' (Protocol in workflow.md)
 
 ## Phase 2: Type Unification & Cleanup
-- [ ] Task: Scan `web/model_manager_frontend` for scattered/local interfaces and replace with shared types.
-- [ ] Task: Scan `web/custom_node_frontend` for scattered/local interfaces and replace with shared types.
-- [ ] Task: Update component props, emits, and internal reactive states to use unified types.
-- [ ] Task: Verify build stability for both frontends (`npm run build`).
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Type Unification' (Protocol in workflow.md)
+- [x] Task: Scan `web/model_manager_frontend` for scattered/local interfaces and replace with shared types.
+- [x] Task: Scan `web/custom_node_frontend` for scattered/local interfaces and replace with shared types.
+- [x] Task: Update component props, emits, and internal reactive states to use unified types.
+- [x] Task: Verify build stability for both frontends (`npm run build`).
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Type Unification' (Protocol in workflow.md)
 
 ## Phase 3: Data Adapter Implementation
 - [ ] Task: Implement adapters in `web/shared/adapters` for all core entities (Models, Tags, LoRA Lists).

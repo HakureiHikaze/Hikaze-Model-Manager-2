@@ -52,7 +52,12 @@ class ModelSimpleRecord:
   sha256: str
   name: str
   images_count: int
+  type: str = ""
+  path: str = ""
+  size_bytes: int = 0
+  created_at: int = 0
   tags: list[Tag] = field(default_factory=list)
+
 
 @dataclass(frozen=True,slots=True)
 class PendingModelSimpleRecord:

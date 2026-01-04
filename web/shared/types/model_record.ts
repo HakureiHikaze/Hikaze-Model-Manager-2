@@ -1,4 +1,5 @@
 import type { Prompts, Tag } from './common';
+export type { Prompts, Tag };
 
 export interface MetaJson {
     description: string;
@@ -48,6 +49,10 @@ export interface ModelSimpleRecord {
     sha256: string;
     name: string;
     images_count: number;
+    type: string;
+    path: string;
+    size_bytes: number;
+    created_at: number;
     tags: Tag[];
 }
 

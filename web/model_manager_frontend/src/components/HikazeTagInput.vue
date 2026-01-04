@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { fetchTags } from '../api/models'
-import type { Tag } from '../api/models'
+import type { Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   modelValue: Tag[]
@@ -118,6 +118,7 @@ const onBlur = () => {
 </template>
 
 <style scoped>
+/* (styles unchanged) */
 .tag-input-container {
   position: relative;
   background: #0f141a;

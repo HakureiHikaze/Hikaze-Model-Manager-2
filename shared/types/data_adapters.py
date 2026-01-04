@@ -19,6 +19,10 @@ class DataAdapters:
             fullModel.sha256,
             name,
             images_count,
+            fullModel.type,
+            fullModel.path,
+            fullModel.size_bytes,
+            fullModel.created_at,
             fullModel.tags
         )
         

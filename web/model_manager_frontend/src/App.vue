@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import HikazeManagerLayout from './components/HikazeManagerLayout.vue'
 import ModelLibrary from './components/ModelLibrary.vue'
 import ModelDetails from './components/ModelDetails.vue'
-import type { Model } from './api/models'
+import type { Model } from '@shared/types/model_record'
 
 const isEmbedded = computed(() => {
   const params = new URLSearchParams(window.location.search)

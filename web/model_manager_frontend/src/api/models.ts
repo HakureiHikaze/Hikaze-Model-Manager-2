@@ -1,38 +1,10 @@
-export interface ModelTypesResponse {
-  types: string[];
-}
-
-export interface Tag {
-  id: number;
-  name: string;
-}
-
-export interface Model {
-  sha256: string;
-  name: string;
-  type: string;
-  path: string;
-  size_bytes: number;
-  created_at: number;
-  tags: Tag[];
-}
-
-export interface ModelFull extends Model {
-  meta_json?: string;
-  // trigger_words can be parsed from meta_json if needed
-}
-
-export interface ModelsResponse {
-  models: Model[];
-}
-
-export interface TagsResponse {
-  tags: Tag[];
-}
-
-export interface ImageCountResponse {
-  count: number;
-}
+import type { 
+  ModelTypesResponse, 
+  ModelsResponse, 
+  TagsResponse, 
+  ImageCountResponse 
+} from '@shared/types/api';
+import type { Model, ModelFull, Tag } from '@shared/types/model_record';
 
 /**
  * Fetch available model types from the backend.
@@ -99,8 +71,9 @@ export async function fetchModelDetails(sha256: string): Promise<ModelFull> {
 
 /**
  * Update model metadata and tags.
+ * Following the "Full Info" rule: Pass the complete ModelFull state.
  */
-export async function updateModel(sha256: string, data: Partial<ModelFull> & { tags?: number[] }): Promise<ModelFull> {
+export async function updateModel(sha256: string, data: ModelFull): Promise<ModelFull> {
   const response = await fetch(`/api/models/${sha256}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

@@ -7,7 +7,7 @@ import {
   addTags, 
   updateModel 
 } from '../api/models'
-import type { Model, ModelFull } from '../api/models'
+import type { Model, ModelFull, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   model?: Model
@@ -19,7 +19,7 @@ const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 
-// We parse meta_json to get extended fields
+// UI state for meta fields
 const description = ref('')
 const communityLinks = ref('')
 const positivePrompt = ref('')
@@ -31,23 +31,11 @@ const loadFullDetails = async (sha256: string) => {
     const data = await fetchModelDetails(sha256)
     localModel.value = data
     
-    // Parse meta_json for extended fields
-    if (data.meta_json) {
-      try {
-        const meta = JSON.parse(data.meta_json)
-        description.value = meta.description || ''
-        communityLinks.value = meta.community_links || ''
-        positivePrompt.value = meta.prompts?.positive || ''
-        negativePrompt.value = meta.prompts?.negative || ''
-      } catch (e) {
-        console.warn('Failed to parse meta_json', e)
-      }
-    } else {
-      description.value = ''
-      communityLinks.value = ''
-      positivePrompt.value = ''
-      negativePrompt.value = ''
-    }
+    // Use the parsed meta_json object
+    description.value = data.meta_json.description || ''
+    communityLinks.value = data.meta_json.community_links || ''
+    positivePrompt.value = data.meta_json.prompts?.positive || ''
+    negativePrompt.value = data.meta_json.prompts?.negative || ''
   } catch (e) {
     console.error('Failed to load model details', e)
   } finally {
@@ -72,44 +60,27 @@ const handleSave = async () => {
     
     // 1. Resolve Tags (New tags have id -1)
     const tagsToResolve = localModel.value.tags
-    const newTagNames = tagsToResolve.filter(t => t.id === -1).map(t => t.name)
-    const existingTagIds = tagsToResolve.filter(t => t.id !== -1).map(t => t.id)
+    const newTagNames = tagsToResolve.filter((t: Tag) => t.id === -1).map((t: Tag) => t.name)
+    const existingTags = tagsToResolve.filter((t: Tag) => t.id !== -1)
     
-    let resolvedTagIds = [...existingTagIds]
+    let finalTags = [...existingTags]
     
     if (newTagNames.length > 0) {
       const createdTags = await addTags(newTagNames)
-      resolvedTagIds = [...resolvedTagIds, ...createdTags.map(t => t.id)]
+      finalTags = [...finalTags, ...createdTags]
     }
     
-    // 2. Prepare meta_json
-    let meta: any = {}
-    if (localModel.value.meta_json) {
-      try {
-        meta = JSON.parse(localModel.value.meta_json)
-      } catch {}
-    }
-    meta.description = description.value
-    meta.community_links = communityLinks.value
-    meta.prompts = {
+    // 2. Prepare payload
+    // We update the localModel with UI states
+    localModel.value.tags = finalTags
+    localModel.value.meta_json.description = description.value
+    localModel.value.meta_json.community_links = communityLinks.value
+    localModel.value.meta_json.prompts = {
       positive: positivePrompt.value,
       negative: negativePrompt.value
     }
-    // Clean up removed fields if they exist in legacy data
-    delete meta.trigger_words
-    delete meta.notes
-    
-    // 3. Update Model
-    // We pass tags as number[] to a specialized update object to satisfy the backend expectation
-    // while casting to satisfy TS Partial<ModelFull> intersection
-    const updatePayload: any = {
-      name: localModel.value.name,
-      type: localModel.value.type,
-      tags: resolvedTagIds, // This is expected by backend as number[]
-      meta_json: JSON.stringify(meta)
-    }
 
-    const updated = await updateModel(sha256, updatePayload)
+    const updated = await updateModel(sha256, localModel.value)
     
     // Refresh local state
     localModel.value = updated
@@ -133,8 +104,6 @@ const openLink = () => {
     window.open(communityLinks.value, '_blank')
   }
 }
-
-
 
 </script>
 

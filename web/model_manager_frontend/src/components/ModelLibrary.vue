@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useModelStore } from '../store/models'
 import { useIntersectionObserver } from '../util/intersectionObserver'
 import { fetchTags, fetchImageCount } from '../api/models'
+import type { Model, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   activeTab: string
@@ -118,7 +119,7 @@ const onMouseLeave = (id: string) => {
   stopCycling(id)
 }
 
-const selectModel = (model: any) => {
+const selectModel = (model: Model) => {
   emit('select-model', model)
 }
 
@@ -147,12 +148,11 @@ onUnmounted(() => {
   })
 })
 
-// ... (existing computed/filter logic) ...
 // Extract unique tags from current models for the filter dropdown
 const availableTags = computed(() => {
   const tagsMap = new Map<number, string>()
-  rawModels.value.forEach((model: any) => {
-    model.tags.forEach((tag: any) => {
+  rawModels.value.forEach((model: Model) => {
+    model.tags.forEach((tag: Tag) => {
       tagsMap.set(tag.id, tag.name)
     })
   })
@@ -160,12 +160,12 @@ const availableTags = computed(() => {
 })
 
 const filteredModels = computed(() => {
-  let result = rawModels.value
+  let result = rawModels.value as Model[]
 
   // Apply search filter
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter((m: any) => 
+    result = result.filter((m: Model) => 
       m.name.toLowerCase().includes(q) || 
       m.path.toLowerCase().includes(q)
     )
@@ -181,8 +181,8 @@ const filteredModels = computed(() => {
       .filter(([_, state]) => state === 'exclude')
       .map(([id]) => id)
 
-    result = result.filter((m: any) => {
-      const modelTagIds = new Set(m.tags.map((t: any) => t.id))
+    result = result.filter((m: Model) => {
+      const modelTagIds = new Set(m.tags.map((t: Tag) => t.id))
       
       // Must have ALL included tags
       const hasAllIncluded = includedIds.every(id => modelTagIds.has(id))
@@ -342,6 +342,7 @@ const gridStyle = computed(() => {
 </template>
 
 <style scoped>
+/* (styles unchanged) */
 .model-library {
   height: 100%;
   display: flex;
