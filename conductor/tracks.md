@@ -2,5 +2,5 @@
 
 ---
 
-## [~] Track: Backend Migration Handler Refactor
-*Link: [./conductor/tracks/migration_handler_refactor_20260104/](./conductor/tracks/migration_handler_refactor_20260104/)*
+## [~] Track: Frontend Data Structure Refactor & Unification
+*Link: [./conductor/tracks/frontend_data_refactor_20260101/](./conductor/tracks/frontend_data_refactor_20260101/)*

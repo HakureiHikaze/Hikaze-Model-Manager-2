@@ -20,8 +20,8 @@
 - [x] Task: Fix the legacy importer to correctly process `images[]` from legacy metadata.
 - [x] Task: Implement/Verify image compression logic (3 sizes) for migrated images.
 - [x] Task: Update the `images_count` field in the main database table during migration.
-- [ ] Task: Verify the fix by running a test migration and checking database/filesystem.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2.5: Backend Migration Repair' (Protocol in workflow.md)
+- [x] Task: Verify the fix by running a test migration and checking database/filesystem.
+- [~] Task: Conductor - User Manual Verification 'Phase 2.5: Backend Migration Repair' (Protocol in workflow.md)
 
 ## Phase 3: Data Adapter Implementation
 - [ ] Task: Implement adapters in `web/shared/adapters` for all core entities (Models, Tags, LoRA Lists).
