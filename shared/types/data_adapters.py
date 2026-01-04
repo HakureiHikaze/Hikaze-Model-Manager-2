@@ -36,6 +36,7 @@ class DataAdapters:
             fullPending.id,
             name,
             first_image,
+            fullPending.type,
             fullPending.tags
         )
 

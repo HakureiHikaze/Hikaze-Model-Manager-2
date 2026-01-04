@@ -15,11 +15,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Service Layer' (Protocol in workflow.md)
 
 ## Phase 3: Handler Refactoring (Pure Controller)
-- [ ] Task: Refactor `handle_migrate_legacy_db` to use the new `MigrationService`.
-- [ ] Task: Refactor `handle_import_models` (and the helper `_import_pending_model`) to use the service layer.
-- [ ] Task: Clean up imports and remove redundant logic from `migration_handler.py`.
+- [x] Task: Refactor `handle_migrate_legacy_db` to use the new `MigrationService`.
+- [x] Task: Refactor `handle_import_models` (and the helper `_import_pending_model`) to use the service layer.
+- [x] Task: Clean up imports and remove redundant logic from `migration_handler.py`.
 - [ ] Task: Verify API response consistency with the existing frontend.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Handler Refactoring' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Handler Refactoring' (Protocol in workflow.md)
 
 ## Phase 4: Final Integrity & Robustness
 - [ ] Task: Verify fix for Interruption/Resumption scenarios.

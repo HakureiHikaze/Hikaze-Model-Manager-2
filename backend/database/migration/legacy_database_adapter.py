@@ -39,7 +39,7 @@ class LegacyDatabaseAdapter:
                 tag_relationships.setdefault(row["model_id"], []).append(row["tag_id"])
             
             # 3. Fetch Models
-            active_models: List[Tuple[ModelRecord, int]] = []
+            active_models: List[Tuple[ModelRecord, int, List[str]]] = []
             pending_models: List[PendingModelRecord] = []
             
             models_rows = conn.execute("SELECT * FROM models").fetchall()
@@ -66,9 +66,11 @@ class LegacyDatabaseAdapter:
                 else:
                     normalized["meta_json"] = {}
 
+                images = normalized["meta_json"].get("images", [])
+
                 sha = normalized["sha256"]
                 if sha and len(sha) == 64:
-                    active_models.append((DataAdapters.dict_to_model_record(normalized), legacy_id))
+                    active_models.append((DataAdapters.dict_to_model_record(normalized), legacy_id, images))
                 else:
                     pending_models.append(DataAdapters.dict_to_pending_model_record(normalized))
                     

@@ -60,6 +60,7 @@ export interface PendingModelSimpleRecord {
     id: number;
     name: string;
     image: string;
+    type: string;
     tags: Tag[];
 }
 

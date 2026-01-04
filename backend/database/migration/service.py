@@ -9,7 +9,6 @@ from backend.database.db import DatabaseManager
 from backend.util import hasher, config
 from backend.util.image_processor import ImageProcessor
 from backend.database.migration.legacy_database_adapter import LegacyDatabaseAdapter
-from backend.database.migration.importer import migrate_legacy_images, strip_meta_images
 from shared.types.model_record import ModelRecord, PendingModelRecord
 from shared.types.data_adapters import DataAdapters
 
@@ -27,7 +26,7 @@ class MigrationService:
         
         # 2. Database Migration
         db = DatabaseManager()
-        report = {"migrated": 0, "pending": 0, "errors": 0}
+        report = {"migrated": 0, "pending": 0, "errors": 0, "images_processed": 0, "image_errors": 0}
         
         conn = db.get_connection()
         with conn:
@@ -36,8 +35,23 @@ class MigrationService:
                 db.upsert_tag_with_id(tid, name)
             
             # Insert Active Models
-            for record, legacy_id in active_models_data:
+            for record, legacy_id, legacy_images in active_models_data:
                 try:
+                    # Handle Image Migration
+                    if legacy_images_dir and legacy_images:
+                        try:
+                            filename = os.path.basename(str(legacy_images[0]))
+                            src_path = os.path.join(legacy_images_dir, filename)
+                            if os.path.exists(src_path):
+                                with open(src_path, "rb") as f:
+                                    img_data = f.read()
+                                ImageProcessor.save_legacy_active_image(img_data, record.sha256)
+                                record.meta_json.images_count = 1
+                                report["images_processed"] += 1
+                        except Exception as e:
+                            logger.error(f"Failed to migrate image for {record.sha256}: {e}")
+                            report["image_errors"] += 1
+
                     db.upsert_model(record)
                     # Apply tags (legacy used model_id, new uses sha256)
                     legacy_tag_ids = tag_rels.get(legacy_id, [])
@@ -51,6 +65,20 @@ class MigrationService:
             # Insert Pending Models
             for record in pending_models:
                 try:
+                    # Handle Pending Image Migration
+                    if legacy_images_dir and record.meta_json and record.meta_json.images:
+                        try:
+                            filename = os.path.basename(str(record.meta_json.images[0]))
+                            src_path = os.path.join(legacy_images_dir, filename)
+                            if os.path.exists(src_path):
+                                dest_path = os.path.join(config.PENDING_IMAGES_DIR, filename)
+                                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                                shutil.copy2(src_path, dest_path)
+                                report["images_processed"] += 1
+                        except Exception as e:
+                            logger.error(f"Failed to migrate pending image for {record.path}: {e}")
+                            report["image_errors"] += 1
+
                     if db.add_pending_import(record):
                         # Apply pending tags
                         legacy_tag_ids = tag_rels.get(record.id, [])
@@ -64,22 +92,13 @@ class MigrationService:
                     logger.error(f"Failed to migrate pending model {record.path}: {e}")
                     report["errors"] += 1
         
-        # 3. Migrate Images (optional if dir provided)
-        img_report = {}
-        if legacy_images_dir:
-            img_report = migrate_legacy_images(legacy_images_dir)
-            
-        # 4. Cleanup Meta JSON
-        strip_meta_images()
-
         status = "success"
-        if report.get("errors", 0) > 0 or img_report.get("errors", 0) > 0:
+        if report.get("errors", 0) > 0:
             status = "failed"
 
         return {
             "status": status,
-            "db_migration": report,
-            "image_migration": img_report
+            "db_migration": report
         }
 
     @staticmethod
@@ -99,7 +118,8 @@ class MigrationService:
                     except:
                         m_dict["meta_json"] = {}
                 record = DataAdapters.dict_to_pending_model_record(m_dict)
-                models.append(DataAdapters.to_dict(record))
+                simple = DataAdapters.full_pending_to_simple_pending(record)
+                models.append(asdict(simple))
             return models
         except Exception as e:
             logger.exception("Error fetching pending models in service")

@@ -64,5 +64,6 @@ class PendingModelSimpleRecord:
   id: int
   name: str
   image: str
+  type: str = ""
   tags: list[Tag] = field(default_factory=list)
 
