@@ -6,13 +6,13 @@
 - [x] Task: Propose a new service-level API structure for the migration module to the user.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Analysis' (Protocol in workflow.md)
 
-## Phase 2: Logic Relocation & Service Layer Implementation
+## Phase 2: Logic Relocation & Service Layer Implementation [checkpoint: d6a4442]
 - [x] Task: Implement the high-level `MigrationService` in `backend.database.migration`.
 - [x] Task: Move Stage 1 orchestration (DB Import -> Image Migration -> Cleanup) to the service layer.
 - [x] Task: Move Stage 2 promotion logic and conflict resolution strategies to the service layer.
 - [x] Task: Ensure the "Image Migration Fix" (from Phase 2.5 of the previous track) is integrated into the new structure.
 - [x] Task: Implement improved error reporting and partial failure tracking in the service layer.
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Service Layer' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Service Layer' (Protocol in workflow.md)
 
 ## Phase 3: Handler Refactoring (Pure Controller)
 - [ ] Task: Refactor `handle_migrate_legacy_db` to use the new `MigrationService`.
