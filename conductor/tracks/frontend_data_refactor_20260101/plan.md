@@ -24,11 +24,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2.5: Backend Migration Repair' (Protocol in workflow.md)
 
 ## Phase 3: Data Adapter Implementation
-- [ ] Task: Implement adapters in `web/shared/adapters` for all core entities (Models, Tags, LoRA Lists).
-- [ ] Task: Ensure adapters enforce the "No Null/Undefined" policy (injecting `""`, `0`, `false`).
-- [ ] Task: Implement high-frequency conversion logic (e.g., raw backend JSON to `ModelRecord`).
-- [ ] Task: Verify build stability for both frontends (`npm run build`).
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Data Adapters' (Protocol in workflow.md)
+- [x] Task: Implement adapters in `web/shared/adapters` for all core entities (Models, Tags, LoRA Lists).
+- [x] Task: Ensure adapters enforce the "No Null/Undefined" policy (injecting `""`, `0`, `false`).
+- [x] Task: Implement high-frequency conversion logic (e.g., raw backend JSON to `ModelRecord`).
+- [x] Task: Verify build stability for both frontends (`npm run build`).
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Data Adapters' (Protocol in workflow.md)
 
 ## Phase 4: Integration & Final Integrity
 - [ ] Task: Refactor API calling layers in both frontends to use the new adapters immediately after fetching data.
