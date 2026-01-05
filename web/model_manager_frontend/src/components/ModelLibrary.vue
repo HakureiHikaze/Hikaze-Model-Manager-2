@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useModelStore } from '../store/models'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, reactive } from 'vue'
+import { useModelCache } from '../cache/models'
+import { useTagsCache } from '../cache/tags'
+import { useImageCache } from '../cache/images'
 import { useIntersectionObserver } from '../util/intersectionObserver'
-import { fetchTags, fetchImageCount } from '../api/models'
 import type { Model, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
@@ -10,7 +11,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits(['select-model'])
 
-const modelStore = useModelStore()
+const modelCache = useModelCache()
+const tagsCache = useTagsCache()
+const imageCache = useImageCache()
 
 const viewMode = ref<'card' | 'list'>('card')
 const columnCount = ref(4)
@@ -21,12 +24,13 @@ const showTagFilter = ref(false)
 const searchQuery = ref('')
 const tagFilters = ref<Map<number, 'include' | 'exclude'>>(new Map())
 
-const rawModels = modelStore.getModels(computed(() => props.activeTab))
-const isLoading = modelStore.isLoading(computed(() => props.activeTab))
-const error = modelStore.getError(computed(() => props.activeTab))
+const rawModels = modelCache.getModels(computed(() => props.activeTab))
+const isLoading = modelCache.isLoading(computed(() => props.activeTab))
+const error = modelCache.getError(computed(() => props.activeTab))
 
 // Preview cycling state
-const previewState = ref<Map<string, { count: number, current: number, interval: number | null }>>(new Map())
+const previewState = reactive<Record<string, { current: number }>>({})
+const previewIntervals = new Map<string, number>()
 
 // Lazy loading logic
 let observer: IntersectionObserver | null = null
@@ -42,7 +46,7 @@ function setupObserver() {
     // Just check for the first image to determine "loaded" or "error"
     // The actual background image is now bound via :style in template
     const img = new Image()
-    const url = `/api/images/${sha256}.webp?seq=0&quality=medium`
+    const url = imageCache.getImageUrl(sha256, 0, 'medium')
     
     img.onload = () => {
       target.classList.remove('lazy')
@@ -66,41 +70,43 @@ function setupObserver() {
 
 // Preview Cycling Logic
 const startCycling = async (sha256: string) => {
-  if (!previewState.value.has(sha256)) {
-    try {
-      const count = await fetchImageCount(sha256)
-      previewState.value.set(sha256, { count, current: 0, interval: null })
-    } catch {
-      return // Failed to get count
-    }
+  await imageCache.loadImageCount(sha256)
+  const count = imageCache.getImageCount(sha256).value
+  if (count <= 1) return
+
+  if (!previewState[sha256]) {
+    previewState[sha256] = { current: 0 }
   }
 
-  const state = previewState.value.get(sha256)
-  if (!state || state.count <= 1) return
+  const existing = previewIntervals.get(sha256)
+  if (existing) clearInterval(existing)
 
-  // Clear any existing interval just in case
-  if (state.interval) clearInterval(state.interval)
+  const interval = window.setInterval(() => {
+    const state = previewState[sha256]
+    if (!state) return
+    state.current = (state.current + 1) % count
+  }, 1000)
 
-  state.interval = setInterval(() => {
-    state.current = (state.current + 1) % state.count
-  }, 1000) // 1 second per slide
+  previewIntervals.set(sha256, interval)
 }
 
 const stopCycling = (sha256: string) => {
-  const state = previewState.value.get(sha256)
-  if (state && state.interval) {
-    clearInterval(state.interval)
-    state.interval = null
-    state.current = 0 // Reset to first image
+  const interval = previewIntervals.get(sha256)
+  if (interval) {
+    clearInterval(interval)
+    previewIntervals.delete(sha256)
+  }
+
+  if (previewState[sha256]) {
+    previewState[sha256].current = 0
   }
 }
 
 const getPreviewStyle = (sha256: string) => {
-  const state = previewState.value.get(sha256)
+  const state = previewState[sha256]
   const seq = state ? state.current : 0
-  // Cache busting optional here depending on backend caching strategy
   return {
-    backgroundImage: `url(/api/images/${sha256}.webp?seq=${seq}&quality=medium)`
+    backgroundImage: `url(${imageCache.getImageUrl(sha256, seq, 'medium')})`
   }
 }
 
@@ -123,6 +129,8 @@ const selectModel = (model: Model) => {
   emit('select-model', model)
 }
 
+const allTags = tagsCache.getTags()
+
 onMounted(async () => {
   if (viewMode.value === 'card') {
     setupObserver()
@@ -130,33 +138,20 @@ onMounted(async () => {
 
   // Auto-exclude NSFW
   try {
-    const tags = await fetchTags()
-    const nsfwTag = tags.find(t => t.name.toLowerCase() === 'nsfw')
+    await tagsCache.loadTags()
+    const nsfwTag = allTags.value.find(t => t.name.toLowerCase() === 'nsfw')
     if (nsfwTag) {
       tagFilters.value.set(nsfwTag.id, 'exclude')
     }
   } catch (e) {
-    console.error('Failed to fetch tags for auto-exclude:', e)
+    console.error('Failed to load tags for auto-exclude:', e)
   }
 })
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
-  // Clear all intervals
-  previewState.value.forEach(state => {
-    if (state.interval) clearInterval(state.interval)
-  })
-})
-
-// Extract unique tags from current models for the filter dropdown
-const availableTags = computed(() => {
-  const tagsMap = new Map<number, string>()
-  rawModels.value.forEach((model: Model) => {
-    model.tags.forEach((tag: Tag) => {
-      tagsMap.set(tag.id, tag.name)
-    })
-  })
-  return Array.from(tagsMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  previewIntervals.forEach((interval) => clearInterval(interval))
+  previewIntervals.clear()
 })
 
 const filteredModels = computed(() => {
@@ -197,6 +192,29 @@ const filteredModels = computed(() => {
   return result
 })
 
+// Extract unique tags for the filter dropdown, keep selected tags on top.
+const availableTags = computed(() => {
+  const tagCounts = new Map<number, number>()
+  filteredModels.value.forEach((model: Model) => {
+    model.tags.forEach((tag: Tag) => {
+      tagCounts.set(tag.id, (tagCounts.get(tag.id) ?? 0) + 1)
+    })
+  })
+
+  const tagsById = new Map(allTags.value.map((tag) => [tag.id, tag]))
+  const selectedTags: Tag[] = []
+  tagFilters.value.forEach((_, id) => {
+    const tag = tagsById.get(id)
+    if (tag) selectedTags.push(tag)
+  })
+
+  const unselectedTags = allTags.value
+    .filter((tag) => !tagFilters.value.has(tag.id) && (tagCounts.get(tag.id) ?? 0) > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return [...selectedTags, ...unselectedTags]
+})
+
 // Re-setup observer when models or view mode changes
 watch([filteredModels, viewMode], () => {
   if (viewMode.value === 'card') {
@@ -221,7 +239,9 @@ function clearTags() {
 }
 
 function refresh() {
-  modelStore.loadModels(props.activeTab, true)
+  modelCache.reset()
+  imageCache.resetImageCache()
+  modelCache.loadModels(props.activeTab, true)
 }
 
 const setView = (mode: 'card' | 'list') => {

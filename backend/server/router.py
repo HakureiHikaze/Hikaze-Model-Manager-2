@@ -9,21 +9,15 @@ logger = logging.getLogger(__name__)
 def setup_routes(app: web.Application):
     
     app.router.add_get("/api/models/get_types", handle_get_model_types)
-    app.router.add_get("/api/get_models", handle_get_models)
-    app.router.add_get("/api/tags", handle_get_tags)
-
-
-    app.router.add_get("/api/images/{hash}", handle_get_image)
-    app.router.add_get("/api/images/pending/{name}", handle_get_pending_image)
-    app.router.add_post("/api/images/upload", handle_upload_image)
-    app.router.add_get("/api/images/get_image_count/{hash}",handle_get_image_count)
     app.router.add_get("/api/models/{sha256}", handle_get_model_details)
     app.router.add_patch("/api/models/{sha256}", handle_update_model)
     app.router.add_get("/api/models", handle_get_models)
     app.router.add_get("/api/tags", handle_get_tags)
     app.router.add_post("/api/tags_add", handle_add_tags)
     app.router.add_get("/api/images/get_img_count", handle_get_image_count)
+    app.router.add_get("/api/images/{hash}", handle_get_image)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
+    app.router.add_get("/api/images/pending/{name}", handle_get_pending_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
     app.router.add_delete("/api/images/delete", handle_delete_image)

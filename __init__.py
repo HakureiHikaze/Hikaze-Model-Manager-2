@@ -36,6 +36,36 @@ from backend.server import HikazeServer
 
 # Global reference to server instance for shutdown
 _hikaze_server: Optional[HikazeServer] = None
+_SNIFFER_ROUTE_REGISTERED = False
+
+
+def register_sniffer_route() -> None:
+    """
+    Register a ComfyUI-side route to expose the sniffed Hikaze API port.
+    """
+    global _SNIFFER_ROUTE_REGISTERED
+    if _SNIFFER_ROUTE_REGISTERED:
+        return
+    try:
+        from aiohttp import web
+        from server import PromptServer
+
+        prompt_server = getattr(PromptServer, "instance", None)
+        if not prompt_server or not getattr(prompt_server, "app", None):
+            LOGGER.warning("PromptServer is not available; sniffer route not registered.")
+            return
+
+        async def handle_sniffer_port(_request):
+            port = 0
+            server = _hikaze_server
+            if server and server.port:
+                port = int(server.port)
+            return web.json_response({"port": port})
+
+        prompt_server.app.router.add_get("/api/hikaze/sniffer_port", handle_sniffer_port)
+        _SNIFFER_ROUTE_REGISTERED = True
+    except Exception as exc:
+        LOGGER.warning("Failed to register sniffer route: %s", exc)
 
 
 class HikazeModelManagerExtension(ComfyExtension):
@@ -118,7 +148,8 @@ async def comfy_entrypoint() -> ComfyExtension:
     Entry point called by ComfyUI when loading custom nodes.
     """
     LOGGER.info("comfy_entrypoint called from %s", __file__)
-    
+
+    register_sniffer_route()
     # Initialize our services
     init_services()
     

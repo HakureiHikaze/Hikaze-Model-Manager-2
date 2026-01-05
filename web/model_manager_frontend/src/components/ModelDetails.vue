@@ -3,10 +3,11 @@ import { ref, watch } from 'vue'
 import HikazeImageGallery from './HikazeImageGallery.vue'
 import HikazeTagInput from './HikazeTagInput.vue'
 import { 
-  fetchModelDetails, 
   addTags, 
   updateModel 
 } from '../api/models'
+import { useModelCache } from '../cache/models'
+import { useTagsCache } from '../cache/tags'
 import type { Model, ModelFull, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
@@ -14,6 +15,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update-list'])
+
+const modelCache = useModelCache()
+const tagsCache = useTagsCache()
 
 const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
@@ -25,17 +29,20 @@ const communityLinks = ref('')
 const positivePrompt = ref('')
 const negativePrompt = ref('')
 
-const loadFullDetails = async (sha256: string) => {
+const loadFullDetails = async (sha256: string, force = false) => {
   isLoading.value = true
   try {
-    const data = await fetchModelDetails(sha256)
-    localModel.value = data
+    await modelCache.loadDetails(sha256, force)
+    const cached = modelCache.getDetails(sha256).value
+    localModel.value = cached ? JSON.parse(JSON.stringify(cached)) : null
     
     // Data is now guaranteed to have these fields via adapters
-    description.value = data.meta_json.description
-    communityLinks.value = data.meta_json.community_links
-    positivePrompt.value = data.meta_json.prompts.positive
-    negativePrompt.value = data.meta_json.prompts.negative
+    if (localModel.value) {
+      description.value = localModel.value.meta_json.description
+      communityLinks.value = localModel.value.meta_json.community_links
+      positivePrompt.value = localModel.value.meta_json.prompts.positive
+      negativePrompt.value = localModel.value.meta_json.prompts.negative
+    }
   } catch (e) {
     console.error('Failed to load model details', e)
   } finally {
@@ -68,6 +75,7 @@ const handleSave = async () => {
     if (newTagNames.length > 0) {
       const createdTags = await addTags(newTagNames)
       finalTags = [...finalTags, ...createdTags]
+      tagsCache.mergeTags(createdTags)
     }
     
     // 2. Prepare payload
@@ -83,7 +91,8 @@ const handleSave = async () => {
     const updated = await updateModel(sha256, localModel.value)
     
     // Refresh local state
-    localModel.value = updated
+    modelCache.setDetails(updated)
+    localModel.value = JSON.parse(JSON.stringify(updated))
     emit('update-list') // Notify parent to refresh library view
     alert('Saved successfully!')
   } catch (e) {
@@ -95,7 +104,7 @@ const handleSave = async () => {
 
 const handleRevert = () => {
   if (props.model?.sha256) {
-    loadFullDetails(props.model.sha256)
+    loadFullDetails(props.model.sha256, true)
   }
 }
 

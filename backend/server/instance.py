@@ -12,6 +12,18 @@ from .router import setup_routes
 
 logger = logging.getLogger(__name__)
 
+
+@web.middleware
+async def cors_middleware(request: web.Request, handler):
+    if request.method == "OPTIONS":
+        response = web.Response()
+    else:
+        response = await handler(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
 class PortFinder:
     @staticmethod
     def find_free_port(base_port: int, max_tries: int = 10) -> int:
@@ -46,7 +58,7 @@ class HikazeServer(threading.Thread):
         self.runner: Optional[web.AppRunner] = None
 
     def create_app(self) -> web.Application:
-        app = web.Application()
+        app = web.Application(middlewares=[cors_middleware])
         setup_routes(app)
         return app
 

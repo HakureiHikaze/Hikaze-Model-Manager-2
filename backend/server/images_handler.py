@@ -20,7 +20,7 @@ async def handle_get_image(request):
 
 async def handle_get_image_count(request):
     """
-    GET /api/images/get_img_num?sha256=...
+    GET /api/images/get_img_count?sha256=...
     Return count of images for a model.
     """
     sha256 = request.query.get("sha256")

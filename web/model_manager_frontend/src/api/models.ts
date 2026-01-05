@@ -10,12 +10,18 @@ import type {
 import type { Model, ModelFull, Tag, PendingModelSimpleRecord } from '@shared/types/model_record';
 import { adaptModelSimpleRecord, adaptModelRecord, adaptPendingModelSimpleRecord } from '@shared/adapters/models';
 import { adaptTag } from '@shared/adapters/tags';
+import { buildApiUrl } from '@shared/util/sniffer_port';
+
+async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  const url = await buildApiUrl(path);
+  return fetch(url, init);
+}
 
 /**
  * Fetch available model types from the backend.
  */
 export async function fetchModelTypes(): Promise<string[]> {
-  const response = await fetch('/api/models/get_types');
+  const response = await fetchApi('/api/models/get_types');
   if (!response.ok) {
     throw new Error(`Failed to fetch model types: ${response.statusText}`);
   }
@@ -27,7 +33,7 @@ export async function fetchModelTypes(): Promise<string[]> {
  * Fetch all available tags from the backend.
  */
 export async function fetchTags(): Promise<Tag[]> {
-  const response = await fetch('/api/tags');
+  const response = await fetchApi('/api/tags');
   if (!response.ok) {
     throw new Error(`Failed to fetch tags: ${response.statusText}`);
   }
@@ -39,7 +45,7 @@ export async function fetchTags(): Promise<Tag[]> {
  * Add/resolve tags by name.
  */
 export async function addTags(names: string[]): Promise<Tag[]> {
-  const response = await fetch('/api/tags_add', {
+  const response = await fetchApi('/api/tags_add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ newtags: names })
@@ -55,7 +61,7 @@ export async function addTags(names: string[]): Promise<Tag[]> {
  * Fetch models of a specific type from the backend.
  */
 export async function fetchModels(type: string): Promise<Model[]> {
-  const response = await fetch(`/api/models?type=${encodeURIComponent(type)}`);
+  const response = await fetchApi(`/api/models?type=${encodeURIComponent(type)}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch models: ${response.statusText}`);
   }
@@ -67,7 +73,7 @@ export async function fetchModels(type: string): Promise<Model[]> {
  * Fetch full details for a specific model.
  */
 export async function fetchModelDetails(sha256: string): Promise<ModelFull> {
-  const response = await fetch(`/api/models/${sha256}`);
+  const response = await fetchApi(`/api/models/${sha256}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch model details: ${response.statusText}`);
   }
@@ -80,7 +86,7 @@ export async function fetchModelDetails(sha256: string): Promise<ModelFull> {
  * Following the "Full Info" rule: Pass the complete ModelFull state.
  */
 export async function updateModel(sha256: string, data: ModelFull): Promise<ModelFull> {
-  const response = await fetch(`/api/models/${sha256}`, {
+  const response = await fetchApi(`/api/models/${sha256}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -96,7 +102,7 @@ export async function updateModel(sha256: string, data: ModelFull): Promise<Mode
  * Fetch image count for a model.
  */
 export async function fetchImageCount(sha256: string): Promise<number> {
-  const response = await fetch(`/api/images/get_img_count?sha256=${sha256}`);
+  const response = await fetchApi(`/api/images/get_img_count?sha256=${sha256}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch image count: ${response.statusText}`);
   }
@@ -108,7 +114,7 @@ export async function fetchImageCount(sha256: string): Promise<number> {
  * Delete a specific image sequence.
  */
 export async function deleteImage(sha256: string, seq: number): Promise<void> {
-  const response = await fetch(`/api/images/delete?sha256=${sha256}&seq=${seq}`, {
+  const response = await fetchApi(`/api/images/delete?sha256=${sha256}&seq=${seq}`, {
     method: 'DELETE'
   });
   if (!response.ok) {
@@ -120,7 +126,7 @@ export async function deleteImage(sha256: string, seq: number): Promise<void> {
  * Stage 1: Migrate legacy DB.
  */
 export async function migrateLegacyDb(legacyDbPath: string, legacyImagesDir?: string): Promise<MigrationReport> {
-  const response = await fetch('/api/migration/migrate_legacy_db', {
+  const response = await fetchApi('/api/migration/migrate_legacy_db', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ legacy_db_path: legacyDbPath, legacy_images_dir: legacyImagesDir })
@@ -135,7 +141,7 @@ export async function migrateLegacyDb(legacyDbPath: string, legacyImagesDir?: st
  * GET list of pending models.
  */
 export async function fetchPendingModels(): Promise<PendingModelSimpleRecord[]> {
-  const response = await fetch('/api/migration/pending_models');
+  const response = await fetchApi('/api/migration/pending_models');
   if (!response.ok) {
     throw new Error(`Failed to fetch pending models: ${response.statusText}`);
   }
@@ -147,7 +153,7 @@ export async function fetchPendingModels(): Promise<PendingModelSimpleRecord[]> 
  * Promote pending models to active.
  */
 export async function importModels(ids: number[], conflictStrategy: 'override' | 'merge' | 'ignore' | 'delete' | null): Promise<BatchPromotionReport> {
-  const response = await fetch('/api/migration/import_models', {
+  const response = await fetchApi('/api/migration/import_models', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: ids, conflict_strategy: conflictStrategy })

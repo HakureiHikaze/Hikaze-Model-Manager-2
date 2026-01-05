@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,8 +24,8 @@ class LoRAListDocument:
     Top-level LoRA list JSON document.
 
     Maps to `loraListExample.json`:
-      {"version": 1, "LoRAList": [ ... ]}
+      {"version": 2, "loras": [ ... ]}
     """
 
-    version: int=2
-    loras: list[LoRAEntry]
+    loras: list[LoRAEntry] = field(default_factory=list)
+    version: int = 2

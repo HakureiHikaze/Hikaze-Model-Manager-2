@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue';
 import { fetchModelTypes } from '../api/models';
-import { useModelStore } from '../store/models';
+import { useModelCache } from '../cache/models';
+import { useTagsCache } from '../cache/tags';
 
 const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
 
-const modelStore = useModelStore();
+const modelCache = useModelCache();
+const tagsCache = useTagsCache();
 
 const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
@@ -59,7 +61,7 @@ onUnmounted(() => {
 // Watch for tab changes and load models
 watch(activeTab, (newTab) => {
   if (newTab) {
-    modelStore.loadModels(newTab);
+    modelCache.loadModels(newTab);
   }
 });
 
@@ -86,6 +88,7 @@ async function loadModelTypes() {
 
 onMounted(() => {
   loadModelTypes();
+  tagsCache.loadTags();
 });
 </script>
 

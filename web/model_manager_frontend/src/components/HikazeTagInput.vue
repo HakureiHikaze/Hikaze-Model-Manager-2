@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { fetchTags } from '../api/models'
+import { useTagsCache } from '../cache/tags'
 import type { Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
@@ -9,20 +9,15 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue'])
 
-const availableTags = ref<Tag[]>([])
+const tagsCache = useTagsCache()
+const availableTags = tagsCache.getTags()
 const inputValue = ref('')
 const isFocused = ref(false)
 const showSuggestions = ref(false)
 
-const loadAvailableTags = async () => {
-  try {
-    availableTags.value = await fetchTags()
-  } catch (e) {
-    console.error('Failed to load tags:', e)
-  }
-}
-
-onMounted(loadAvailableTags)
+onMounted(() => {
+  tagsCache.loadTags()
+})
 
 const suggestions = computed(() => {
   const query = inputValue.value.toLowerCase().trim()

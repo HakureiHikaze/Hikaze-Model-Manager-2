@@ -28,9 +28,9 @@
           </th>
         </thead>
         <tbody>
-        <HikazeLoraListElement
-          v-for="(row, index) in doc.LoRAs"
-          :key="index"
+  <HikazeLoraListElement
+    v-for="(row, index) in doc.loras"
+    :key="index"
           :seq="index"
           :name="row.full_path"
           :strength_model="row.strength_model"
@@ -43,7 +43,7 @@
         />
         </tbody>
       </table>
-      <div v-if="doc.LoRAs.length === 0" class="empty-tip">
+      <div v-if="doc.loras.length === 0" class="empty-tip">
         No LoRAs loaded.
       </div>
     </div>
@@ -51,12 +51,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch, type Ref, inject } from 'vue'
 import HikazeNodeFrame from './HikazeNodeFrame.vue'
 import HikazeLoraListElement from './HikazeLoraListElement.vue'
-import type { LoRAListDocument, LoRAEntry } from '../injection/types'
+import type { LoRAListDocument } from '../injection/types'
+import type { ModalOptions, ModalResult } from '../injection/modalService'
 import {
-  createEmptyLoRAListDocument,
   parseLoRAListJson,
   stringifyLoRAListDocument
 } from '../util/lora'
@@ -67,9 +67,11 @@ const props = defineProps<{
   commit: (next: string) => void
 }>()
 
+const openManager = inject<(opts: ModalOptions) => Promise<ModalResult> | null>('openManager', null)
+
 const PLACEHOLDER_DOC: LoRAListDocument = {
-  version: 1,
-  LoRAs: [
+  version: 2,
+  loras: [
     {
       name: 'example_lora_1',
       full_path: './example_lora_1.safetensors',
@@ -89,7 +91,7 @@ const PLACEHOLDER_DOC: LoRAListDocument = {
   ]
 }
 
-const doc = ref<LoRAListDocument>({ version: 1, LoRAs: [] })
+const doc = ref<LoRAListDocument>({ version: 2, loras: [] })
 const lastCommittedJson = ref<string | null>(null)
 
 watch(
@@ -100,65 +102,68 @@ watch(
     }
 
     try {
-      const parsed = JSON.parse(raw || '{}')
-      // Basic validation/migration
-      if (Array.isArray(parsed.LoRAs)) {
-        doc.value = parsed
-      } else {
-        // Init with placeholder if empty/invalid structure
-        doc.value = JSON.parse(JSON.stringify(PLACEHOLDER_DOC))
-        // Auto-commit placeholder? Maybe not automatically to avoid overwriting user intent.
-      }
+      doc.value = parseLoRAListJson(raw || '')
     } catch (e) {
-      console.error("Invalid JSON provided to Hikaze Lora Overlay")
+      console.error('Invalid JSON provided to Hikaze Lora Overlay')
+      doc.value = JSON.parse(JSON.stringify(PLACEHOLDER_DOC))
     }
   },
   { immediate: true }
 )
 
 watch(doc, () => {
-  const next = JSON.stringify(doc.value)
+  const next = stringifyLoRAListDocument(doc.value)
   lastCommittedJson.value = next
   props.commit(next)
 }, { deep: true })
 
 function onMStrInput(seq: number, value: number) {
-  const target = doc.value.LoRAs?.[seq];
+  const target = doc.value.loras?.[seq];
   if (target) target.strength_model = value;
 }
 function onCStrInput(seq: number, value: number) {
-  const target = doc.value.LoRAs?.[seq];
+  const target = doc.value.loras?.[seq];
   if (target) target.strength_clip = value;
 }
 function onCheckboxInput(seq: number, value: boolean) {
-  const target = doc.value.LoRAs?.[seq];
+  const target = doc.value.loras?.[seq];
   if (target) target.enabled = value;
 }
 function onBtnDelete(seq: number) {
-  doc.value.LoRAs?.splice(seq, 1);
+  doc.value.loras?.splice(seq, 1);
 }
 
 function deleteAll() {
   if (confirm("Delete all LoRAs?")) {
-    doc.value.LoRAs = []
+    doc.value.loras = []
   }
 }
 
 function toggleAll(event: Event) {
-  if (!doc.value.LoRAs) return
+  if (!doc.value.loras) return
   const checked = (event.target as HTMLInputElement).checked
-  doc.value.LoRAs.forEach((item) => {
+  doc.value.loras.forEach((item) => {
     item.enabled = checked
   })
 }
 
-function openPicker() {
-  const current = String(props.payload?.value ?? '').trim()
-  const defaultValue =
-    current.length > 0 ? current : stringifyLoRAListDocument(PLACEHOLDER_DOC)
-  const next = window.prompt('Paste LoRA JSON', defaultValue)
-  if (next == null) return
-  props.commit(next)
+async function openPicker() {
+  if (!openManager) {
+    console.warn('openManager is not available')
+    return
+  }
+
+  const result = await openManager({
+    mode: 'multi',
+    initialTab: 'loras',
+    title: 'Select LoRAs'
+  })
+
+  if (!result || typeof result !== 'object' || !('loras' in result)) {
+    return
+  }
+
+  props.commit(stringifyLoRAListDocument(result as LoRAListDocument))
 }
 </script>
 

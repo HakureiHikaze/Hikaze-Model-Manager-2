@@ -9,5 +9,5 @@ export interface LoRAEntry {
 
 export interface LoRAListDocument {
     version: number;
-    LoRAs: LoRAEntry[];
+    loras: LoRAEntry[];
 }

@@ -96,7 +96,7 @@
 - `custom_nodes/Hikaze-Model-Manager-2/web/model_manager_frontend/src/main.ts`: 创建 Vue App 并挂载 `App.vue`，引入全局样式。
 用户批示：已确认
 - `custom_nodes/Hikaze-Model-Manager-2/web/model_manager_frontend/src/style.css`: 全局暗色主题与基础样式、按钮与 `#app` 尺寸控制。
-用户批示：待确认
+用户批示：已确认，目前不做变动
 - `custom_nodes/Hikaze-Model-Manager-2/web/model_manager_frontend/src/App.vue`: 根据 URL 参数计算 `embedded`/`initialTab`，组织主布局、库与详情面板。
 用户批示：已确认
 - `custom_nodes/Hikaze-Model-Manager-2/web/model_manager_frontend/src/api/models.ts`: 管理端 API 客户端，覆盖模型/标签/图片/迁移等请求与适配器转换。
@@ -262,7 +262,7 @@
 
 #### 3.3.1 设计理念
 - SQLite 作为本地持久化，采用单例 + 线程本地连接，数据模型以 SHA256 为主键。
-用户批示：待确认
+用户批示：已确认，对于activated模型，以SHA256为主键，对于pending模型，以迁移时保留的旧id作为主键。
 
 #### 3.3.2 文件级内容与功能
 - `custom_nodes/Hikaze-Model-Manager-2/backend/database/__init__.py`: 导出 `DatabaseManager`。
@@ -326,3 +326,40 @@
 - 依赖：管理端构建到 `web/dist/manager`，节点前端构建到 `web/dist/hikaze-model-manager.js`。
 - 协作：后端 server 托管管理端静态文件，ComfyUI 加载节点前端扩展脚本。
 用户批示：已确认
+
+## Phase 5: 实施记录（Refactor）
+
+### 5.1 管理器前端（cache 替换与交互修复）
+- 新增缓存模块 `web/model_manager_frontend/src/cache/tags.ts`、`models.ts`、`images.ts` 并替换 `store/models.ts` 使用路径。
+用户批示：待确认
+- ModelLibrary/HikazeTagInput/ManagerLayout 统一通过 tags cache 提供候选与 NSFW 自动排除。
+用户批示：待确认
+- 预览轮播与图片计数改为 image cache 统一读取，使用 `/api/images/<sha>_<seq>.webp?quality=...&rev=...`。
+用户批示：待确认
+- 标签过滤规则更新：已选标签置顶强制显示，0 结果标签隐藏。
+用户批示：待确认
+
+### 5.2 节点前端（openManager 集成）
+- ManagerModal 去除硬编码 tabs，使用布局 slot，并新增 Confirm/Cancel 返回选择结果。
+用户批示：待确认
+- Checkpoint/LoRA Loader 接入 openManager，返回 `{"ckpt_path": "..."}`
+  或 `LoRAListDocument`。
+用户批示：待确认
+- legacy 注入模式移除 prompt hook，仅保留原生控件行为。
+用户批示：待确认
+- LoRA 列表行高与对齐样式修复。
+用户批示：待确认
+
+### 5.3 后端服务
+- router 去重并保留规范路径（含 `/api/images/get_img_count`）。
+用户批示：待确认
+- images_handler 文档注释与路径命名一致性修复。
+用户批示：待确认
+
+### 5.4 共享接口与 LoRA 协议
+- LoRA schema 统一为 version=2 + `loras` 列表 + 下划线字段。
+用户批示：待确认
+- 前端 LoRA 解析迁移至 `web/shared/adapters/loras.ts`，后端 loader 使用统一解析器。
+用户批示：待确认
+- pending promotion 的 cache.reset 触发点未接入 UI 流程，记录于 `guidelines/not_implemented.md`。
+用户批示：待确认

@@ -1,25 +1,156 @@
 import type { LoRAEntry, LoRAListDocument } from '../types/lora_list';
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function coerceString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function coerceBool(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  return null;
+}
+
+function normalizeEntry(value: unknown): LoRAEntry | null {
+  if (!isRecord(value)) return null;
+
+  const name = coerceString(value.name) ?? '';
+
+  const fullPath =
+    coerceString(value.full_path) ??
+    coerceString((value as any).fullPath) ??
+    coerceString((value as any).path) ??
+    '';
+
+  const strengthModel =
+    coerceNumber(value.strength_model) ??
+    coerceNumber((value as any).MStrength) ??
+    coerceNumber((value as any).strengthModel) ??
+    1;
+
+  const strengthClip =
+    coerceNumber(value.strength_clip) ??
+    coerceNumber((value as any).CStrength) ??
+    coerceNumber((value as any).strengthClip) ??
+    1;
+
+  const enabled =
+    coerceBool(value.enabled) ??
+    coerceBool((value as any).toggleOn) ??
+    true;
+
+  const sha256 = coerceString(value.sha256) ?? '';
+
+  return {
+    name,
+    full_path: fullPath,
+    strength_model: strengthModel,
+    strength_clip: strengthClip,
+    sha256,
+    enabled
+  };
+}
+
+export function createEmptyLoRAListDocument(): LoRAListDocument {
+  return { version: 2, loras: [] };
+}
+
+function parseLoRAListValue(value: unknown): LoRAListDocument {
+  let version = 2;
+  let listValue: unknown = null;
+
+  if (Array.isArray(value)) {
+    listValue = value;
+  } else if (isRecord(value)) {
+    const maybeVersion = coerceNumber(value.version);
+    if (maybeVersion != null) {
+      version = maybeVersion;
+    }
+    listValue =
+      (value as any).loras ??
+      (value as any).LoRAs ??
+      (value as any).LoRAList ??
+      (value as any).loRAList ??
+      null;
+  }
+
+  if (!Array.isArray(listValue)) {
+    return { version, loras: [] };
+  }
+
+  const loras: LoRAEntry[] = [];
+  for (const item of listValue) {
+    const entry = normalizeEntry(item);
+    if (entry) loras.push(entry);
+  }
+
+  return { version, loras };
+}
+
+export function parseLoRAListJson(text: string): LoRAListDocument {
+  const raw = text.trim();
+  if (!raw) return createEmptyLoRAListDocument();
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch (e: any) {
+    throw new Error(String(e?.message ?? e ?? 'Invalid JSON'));
+  }
+
+  return parseLoRAListValue(value);
+}
+
+export function stringifyLoRAListDocument(doc: LoRAListDocument): string {
+  return JSON.stringify(
+    {
+      version: Number(doc.version) || 2,
+      loras: doc.loras.map((item) => ({
+        name: String(item.name ?? ''),
+        full_path: String(item.full_path ?? ''),
+        strength_model: Number(item.strength_model) || 0,
+        strength_clip: Number(item.strength_clip) || 0,
+        sha256: String(item.sha256 ?? ''),
+        enabled: !!item.enabled
+      }))
+    },
+    null,
+    2
+  );
+}
+
 /**
  * Ensures a LoRAEntry has no null/undefined fields.
  */
 export function adaptLoRAEntry(raw: any): LoRAEntry {
-    return {
-        full_path: String(raw?.full_path ?? ""),
-        strength_model: Number(raw?.strength_model ?? 1.0),
-        strength_clip: Number(raw?.strength_clip ?? 1.0),
-        enabled: Boolean(raw?.enabled ?? true),
-        name: String(raw?.name ?? ""),
-        sha256: String(raw?.sha256 ?? "")
-    };
+  return (
+    normalizeEntry(raw) ?? {
+      full_path: '',
+      strength_model: 1,
+      strength_clip: 1,
+      enabled: true,
+      name: '',
+      sha256: ''
+    }
+  );
 }
 
 /**
  * Ensures a LoRAListDocument has no null/undefined fields.
  */
 export function adaptLoRAListDocument(raw: any): LoRAListDocument {
-    return {
-        version: Number(raw?.version ?? 1),
-        LoRAs: Array.isArray(raw?.LoRAs) ? raw.LoRAs.map(adaptLoRAEntry) : []
-    };
+  return parseLoRAListValue(raw);
 }
