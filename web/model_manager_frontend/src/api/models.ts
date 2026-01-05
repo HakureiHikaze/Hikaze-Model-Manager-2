@@ -2,9 +2,14 @@ import type {
   ModelTypesResponse, 
   ModelsResponse, 
   TagsResponse, 
-  ImageCountResponse 
+  ImageCountResponse,
+  PendingModelsResponse,
+  MigrationReport,
+  BatchPromotionReport
 } from '@shared/types/api';
-import type { Model, ModelFull, Tag } from '@shared/types/model_record';
+import type { Model, ModelFull, Tag, PendingModelSimpleRecord } from '@shared/types/model_record';
+import { adaptModelSimpleRecord, adaptModelRecord, adaptPendingModelSimpleRecord } from '@shared/adapters/models';
+import { adaptTag } from '@shared/adapters/tags';
 
 /**
  * Fetch available model types from the backend.
@@ -15,7 +20,7 @@ export async function fetchModelTypes(): Promise<string[]> {
     throw new Error(`Failed to fetch model types: ${response.statusText}`);
   }
   const data: ModelTypesResponse = await response.json();
-  return data.types;
+  return (data.types || []).map(t => String(t));
 }
 
 /**
@@ -27,7 +32,7 @@ export async function fetchTags(): Promise<Tag[]> {
     throw new Error(`Failed to fetch tags: ${response.statusText}`);
   }
   const data: TagsResponse = await response.json();
-  return data.tags;
+  return (data.tags || []).map(adaptTag);
 }
 
 /**
@@ -43,7 +48,7 @@ export async function addTags(names: string[]): Promise<Tag[]> {
     throw new Error(`Failed to add tags: ${response.statusText}`);
   }
   const data: TagsResponse = await response.json();
-  return data.tags;
+  return (data.tags || []).map(adaptTag);
 }
 
 /**
@@ -55,7 +60,7 @@ export async function fetchModels(type: string): Promise<Model[]> {
     throw new Error(`Failed to fetch models: ${response.statusText}`);
   }
   const data: ModelsResponse = await response.json();
-  return data.models;
+  return (data.models || []).map(adaptModelSimpleRecord);
 }
 
 /**
@@ -66,7 +71,8 @@ export async function fetchModelDetails(sha256: string): Promise<ModelFull> {
   if (!response.ok) {
     throw new Error(`Failed to fetch model details: ${response.statusText}`);
   }
-  return await response.json();
+  const data = await response.json();
+  return adaptModelRecord(data);
 }
 
 /**
@@ -82,7 +88,8 @@ export async function updateModel(sha256: string, data: ModelFull): Promise<Mode
   if (!response.ok) {
     throw new Error(`Failed to update model: ${response.statusText}`);
   }
-  return await response.json();
+  const result = await response.json();
+  return adaptModelRecord(result);
 }
 
 /**
@@ -94,7 +101,7 @@ export async function fetchImageCount(sha256: string): Promise<number> {
     throw new Error(`Failed to fetch image count: ${response.statusText}`);
   }
   const data: ImageCountResponse = await response.json();
-  return data.count;
+  return Number(data.count ?? 0);
 }
 
 /**
@@ -107,4 +114,46 @@ export async function deleteImage(sha256: string, seq: number): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to delete image: ${response.statusText}`);
   }
+}
+
+/**
+ * Stage 1: Migrate legacy DB.
+ */
+export async function migrateLegacyDb(legacyDbPath: string, legacyImagesDir?: string): Promise<MigrationReport> {
+  const response = await fetch('/api/migration/migrate_legacy_db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ legacy_db_path: legacyDbPath, legacy_images_dir: legacyImagesDir })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to migrate legacy DB: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+/**
+ * GET list of pending models.
+ */
+export async function fetchPendingModels(): Promise<PendingModelSimpleRecord[]> {
+  const response = await fetch('/api/migration/pending_models');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pending models: ${response.statusText}`);
+  }
+  const data: PendingModelsResponse = await response.json();
+  return (data.models || []).map(adaptPendingModelSimpleRecord);
+}
+
+/**
+ * Promote pending models to active.
+ */
+export async function importModels(ids: number[], conflictStrategy: 'override' | 'merge' | 'ignore' | 'delete' | null): Promise<BatchPromotionReport> {
+  const response = await fetch('/api/migration/import_models', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: ids, conflict_strategy: conflictStrategy })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to import models: ${response.statusText}`);
+  }
+  return await response.json();
 }

@@ -31,11 +31,11 @@ const loadFullDetails = async (sha256: string) => {
     const data = await fetchModelDetails(sha256)
     localModel.value = data
     
-    // Use the parsed meta_json object
-    description.value = data.meta_json.description || ''
-    communityLinks.value = data.meta_json.community_links || ''
-    positivePrompt.value = data.meta_json.prompts?.positive || ''
-    negativePrompt.value = data.meta_json.prompts?.negative || ''
+    // Data is now guaranteed to have these fields via adapters
+    description.value = data.meta_json.description
+    communityLinks.value = data.meta_json.community_links
+    positivePrompt.value = data.meta_json.prompts.positive
+    negativePrompt.value = data.meta_json.prompts.negative
   } catch (e) {
     console.error('Failed to load model details', e)
   } finally {

@@ -31,8 +31,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Data Adapters' (Protocol in workflow.md)
 
 ## Phase 4: Integration & Final Integrity
-- [ ] Task: Refactor API calling layers in both frontends to use the new adapters immediately after fetching data.
-- [ ] Task: Remove any remaining manual data mapping logic in components.
-- [ ] Task: Final comprehensive build check for both projects.
-- [ ] Task: Perform manual functional verification of the Model Manager and Custom Nodes.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
+- [x] Task: Refactor API calling layers in both frontends to use the new adapters immediately after fetching data.
+- [x] Task: Remove any remaining manual data mapping logic in components.
+- [x] Task: Final comprehensive build check for both projects.
+- [x] Task: Perform manual functional verification of the Model Manager and Custom Nodes.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Integration' (Protocol in workflow.md)
