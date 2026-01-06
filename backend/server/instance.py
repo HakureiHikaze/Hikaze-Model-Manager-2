@@ -33,13 +33,13 @@ class PortFinder:
         if base_port == 0:
             # Let the OS pick a free port
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("127.0.0.1", 0))
+                s.bind(("0.0.0.0", 0))
                 return s.getsockname()[1]
 
         for port in range(base_port, base_port + max_tries):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
-                    s.bind(("127.0.0.1", port))
+                    s.bind(("0.0.0.0", port))
                     return port
                 except OSError:
                     logger.debug(f"Port {port} is occupied, trying next...")
@@ -48,7 +48,7 @@ class PortFinder:
         raise RuntimeError(f"Could not find a free port in range {base_port} to {base_port + max_tries - 1}")
 
 class HikazeServer(threading.Thread):
-    def __init__(self, host: str = "127.0.0.1", port: int = 8189):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8189):
         super().__init__(daemon=True)
         self.host = host
         self.base_port = port

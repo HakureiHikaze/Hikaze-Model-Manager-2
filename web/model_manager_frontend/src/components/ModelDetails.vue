@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import HikazeImageGallery from './HikazeImageGallery.vue'
 import HikazeTagInput from './HikazeTagInput.vue'
 import { 
@@ -22,6 +22,7 @@ const tagsCache = useTagsCache()
 const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const descriptionRef = ref<HTMLTextAreaElement | null>(null)
 
 // UI state for meta fields
 const description = ref('')
@@ -42,6 +43,14 @@ const loadFullDetails = async (sha256: string, force = false) => {
       communityLinks.value = localModel.value.meta_json.community_links
       positivePrompt.value = localModel.value.meta_json.prompts.positive
       negativePrompt.value = localModel.value.meta_json.prompts.negative
+      await nextTick()
+      const el = descriptionRef.value
+      if (el) {
+        const width = el.getBoundingClientRect().width
+        if (width > 0) {
+          el.style.height = `${Math.round(width * 1.5)}px`
+        }
+      }
     }
   } catch (e) {
     console.error('Failed to load model details', e)
@@ -165,6 +174,7 @@ const openLink = () => {
           placeholder="Model description..." 
           rows="3"
           class="resize-vertical"
+          ref="descriptionRef"
         ></textarea>
       </div>
 
@@ -222,7 +232,7 @@ const openLink = () => {
 
 <style scoped>
 .model-details {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -252,21 +262,12 @@ const openLink = () => {
 }
 
 .details-body {
-  flex: 1;
-  overflow-y: auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding-right: 4px;
-}
-
-/* Custom Scrollbar */
-.details-body::-webkit-scrollbar {
-  width: 4px;
-}
-.details-body::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
+  overflow: visible;
 }
 
 .field-group {

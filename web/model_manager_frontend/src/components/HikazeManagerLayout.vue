@@ -74,9 +74,18 @@ async function loadModelTypes() {
     
     // Resolve initial active tab
     const initial = props.initialTab;
-    if (initial && modelTypes.value.includes(initial)) {
-      activeTab.value = initial;
-    } else if (modelTypes.value.length > 0) {
+    if (initial) {
+      const exactMatch = modelTypes.value.find((type) => type === initial);
+      const caseMatch = modelTypes.value.find(
+        (type) => type.toLowerCase() === initial.toLowerCase()
+      );
+      const resolved = exactMatch || caseMatch;
+      if (resolved) {
+        activeTab.value = resolved;
+        return;
+      }
+    }
+    if (modelTypes.value.length > 0) {
       activeTab.value = modelTypes.value[0] || '';
     }
   } catch (e: any) {
@@ -127,6 +136,8 @@ onMounted(() => {
     <aside class="hikaze-pane-details">
       <slot name="details">Details</slot>
     </aside>
+
+    <slot name="toolbar" :active-tab="activeTab"></slot>
   </div>
 </template>
 

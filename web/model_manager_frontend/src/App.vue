@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import HikazeManagerLayout from './components/HikazeManagerLayout.vue'
+import FloatingToolbar from './components/FloatingToolbar.vue'
 import ModelLibrary from './components/ModelLibrary.vue'
 import ModelDetails from './components/ModelDetails.vue'
 import type { Model } from '@shared/types/model_record'
@@ -36,6 +37,10 @@ const handleSelectModel = (model: Model) => {
         :model="selectedModel" 
         @update-list="() => { /* Trigger list refresh if needed */ }"
       />
+    </template>
+
+    <template #toolbar="{ activeTab }">
+      <FloatingToolbar v-if="!isEmbedded" :active-tab="activeTab" />
     </template>
   </HikazeManagerLayout>
 </template>

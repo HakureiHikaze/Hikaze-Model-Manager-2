@@ -116,7 +116,6 @@ input.hikaze-reset-chk {
 }
 
 .center-chk {
-  display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;

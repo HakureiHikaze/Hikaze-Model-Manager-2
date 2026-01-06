@@ -8,8 +8,11 @@ import type { Model, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   activeTab: string
+  selectionMode?: 'lora'
+  selectedIds?: string[]
+  excludeSelected?: boolean
 }>()
-const emit = defineEmits(['select-model'])
+const emit = defineEmits(['select-model', 'toggle-select'])
 
 const modelCache = useModelCache()
 const tagsCache = useTagsCache()
@@ -23,6 +26,8 @@ const showTagFilter = ref(false)
 
 const searchQuery = ref('')
 const tagFilters = ref<Map<number, 'include' | 'exclude'>>(new Map())
+const selectionActive = computed(() => props.selectionMode === 'lora')
+const selectedSet = computed(() => new Set(props.selectedIds ?? []))
 
 const rawModels = modelCache.getModels(computed(() => props.activeTab))
 const isLoading = modelCache.isLoading(computed(() => props.activeTab))
@@ -125,8 +130,21 @@ const onMouseLeave = (id: string) => {
   stopCycling(id)
 }
 
+const emitToggleSelect = (model: Model, nextSelected: boolean) => {
+  emit('toggle-select', model, nextSelected)
+}
+
 const selectModel = (model: Model) => {
   emit('select-model', model)
+  if (selectionActive.value && model.sha256 && !selectedSet.value.has(model.sha256)) {
+    emitToggleSelect(model, true)
+  }
+}
+
+const toggleSelection = (model: Model, event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (!model.sha256) return
+  emitToggleSelect(model, target.checked)
 }
 
 const allTags = tagsCache.getTags()
@@ -187,6 +205,10 @@ const filteredModels = computed(() => {
       
       return hasAllIncluded && hasNoExcluded
     })
+  }
+
+  if (props.excludeSelected && selectedSet.value.size > 0) {
+    result = result.filter((m: Model) => !selectedSet.value.has(m.sha256))
   }
 
   return result
@@ -311,20 +333,32 @@ const gridStyle = computed(() => {
         {{ error }}
       </div>
       <template v-else-if="viewMode === 'card'">
-        <div 
-          v-for="model in filteredModels" 
-          :key="model.sha256" 
-          class="card-item" 
-          :class="{ 'dense-view': columnCount > 6 }"
-          @click="selectModel(model)"
-          @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
-          @mouseleave="onMouseLeave(model.sha256)"
-        >
           <div 
-            class="card-image lazy" 
-            :data-sha256="model.sha256"
-            :style="getPreviewStyle(model.sha256)"
-          ></div>
+            v-for="model in filteredModels" 
+            :key="model.sha256" 
+            class="card-item" 
+            :class="{ 'dense-view': columnCount > 6 }"
+            @click="selectModel(model)"
+            @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
+            @mouseleave="onMouseLeave(model.sha256)"
+          >
+            <label
+              v-if="selectionActive"
+              class="selection-checkbox"
+              @click.stop
+            >
+              <input
+                type="checkbox"
+                :checked="selectedSet.has(model.sha256)"
+                @click.stop
+                @change="(event) => toggleSelection(model, event)"
+              />
+            </label>
+            <div 
+              class="card-image lazy" 
+              :data-sha256="model.sha256"
+              :style="getPreviewStyle(model.sha256)"
+            ></div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
@@ -350,6 +384,18 @@ const gridStyle = computed(() => {
             class="list-item"
             @click="selectModel(model)"
           >
+            <label
+              v-if="selectionActive"
+              class="list-checkbox"
+              @click.stop
+            >
+              <input
+                type="checkbox"
+                :checked="selectedSet.has(model.sha256)"
+                @click.stop
+                @change="(event) => toggleSelection(model, event)"
+              />
+            </label>
             <div class="list-name">{{ model.name }}</div>
             <div class="list-tags">
               <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
@@ -601,6 +647,25 @@ const gridStyle = computed(() => {
   z-index: 1;
 }
 
+.selection-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  background: rgba(13, 17, 23, 0.8);
+  border-radius: 6px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-checkbox input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
 .card-item:hover {
   border-color: #388bfd;
   z-index: 10;
@@ -742,6 +807,18 @@ const gridStyle = computed(() => {
   border: 1px solid #30363d;
   border-radius: 8px;
   background: #0d1117;
+  cursor: pointer;
+}
+
+.list-checkbox {
+  margin-right: 10px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.list-checkbox input {
+  width: 14px;
+  height: 14px;
   cursor: pointer;
 }
 

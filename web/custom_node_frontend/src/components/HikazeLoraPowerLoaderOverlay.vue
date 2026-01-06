@@ -156,7 +156,8 @@ async function openPicker() {
   const result = await openManager({
     mode: 'multi',
     initialTab: 'loras',
-    title: 'Select LoRAs'
+    title: 'Select LoRAs',
+    payloadJson: props.payload.value
   })
 
   if (!result || typeof result !== 'object' || !('loras' in result)) {

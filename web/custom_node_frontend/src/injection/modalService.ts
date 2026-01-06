@@ -15,6 +15,10 @@ export interface ModalOptions {
    */
   title?: string
   /**
+   * Payload JSON string from the node (LoRA selection uses this to hydrate state).
+   */
+  payloadJson?: string
+  /**
    * For multi-select: Pre-selected SHA256 hashes.
    */
   selectedIds?: string[]

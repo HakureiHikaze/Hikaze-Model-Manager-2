@@ -4,24 +4,51 @@ import { modalState, closeManager } from '../injection/modalService'
 import HikazeManagerLayout from '@manager/components/HikazeManagerLayout.vue'
 import ModelLibrary from '@manager/components/ModelLibrary.vue'
 import ModelDetails from '@manager/components/ModelDetails.vue'
-import type { Model } from '@shared/types/model_record'
-import type { LoRAListDocument } from '@shared/types/lora_list'
+import SelectedLoraBar from '@manager/components/SelectedLoraBar.vue'
+import type { Model, Tag } from '@shared/types/model_record'
+import { adaptLoRAEntry, createEmptyLoRAListDocument, parseLoRAListJson } from '@shared/adapters/loras'
+import type { LoRAEntry, LoRAListDocument } from '@shared/types/lora_list'
+
+type SelectedLoraItem = {
+  sha256: string
+  name: string
+  path: string
+  tags: Tag[]
+}
 
 const selectedModel = ref<Model | undefined>(undefined)
 const selectedModels = ref<Model[]>([])
+const isFullscreen = ref(false)
+const selectedLoraIds = ref<string[]>([])
+const selectedLoraItems = ref<Record<string, SelectedLoraItem>>({})
+const originalLoraBySha = ref<Record<string, LoRAEntry>>({})
+const loraVersion = ref(2)
 
-const modalOptions = computed(() => modalState.options.value)
+const modalOptions = computed(() => modalState.options)
 const isMultiSelect = computed(() => modalOptions.value?.mode === 'multi')
+const isLoraSelection = computed(() => {
+  const tab = String(modalOptions.value?.initialTab || '').toLowerCase()
+  return isMultiSelect.value && (tab === 'loras' || tab === 'lora')
+})
 const modalTitle = computed(() => {
   return modalOptions.value?.title || (isMultiSelect.value ? 'Select LoRAs' : 'Select Checkpoint')
 })
+const selectedCount = computed(() => {
+  return isLoraSelection.value ? selectedLoraIds.value.length : selectedModels.value.length
+})
 const canConfirm = computed(() => {
-  return isMultiSelect.value ? selectedModels.value.length > 0 : !!selectedModel.value
+  return isMultiSelect.value ? selectedCount.value > 0 : !!selectedModel.value
+})
+const fullscreenLabel = computed(() => (isFullscreen.value ? 'Exit fullscreen' : 'Enter fullscreen'))
+const selectedLoraList = computed(() => {
+  return selectedLoraIds.value
+    .map((sha) => selectedLoraItems.value[sha])
+    .filter((item): item is SelectedLoraItem => !!item)
 })
 
 // Handle Escape key to close modal
 const handleKeydown = (e: KeyboardEvent) => {
-  if (modalState.isOpen.value && e.key === 'Escape') {
+  if (modalState.isOpen && e.key === 'Escape') {
     closeManager(null)
   }
 }
@@ -29,13 +56,58 @@ const handleKeydown = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', handleKeydown))
 onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
+const resetLoraState = () => {
+  selectedLoraIds.value = []
+  selectedLoraItems.value = {}
+  originalLoraBySha.value = {}
+  loraVersion.value = 2
+}
+
+const initLoraSelection = () => {
+  resetLoraState()
+  if (!isLoraSelection.value) return
+
+  const raw = modalOptions.value?.payloadJson ?? ''
+  try {
+    const doc = parseLoRAListJson(raw)
+    loraVersion.value = Number(doc.version) || 2
+
+    const nextItems: Record<string, SelectedLoraItem> = {}
+    const nextOriginal: Record<string, LoRAEntry> = {}
+    const nextIds: string[] = []
+
+    doc.loras.forEach((entry) => {
+      const sha = String(entry.sha256 || '').trim()
+      if (!sha || nextOriginal[sha]) return
+      nextOriginal[sha] = entry
+      nextIds.push(sha)
+      nextItems[sha] = {
+        sha256: sha,
+        name: entry.name || entry.full_path,
+        path: entry.full_path,
+        tags: []
+      }
+    })
+
+    selectedLoraIds.value = nextIds
+    selectedLoraItems.value = nextItems
+    originalLoraBySha.value = nextOriginal
+  } catch (e) {
+    console.warn('Failed to parse LoRA payload JSON', e)
+    const emptyDoc = createEmptyLoRAListDocument()
+    loraVersion.value = Number(emptyDoc.version) || 2
+  }
+}
+
 watch(
-  () => modalState.isOpen.value,
+  () => modalState.isOpen,
   (isOpen) => {
     if (isOpen) {
       selectedModel.value = undefined
       selectedModels.value = []
+      initLoraSelection()
     }
+    isFullscreen.value = false
   }
 )
 
@@ -43,8 +115,81 @@ const onBackdropClick = () => {
   closeManager(null)
 }
 
+const addLoraSelection = (sha256: string, item: SelectedLoraItem) => {
+  if (!selectedLoraIds.value.includes(sha256)) {
+    selectedLoraIds.value = [...selectedLoraIds.value, sha256]
+  }
+  selectedLoraItems.value = {
+    ...selectedLoraItems.value,
+    [sha256]: item
+  }
+}
+
+const removeLoraSelection = (sha256: string) => {
+  if (!selectedLoraIds.value.includes(sha256)) return
+  selectedLoraIds.value = selectedLoraIds.value.filter((id) => id !== sha256)
+  const nextItems = { ...selectedLoraItems.value }
+  delete nextItems[sha256]
+  selectedLoraItems.value = nextItems
+}
+
+const handleToggleSelect = (model: Model, nextSelected: boolean) => {
+  if (!isLoraSelection.value || !model.sha256) return
+  if (nextSelected) {
+    addLoraSelection(model.sha256, {
+      sha256: model.sha256,
+      name: model.name || model.path,
+      path: model.path,
+      tags: model.tags
+    })
+  } else {
+    removeLoraSelection(model.sha256)
+  }
+}
+
+const handleSelectedBarToggle = (sha256: string, nextSelected: boolean) => {
+  if (!isLoraSelection.value) return
+  if (!nextSelected) {
+    removeLoraSelection(sha256)
+  }
+}
+
+const buildStubModel = (item: SelectedLoraItem): Model => {
+  return {
+    sha256: item.sha256,
+    name: item.name,
+    path: item.path,
+    tags: item.tags,
+    images_count: 0,
+    type: 'lora',
+    size_bytes: 0,
+    created_at: 0
+  }
+}
+
+const handleSelectedBarSelect = (item: SelectedLoraItem) => {
+  selectedModel.value = buildStubModel(item)
+}
+
+const clearSelection = () => {
+  selectedLoraIds.value = []
+  selectedLoraItems.value = {}
+}
+
 const handleSelectModel = (model: Model) => {
   selectedModel.value = model
+
+  if (isLoraSelection.value) {
+    if (model.sha256 && !selectedLoraIds.value.includes(model.sha256)) {
+      addLoraSelection(model.sha256, {
+        sha256: model.sha256,
+        name: model.name || model.path,
+        path: model.path,
+        tags: model.tags
+      })
+    }
+    return
+  }
 
   if (!isMultiSelect.value) {
     selectedModels.value = [model]
@@ -63,6 +208,27 @@ const confirmSelection = () => {
   if (!canConfirm.value) return
 
   if (isMultiSelect.value) {
+    if (isLoraSelection.value) {
+      const loras = selectedLoraIds.value.map((sha) => {
+        const original = originalLoraBySha.value[sha]
+        if (original) return original
+        const item = selectedLoraItems.value[sha]
+        return adaptLoRAEntry({
+          name: item?.name ?? '',
+          full_path: item?.path ?? '',
+          strength_model: 1.0,
+          strength_clip: 1.0,
+          sha256: sha,
+          enabled: true
+        })
+      })
+      const doc: LoRAListDocument = {
+        version: Number(loraVersion.value) || 2,
+        loras
+      }
+      closeManager(doc)
+      return
+    }
     const doc: LoRAListDocument = {
       version: 2,
       loras: selectedModels.value.map((model) => ({
@@ -79,18 +245,45 @@ const confirmSelection = () => {
     closeManager({ ckpt_path: selectedModel.value.path })
   }
 }
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="modalState.isOpen" class="hikaze-modal-backdrop" @click.self="onBackdropClick">
-      <div class="hikaze-modal-content">
+    <div
+      v-if="modalState.isOpen"
+      class="hikaze-modal-backdrop"
+      :class="{ 'is-fullscreen': isFullscreen }"
+      @click.self="onBackdropClick"
+    >
+      <div class="hikaze-modal-content" :class="{ 'is-fullscreen': isFullscreen }">
         <div class="hikaze-modal-toolbar">
           <div class="modal-title">{{ modalTitle }}</div>
           <div class="modal-actions">
             <div v-if="isMultiSelect" class="selection-count">
-              {{ selectedModels.length }} selected
+              {{ selectedCount }} selected
             </div>
+            <button
+              v-if="isLoraSelection"
+              class="btn btn-secondary"
+              type="button"
+              :disabled="selectedCount === 0"
+              @click="clearSelection"
+            >
+              Clear selection
+            </button>
+            <button
+              class="btn btn-secondary btn-icon"
+              type="button"
+              :aria-label="fullscreenLabel"
+              :title="fullscreenLabel"
+              @click="toggleFullscreen"
+            >
+              &#x1F5D7;
+            </button>
             <button class="btn btn-secondary" @click="onBackdropClick">Cancel</button>
             <button class="btn btn-primary" :disabled="!canConfirm" @click="confirmSelection">Confirm</button>
           </div>
@@ -99,7 +292,24 @@ const confirmSelection = () => {
         <div class="hikaze-modal-body">
           <HikazeManagerLayout :embedded="true" :initialTab="modalState.options?.initialTab">
             <template #library="{ activeTab }">
-              <ModelLibrary :active-tab="activeTab" @select-model="handleSelectModel" />
+              <div class="lora-library-pane">
+                <SelectedLoraBar
+                  v-if="isLoraSelection"
+                  :items="selectedLoraList"
+                  @toggle="handleSelectedBarToggle"
+                  @select="handleSelectedBarSelect"
+                />
+                <div class="lora-library-body">
+                  <ModelLibrary
+                    :active-tab="activeTab"
+                    :selection-mode="isLoraSelection ? 'lora' : undefined"
+                    :selected-ids="selectedLoraIds"
+                    :exclude-selected="isLoraSelection"
+                    @select-model="handleSelectModel"
+                    @toggle-select="handleToggleSelect"
+                  />
+                </div>
+              </div>
             </template>
 
             <template #details>
@@ -126,6 +336,11 @@ const confirmSelection = () => {
   justify-content: center;
 }
 
+.hikaze-modal-backdrop.is-fullscreen {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
 .hikaze-modal-content {
   width: 90vw;
   height: 90vh;
@@ -138,7 +353,24 @@ const confirmSelection = () => {
   flex-direction: column;
 }
 
+.hikaze-modal-content.is-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+}
+
 .hikaze-modal-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.lora-library-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.lora-library-body {
   flex: 1;
   min-height: 0;
 }
@@ -179,6 +411,17 @@ const confirmSelection = () => {
   color: #c9d1d9;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .btn-primary {

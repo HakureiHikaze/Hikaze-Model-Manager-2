@@ -16,6 +16,23 @@ from shared.types.lora_list import LoRAListDocument
 LOGGER = logging.getLogger(__name__)
 
 
+def resolve_lora_path(full_path: str) -> str | None:
+    drive, _ = os.path.splitdrive(full_path)
+    if os.path.isabs(full_path) or drive:
+        return full_path if os.path.exists(full_path) else None
+
+    try:
+        lora_path = folder_paths.get_full_path("loras", full_path)
+    except ValueError as exc:
+        LOGGER.warning("HikazeLoraPowerLoader: invalid LoRA path %s: %s", full_path, exc)
+        lora_path = None
+
+    if lora_path is None and os.path.exists(full_path):
+        lora_path = full_path
+
+    return lora_path
+
+
 class HikazeLoraPowerLoader(HikazeBaseNode):
     """
     Apply multiple LoRAs (with per-model/per-CLIP strengths) to a Model/CLIP.
@@ -67,9 +84,7 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
             if not full_path:
                 raise ValueError(f"HikazeLoraPowerLoader: Item at index {index} missing 'full_path' or 'name'")
 
-            lora_path = folder_paths.get_full_path("loras", full_path)
-            if lora_path is None and os.path.exists(full_path):
-                lora_path = full_path
+            lora_path = resolve_lora_path(full_path)
 
             if not lora_path:
                 raise ValueError(f"HikazeLoraPowerLoader: LoRA file not found: {full_path}")
