@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue';
 import { fetchModelTypes } from '../api/models';
-import { useModelStore } from '../store/models';
+import { useModelCache } from '../cache/models';
+import { useTagsCache } from '../cache/tags';
 
 const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
 }>()
 
-const modelStore = useModelStore();
+const modelCache = useModelCache();
+const tagsCache = useTagsCache();
 
 const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
@@ -59,7 +61,7 @@ onUnmounted(() => {
 // Watch for tab changes and load models
 watch(activeTab, (newTab) => {
   if (newTab) {
-    modelStore.loadModels(newTab);
+    modelCache.loadModels(newTab);
   }
 });
 
@@ -72,9 +74,18 @@ async function loadModelTypes() {
     
     // Resolve initial active tab
     const initial = props.initialTab;
-    if (initial && modelTypes.value.includes(initial)) {
-      activeTab.value = initial;
-    } else if (modelTypes.value.length > 0) {
+    if (initial) {
+      const exactMatch = modelTypes.value.find((type) => type === initial);
+      const caseMatch = modelTypes.value.find(
+        (type) => type.toLowerCase() === initial.toLowerCase()
+      );
+      const resolved = exactMatch || caseMatch;
+      if (resolved) {
+        activeTab.value = resolved;
+        return;
+      }
+    }
+    if (modelTypes.value.length > 0) {
       activeTab.value = modelTypes.value[0] || '';
     }
   } catch (e: any) {
@@ -86,6 +97,7 @@ async function loadModelTypes() {
 
 onMounted(() => {
   loadModelTypes();
+  tagsCache.loadTags();
 });
 </script>
 
@@ -124,6 +136,8 @@ onMounted(() => {
     <aside class="hikaze-pane-details">
       <slot name="details">Details</slot>
     </aside>
+
+    <slot name="toolbar" :active-tab="activeTab"></slot>
   </div>
 </template>
 

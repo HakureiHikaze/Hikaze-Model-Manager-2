@@ -10,8 +10,27 @@ import folder_paths
 from comfy_api.latest import io
 
 from .base_nodes import HikazeBaseNode, PAYLOAD_WIDGET_NAME
+from .util import LoRAListParseError, loads_lora_list_json
+from shared.types.lora_list import LoRAListDocument
 
 LOGGER = logging.getLogger(__name__)
+
+
+def resolve_lora_path(full_path: str) -> str | None:
+    drive, _ = os.path.splitdrive(full_path)
+    if os.path.isabs(full_path) or drive:
+        return full_path if os.path.exists(full_path) else None
+
+    try:
+        lora_path = folder_paths.get_full_path("loras", full_path)
+    except ValueError as exc:
+        LOGGER.warning("HikazeLoraPowerLoader: invalid LoRA path %s: %s", full_path, exc)
+        lora_path = None
+
+    if lora_path is None and os.path.exists(full_path):
+        lora_path = full_path
+
+    return lora_path
 
 
 class HikazeLoraPowerLoader(HikazeBaseNode):
@@ -47,69 +66,43 @@ class HikazeLoraPowerLoader(HikazeBaseNode):
     def execute(cls, model: Any, clip: Any, **kwargs) -> io.NodeOutput:
         # Use kwargs to catch the payload by name, in case the variable name changes.
         hikaze_payload = kwargs.get(PAYLOAD_WIDGET_NAME, "[]")
-        parsed = cls.parse_payload(hikaze_payload)
 
-        # Logic to iterate over LoRAs
-        if isinstance(parsed, list):
-            entries = parsed
-        elif isinstance(parsed, dict):
-            # Support various legacy formats if needed, or standard format
-            entries = (
-                parsed.get("LoRAs")
-                or parsed.get("LoRAList")
-                or parsed.get("loras")
-                or []
-            )
-        else:
-            entries = []
-            
+        try:
+            doc = loads_lora_list_json(hikaze_payload, strict=False)
+        except LoRAListParseError as exc:
+            LOGGER.warning("HikazeLoraPowerLoader: invalid LoRA list JSON: %s", exc)
+            doc = LoRAListDocument(version=2, loras=[])
+
         current_model = model
         current_clip = clip
 
-        if isinstance(entries, list):
-            for index, item in enumerate(entries):
-                if not isinstance(item, dict):
-                    continue
-                
-                # Check enabled status (defaulting to True if missing)
-                enabled = item.get("enabled", True)
-                if enabled is False:
-                    continue
+        for index, entry in enumerate(doc.loras):
+            if entry.enabled is False:
+                continue
 
-                # Resolve Name / Path
-                name = item.get("name")
-                full_path = item.get("full_path") or item.get("path") or name
-                
-                if not full_path:
-                    raise ValueError(f"HikazeLoraPowerLoader: Item at index {index} missing 'full_path' or 'name'")
+            full_path = entry.full_path or entry.name
+            if not full_path:
+                raise ValueError(f"HikazeLoraPowerLoader: Item at index {index} missing 'full_path' or 'name'")
 
-                lora_path = None
-                # 1. Try standard ComfyUI resolution
-                lora_path = folder_paths.get_full_path("loras", full_path)
-                
-                # 2. Try absolute path if resolution failed
-                if lora_path is None and os.path.exists(full_path):
-                    lora_path = full_path
-                        
-                if not lora_path:
-                    raise ValueError(f"HikazeLoraPowerLoader: LoRA file not found: {full_path}")
+            lora_path = resolve_lora_path(full_path)
 
-                # Resolve Strengths
-                strength_model = float(item.get("strength_model", 1.0))
-                strength_clip = float(item.get("strength_clip", 1.0))
+            if not lora_path:
+                raise ValueError(f"HikazeLoraPowerLoader: LoRA file not found: {full_path}")
 
-                # Load and Apply
-                try:
-                    lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
-                    current_model, current_clip = comfy.sd.load_lora_for_models(
-                        current_model, current_clip, lora, strength_model, strength_clip
-                    )
-                    LOGGER.info(
-                        "HikazeLoraPowerLoader[%s]: Applied %s (M:%.2f, C:%.2f)",
-                        index, full_path, strength_model, strength_clip
-                    )
-                except Exception as exc:
-                    LOGGER.error(f"HikazeLoraPowerLoader: Failed to apply {full_path}: {exc}")
+            strength_model = float(entry.strength_model)
+            strength_clip = float(entry.strength_clip)
+
+            try:
+                lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+                current_model, current_clip = comfy.sd.load_lora_for_models(
+                    current_model, current_clip, lora, strength_model, strength_clip
+                )
+                LOGGER.info(
+                    "HikazeLoraPowerLoader[%s]: Applied %s (M:%.2f, C:%.2f)",
+                    index, full_path, strength_model, strength_clip
+                )
+            except Exception as exc:
+                LOGGER.error(f"HikazeLoraPowerLoader: Failed to apply {full_path}: {exc}")
 
         return io.NodeOutput(current_model, current_clip)
 

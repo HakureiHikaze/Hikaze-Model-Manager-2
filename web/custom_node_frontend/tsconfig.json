@@ -14,9 +14,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@manager/*": ["../model_manager_frontend/src/*"]
+      "@manager/*": ["../model_manager_frontend/src/*"],
+      "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "../shared/**/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

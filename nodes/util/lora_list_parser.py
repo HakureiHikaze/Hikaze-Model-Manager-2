@@ -4,14 +4,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .dataclasses import LoRAEntry, LoRAListDocument
+from shared.types.lora_list import LoRAEntry, LoRAListDocument
 
 
 class LoRAListParseError(ValueError):
     pass
 
 
-SUPPORTED_LORA_LIST_VERSION = 1
+SUPPORTED_LORA_LIST_VERSIONS = {1, 2}
+DEFAULT_LORA_LIST_VERSION = 2
 
 
 def _require_dict(value: Any, ctx: str) -> dict[str, Any]:
@@ -71,23 +72,23 @@ def parse_lora_list_json(data: dict[str, Any], *, strict: bool = True) -> LoRALi
     """
     Parse the LoRA list JSON document according to `loraListExample.json`.
 
-    Expected shape (v1):
+    Expected shape (v2):
       {
-        "version": 1,
-        "LoRAList": [
+        "version": 2,
+        "loras": [
           {
             "name": "example",
             "full_path": "path",
-            "MStrength": 1.0,
-            "CStrength": 1.0,
+            "strength_model": 1.0,
+            "strength_clip": 1.0,
             "sha256": "...",
-            "toggleOn": true
+            "enabled": true
           }
         ]
       }
 
     If `strict` is False, this parser also accepts common alternative spellings:
-      - "loras" or "loRAList" instead of "LoRAList"
+      - "LoRAs", "LoRAList", "loRAList" instead of "loras"
       - "enabled" instead of "toggleOn"
       - "strength_model"/"strength_clip" instead of "MStrength"/"CStrength"
     """
@@ -95,21 +96,23 @@ def parse_lora_list_json(data: dict[str, Any], *, strict: bool = True) -> LoRALi
 
     version_raw = root.get("version", None)
     if version_raw is None:
-        raise LoRAListParseError("Missing required field: version")
-    version = _coerce_int(version_raw, "version")
-    if version != SUPPORTED_LORA_LIST_VERSION:
+        if strict:
+            raise LoRAListParseError("Missing required field: version")
+        version = DEFAULT_LORA_LIST_VERSION
+    else:
+        version = _coerce_int(version_raw, "version")
+    if version not in SUPPORTED_LORA_LIST_VERSIONS:
+        supported = ", ".join(str(v) for v in sorted(SUPPORTED_LORA_LIST_VERSIONS))
         raise LoRAListParseError(
-            f"Unsupported LoRA list version: {version} (supported: {SUPPORTED_LORA_LIST_VERSION})"
+            f"Unsupported LoRA list version: {version} (supported: {supported})"
         )
 
-    list_key = "LoRAList"
+    list_key = "loras"
     if not strict:
-        if "LoRAList" in root:
-            list_key = "LoRAList"
-        elif "loRAList" in root:
-            list_key = "loRAList"
-        elif "loras" in root:
-            list_key = "loras"
+        for candidate in ("loras", "LoRAs", "LoRAList", "loRAList"):
+            if candidate in root:
+                list_key = candidate
+                break
 
     if list_key not in root:
         raise LoRAListParseError(f"Missing required field: {list_key}")
@@ -124,24 +127,30 @@ def parse_lora_list_json(data: dict[str, Any], *, strict: bool = True) -> LoRALi
         if name is not None:
             name = _coerce_str(name, f"{list_key}[{idx}].name")
 
-        full_path = _coerce_str(obj.get("full_path", None), f"{list_key}[{idx}].full_path")
+        if strict:
+            full_path = _coerce_str(obj.get("full_path", None), f"{list_key}[{idx}].full_path")
+        else:
+            full_path = _coerce_str(
+                obj.get("full_path", obj.get("path", None)),
+                f"{list_key}[{idx}].full_path",
+            )
 
         if strict:
-            strength_model = _coerce_float(obj.get("MStrength", None), f"{list_key}[{idx}].MStrength")
-            strength_clip = _coerce_float(obj.get("CStrength", None), f"{list_key}[{idx}].CStrength")
-            enabled = _coerce_bool(obj.get("toggleOn", None), f"{list_key}[{idx}].toggleOn")
+            strength_model = _coerce_float(obj.get("strength_model", None), f"{list_key}[{idx}].strength_model")
+            strength_clip = _coerce_float(obj.get("strength_clip", None), f"{list_key}[{idx}].strength_clip")
+            enabled = _coerce_bool(obj.get("enabled", None), f"{list_key}[{idx}].enabled")
         else:
             strength_model = _coerce_float(
-                obj.get("MStrength", obj.get("strength_model", None)),
-                f"{list_key}[{idx}].MStrength",
+                obj.get("strength_model", obj.get("MStrength", None)),
+                f"{list_key}[{idx}].strength_model",
             )
             strength_clip = _coerce_float(
-                obj.get("CStrength", obj.get("strength_clip", None)),
-                f"{list_key}[{idx}].CStrength",
+                obj.get("strength_clip", obj.get("CStrength", None)),
+                f"{list_key}[{idx}].strength_clip",
             )
             enabled = _coerce_bool(
-                obj.get("toggleOn", obj.get("enabled", None)),
-                f"{list_key}[{idx}].toggleOn",
+                obj.get("enabled", obj.get("toggleOn", None)),
+                f"{list_key}[{idx}].enabled",
             )
 
         sha256 = obj.get("sha256", None)
@@ -167,9 +176,14 @@ def loads_lora_list_json(text: str, *, strict: bool = True) -> LoRAListDocument:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise LoRAListParseError(f"Invalid JSON: {exc}") from exc
-    if not isinstance(data, dict):
-        raise LoRAListParseError("LoRA list JSON must be an object")
-    return parse_lora_list_json(data, strict=strict)
+    if isinstance(data, dict):
+        return parse_lora_list_json(data, strict=strict)
+    if isinstance(data, list) and not strict:
+        return parse_lora_list_json(
+            {"version": DEFAULT_LORA_LIST_VERSION, "loras": data},
+            strict=False,
+        )
+    raise LoRAListParseError("LoRA list JSON must be an object")
 
 
 def load_lora_list_json_file(path: str | Path, *, strict: bool = True) -> LoRAListDocument:
@@ -184,14 +198,14 @@ def dumps_lora_list_json(doc: LoRAListDocument, *, indent: int = 2, ensure_ascii
     """
     payload: dict[str, Any] = {
         "version": int(doc.version),
-        "LoRAList": [
+        "loras": [
             {
                 **({"name": item.name} if item.name is not None else {}),
                 "full_path": item.full_path,
-                "MStrength": float(item.strength_model),
-                "CStrength": float(item.strength_clip),
+                "strength_model": float(item.strength_model),
+                "strength_clip": float(item.strength_clip),
                 **({"sha256": item.sha256} if item.sha256 is not None else {}),
-                "toggleOn": bool(item.enabled),
+                "enabled": bool(item.enabled),
             }
             for item in doc.loras
         ],

@@ -53,9 +53,11 @@ function onBtnDelete(event: Event) {
 </template>
 <style scoped>
 td {
-  padding: 4px;
+  padding: 6px 4px;
   text-align: center;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  vertical-align: middle;
+  height: 32px;
 }
 
 .lora-name {
@@ -114,7 +116,6 @@ input.hikaze-reset-chk {
 }
 
 .center-chk {
-  display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;

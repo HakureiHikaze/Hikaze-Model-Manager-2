@@ -4,7 +4,7 @@ Node-side utility package for Hikaze Model Manager 2.
 This package hosts cross-node helpers that are safe to import from ComfyUI nodes.
 """
 
-from .dataclasses import LoRAEntry, LoRAListDocument
+from shared.types.lora_list import LoRAEntry, LoRAListDocument
 from .lora_list_parser import (
     LoRAListParseError,
     dumps_lora_list_json,

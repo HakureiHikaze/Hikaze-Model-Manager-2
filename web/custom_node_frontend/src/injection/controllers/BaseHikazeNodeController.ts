@@ -98,11 +98,6 @@ export class BaseHikazeNodeController {
 
     if (ctx.mode === 'vue') {
       this.ensureFrameMounted(ctx)
-    } else {
-      // Legacy mode: Hook widget click to open simplified editor placeholder
-      this.hookLegacyWidgetClick(PAYLOAD_WIDGET, (current) =>
-        window.prompt('Hikaze Payload (JSON)', current)
-      )
     }
 
     this.injectedMode = ctx.mode

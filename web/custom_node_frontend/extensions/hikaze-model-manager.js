@@ -7,6 +7,7 @@
 // Register all node controllers (side-effect imports).
 import "../src/injection/registerControllers";
 import { HikazeInjectionManager } from "../src/injection/manager";
+import { initSnifferGlobals, primeSnifferPort } from "@shared/util/sniffer_port";
 
 // Inject styles (Vite lib mode extracts CSS to a separate file)
 const cssUrl = new URL("./hikaze-model-manager-2.css", import.meta.url);
@@ -19,6 +20,11 @@ document.head.appendChild(link);
 const EXT_NAME = "Hikaze.ModelManager2";
 
 console.info(`[${EXT_NAME}] loaded`);
+
+const globalRef = globalThis;
+globalRef.__HIKAZE_EMBEDDED__ = true;
+initSnifferGlobals();
+primeSnifferPort();
 
 /**
  * Best-effort accessor for the ComfyUI app instance.

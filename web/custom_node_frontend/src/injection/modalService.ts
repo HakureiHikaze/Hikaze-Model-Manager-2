@@ -1,4 +1,5 @@
 import { ref, readonly } from 'vue'
+import type { LoRAListDocument } from '@shared/types/lora_list'
 
 export interface ModalOptions {
   /**
@@ -14,12 +15,16 @@ export interface ModalOptions {
    */
   title?: string
   /**
+   * Payload JSON string from the node (LoRA selection uses this to hydrate state).
+   */
+  payloadJson?: string
+  /**
    * For multi-select: Pre-selected SHA256 hashes.
    */
   selectedIds?: string[]
 }
 
-export type ModalResult = string | string[] | null
+export type ModalResult = { ckpt_path: string } | LoRAListDocument | null
 
 // Internal state
 const isOpen = ref(false)
@@ -52,7 +57,7 @@ export function openManager(opts: ModalOptions): Promise<ModalResult> {
 
 /**
  * Close the modal and resolve the promise.
- * @param result The value to return (path string, array of paths, or null for cancel).
+ * @param result The value to return (ckpt_path object, LoRAListDocument, or null for cancel).
  */
 export function closeManager(result: ModalResult) {
   isOpen.value = false

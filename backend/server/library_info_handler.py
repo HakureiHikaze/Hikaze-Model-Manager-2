@@ -1,0 +1,223 @@
+import logging
+import sqlite3
+import json
+from aiohttp import web
+from dataclasses import asdict
+
+from backend.database.db import DatabaseManager
+from backend.util.model_type_sniffer import get_model_types
+from shared.types.data_adapters import DataAdapters
+from shared.types.model_record import ModelRecord, Tag
+
+logger = logging.getLogger(__name__)
+
+async def handle_get_model_types(request):
+    """
+    GET /api/models/get_types
+    Return available model type keys.
+    """
+    return web.json_response({"types": list(get_model_types())})
+
+
+async def handle_get_tags(request):
+    """
+    GET /api/tags
+    Return all available tags in the system.
+    """
+    db = DatabaseManager()
+    try:
+        raw_tags = db.get_all_tags()
+        tags = [{"id": t["id"], "name": t["name"]} for t in raw_tags]
+        return web.json_response({"tags": tags})
+    except Exception as e:
+        logger.exception("Error fetching tags")
+        return web.json_response({"error": str(e)}, status=500)
+    
+async def handle_add_tags(request):
+    """
+    POST /api/tags_add
+    Body: { "newtags": ["name1", "name2"] }
+    Returns: { "tags": [{ "id": 1, "name": "name1" }, ...] }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+        
+    new_tags = data.get("newtags")
+    if not isinstance(new_tags, list):
+        return web.json_response({"error": "newtags must be a list"}, status=400)
+        
+    db = DatabaseManager()
+    created_tags = []
+    
+    for name in new_tags:
+        if not isinstance(name, str) or not name.strip():
+            continue
+        
+        name = name.strip()
+        # Try to create
+        try:
+            tag_id = db.create_tag(name)
+            created_tags.append({"id": tag_id, "name": name})
+        except sqlite3.IntegrityError:
+            # Already exists
+            tag_row = db.execute_query("SELECT * FROM tags WHERE name = ?", (name,))
+            if tag_row:
+                created_tags.append({"id": tag_row[0]["id"], "name": tag_row[0]["name"]})
+            else:
+                logger.warning(f"Tag {name} failed creation but not found?")
+        except Exception as e:
+            logger.error(f"Error creating tag {name}: {e}")
+            
+    return web.json_response({"tags": created_tags})    
+
+async def handle_get_models(request):
+    """
+    GET /api/models?type=...
+    List models by type. Returns simplified objects for the library view.
+    """
+    model_type = request.query.get("type")
+    if not model_type:
+        return web.json_response({"error": "type parameter is required"}, status=400)
+
+    db = DatabaseManager()
+    try:
+        if model_type.lower() == "others":
+            system_types = list(get_model_types())
+            placeholders = ", ".join(["?"] * len(system_types))
+            sql = f"""
+            SELECT * FROM models 
+            WHERE type IS NULL 
+               OR type = '' 
+               OR type NOT IN ({placeholders})
+            """
+            raw_models = db.execute_query(sql, tuple(system_types))
+        else:
+            raw_models = db.execute_query("SELECT * FROM models WHERE type = ?", (model_type,))
+            
+        models = []
+        for m in raw_models:
+            m_dict = dict(m)
+            # Handle JSON parsing
+            if isinstance(m_dict.get("meta_json"), str):
+                 try:
+                     m_dict["meta_json"] = json.loads(m_dict["meta_json"])
+                 except:
+                     m_dict["meta_json"] = {}
+            
+            record = DataAdapters.dict_to_model_record(m_dict)
+            
+            # Fetch tags for each model
+            tag_rows = db.get_tags_for_model(record.sha256)
+            record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
+
+            simple = DataAdapters.full_model_to_simple_model(record)
+            
+            simple_dict = asdict(simple)
+            models.append(simple_dict)
+            
+        return web.json_response({"models": models})
+    except Exception as e:
+        logger.exception("Error fetching models")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+
+async def handle_get_model_details(request):
+    """
+    GET /api/models/{sha256}
+    Return full details for a specific model.
+    """
+    sha256 = request.match_info.get("sha256", "")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+
+    db = DatabaseManager()
+    try:
+        record = db.get_model_by_sha256(sha256)
+        if not record:
+            return web.json_response({"error": "Model not found"}, status=404)
+        
+        response_dict = DataAdapters.to_dict(record)
+        
+        return web.json_response(response_dict)
+    except Exception as e:
+        logger.exception(f"Error fetching model details for {sha256}")
+        return web.json_response({"error": str(e)}, status=500)
+    
+async def handle_update_model(request):
+    """
+    PATCH /api/models/{sha256}
+    Body: { "name": "...", "type": "...", "tags": [id1, id2], "meta_json": ... }
+    """
+    sha256 = request.match_info.get("sha256", "")
+    if not sha256:
+        return web.json_response({"error": "sha256 is required"}, status=400)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON body"}, status=400)
+        
+    db = DatabaseManager()
+    
+    # 1. Get existing record
+    record = db.get_model_by_sha256(sha256)
+    if not record:
+        return web.json_response({"error": "Model not found"}, status=404)
+    
+    # 2. Update logic
+    has_changes = False
+    
+    if "name" in data:
+        record.name = data["name"]
+        has_changes = True
+    if "path" in data:
+        record.path = data["path"]
+        has_changes = True
+    if "type" in data:
+        record.type = data["type"]
+        has_changes = True
+    if "meta_json" in data:
+        new_meta = DataAdapters.dict_to_meta_json(data["meta_json"])
+        record.meta_json = new_meta
+        has_changes = True
+            
+    # 3. Apply model updates
+    if has_changes:
+        try:
+            db.upsert_model(record)
+        except Exception as e:
+            logger.error(f"Error updating model {sha256}: {e}")
+            return web.json_response({"error": f"Database update failed: {str(e)}"}, status=500)
+            
+    # 4. Handle Tags
+    if "tags" in data:
+        new_tag_ids = data["tags"]
+        if not isinstance(new_tag_ids, list):
+             return web.json_response({"error": "tags must be a list of IDs"}, status=400)
+             
+        try:
+            current_tags = db.get_tags_for_model(sha256)
+            for t in current_tags:
+                db.untag_model(sha256, t["id"])
+            
+            for tag_id in new_tag_ids:
+                try:
+                    tid = int(tag_id)
+                    db.tag_model(sha256, tid)
+                except ValueError:
+                    pass
+        except Exception as e:
+            logger.error(f"Error updating tags for {sha256}: {e}")
+            return web.json_response({"error": f"Tag update failed: {str(e)}"}, status=500)
+            
+    # 5. Return updated model
+    try:
+        updated_record = db.get_model_by_sha256(sha256)
+        result = DataAdapters.to_dict(updated_record)
+        return web.json_response(result)
+    except Exception as e:
+        logger.exception(f"Error fetching updated model {sha256}")
+        return web.json_response({"error": str(e)}, status=500)

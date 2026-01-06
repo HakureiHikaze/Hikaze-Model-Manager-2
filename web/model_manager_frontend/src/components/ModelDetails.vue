@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import HikazeImageGallery from './HikazeImageGallery.vue'
 import HikazeTagInput from './HikazeTagInput.vue'
 import { 
-  fetchModelDetails, 
   addTags, 
   updateModel 
 } from '../api/models'
-import type { Model, ModelFull } from '../api/models'
+import { useModelCache } from '../cache/models'
+import { useTagsCache } from '../cache/tags'
+import type { Model, ModelFull, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   model?: Model
@@ -15,38 +16,41 @@ const props = defineProps<{
 
 const emit = defineEmits(['update-list'])
 
+const modelCache = useModelCache()
+const tagsCache = useTagsCache()
+
 const localModel = ref<ModelFull | null>(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const descriptionRef = ref<HTMLTextAreaElement | null>(null)
 
-// We parse meta_json to get extended fields
+// UI state for meta fields
 const description = ref('')
 const communityLinks = ref('')
 const positivePrompt = ref('')
 const negativePrompt = ref('')
 
-const loadFullDetails = async (sha256: string) => {
+const loadFullDetails = async (sha256: string, force = false) => {
   isLoading.value = true
   try {
-    const data = await fetchModelDetails(sha256)
-    localModel.value = data
+    await modelCache.loadDetails(sha256, force)
+    const cached = modelCache.getDetails(sha256).value
+    localModel.value = cached ? JSON.parse(JSON.stringify(cached)) : null
     
-    // Parse meta_json for extended fields
-    if (data.meta_json) {
-      try {
-        const meta = JSON.parse(data.meta_json)
-        description.value = meta.description || ''
-        communityLinks.value = meta.community_links || ''
-        positivePrompt.value = meta.prompts?.positive || ''
-        negativePrompt.value = meta.prompts?.negative || ''
-      } catch (e) {
-        console.warn('Failed to parse meta_json', e)
+    // Data is now guaranteed to have these fields via adapters
+    if (localModel.value) {
+      description.value = localModel.value.meta_json.description
+      communityLinks.value = localModel.value.meta_json.community_links
+      positivePrompt.value = localModel.value.meta_json.prompts.positive
+      negativePrompt.value = localModel.value.meta_json.prompts.negative
+      await nextTick()
+      const el = descriptionRef.value
+      if (el) {
+        const width = el.getBoundingClientRect().width
+        if (width > 0) {
+          el.style.height = `${Math.round(width * 1.5)}px`
+        }
       }
-    } else {
-      description.value = ''
-      communityLinks.value = ''
-      positivePrompt.value = ''
-      negativePrompt.value = ''
     }
   } catch (e) {
     console.error('Failed to load model details', e)
@@ -72,47 +76,32 @@ const handleSave = async () => {
     
     // 1. Resolve Tags (New tags have id -1)
     const tagsToResolve = localModel.value.tags
-    const newTagNames = tagsToResolve.filter(t => t.id === -1).map(t => t.name)
-    const existingTagIds = tagsToResolve.filter(t => t.id !== -1).map(t => t.id)
+    const newTagNames = tagsToResolve.filter((t: Tag) => t.id === -1).map((t: Tag) => t.name)
+    const existingTags = tagsToResolve.filter((t: Tag) => t.id !== -1)
     
-    let resolvedTagIds = [...existingTagIds]
+    let finalTags = [...existingTags]
     
     if (newTagNames.length > 0) {
       const createdTags = await addTags(newTagNames)
-      resolvedTagIds = [...resolvedTagIds, ...createdTags.map(t => t.id)]
+      finalTags = [...finalTags, ...createdTags]
+      tagsCache.mergeTags(createdTags)
     }
     
-    // 2. Prepare meta_json
-    let meta: any = {}
-    if (localModel.value.meta_json) {
-      try {
-        meta = JSON.parse(localModel.value.meta_json)
-      } catch {}
-    }
-    meta.description = description.value
-    meta.community_links = communityLinks.value
-    meta.prompts = {
+    // 2. Prepare payload
+    // We update the localModel with UI states
+    localModel.value.tags = finalTags
+    localModel.value.meta_json.description = description.value
+    localModel.value.meta_json.community_links = communityLinks.value
+    localModel.value.meta_json.prompts = {
       positive: positivePrompt.value,
       negative: negativePrompt.value
     }
-    // Clean up removed fields if they exist in legacy data
-    delete meta.trigger_words
-    delete meta.notes
-    
-    // 3. Update Model
-    // We pass tags as number[] to a specialized update object to satisfy the backend expectation
-    // while casting to satisfy TS Partial<ModelFull> intersection
-    const updatePayload: any = {
-      name: localModel.value.name,
-      type: localModel.value.type,
-      tags: resolvedTagIds, // This is expected by backend as number[]
-      meta_json: JSON.stringify(meta)
-    }
 
-    const updated = await updateModel(sha256, updatePayload)
+    const updated = await updateModel(sha256, localModel.value)
     
     // Refresh local state
-    localModel.value = updated
+    modelCache.setDetails(updated)
+    localModel.value = JSON.parse(JSON.stringify(updated))
     emit('update-list') // Notify parent to refresh library view
     alert('Saved successfully!')
   } catch (e) {
@@ -124,7 +113,7 @@ const handleSave = async () => {
 
 const handleRevert = () => {
   if (props.model?.sha256) {
-    loadFullDetails(props.model.sha256)
+    loadFullDetails(props.model.sha256, true)
   }
 }
 
@@ -133,8 +122,6 @@ const openLink = () => {
     window.open(communityLinks.value, '_blank')
   }
 }
-
-
 
 </script>
 
@@ -187,6 +174,7 @@ const openLink = () => {
           placeholder="Model description..." 
           rows="3"
           class="resize-vertical"
+          ref="descriptionRef"
         ></textarea>
       </div>
 
@@ -244,7 +232,7 @@ const openLink = () => {
 
 <style scoped>
 .model-details {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -274,21 +262,12 @@ const openLink = () => {
 }
 
 .details-body {
-  flex: 1;
-  overflow-y: auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding-right: 4px;
-}
-
-/* Custom Scrollbar */
-.details-body::-webkit-scrollbar {
-  width: 4px;
-}
-.details-body::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
+  overflow: visible;
 }
 
 .field-group {

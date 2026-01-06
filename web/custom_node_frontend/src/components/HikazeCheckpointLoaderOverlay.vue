@@ -18,8 +18,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type Ref } from 'vue'
+import { computed, inject, type Ref } from 'vue'
 import HikazeNodeFrame from './HikazeNodeFrame.vue'
+import type { ModalOptions, ModalResult } from '../injection/modalService'
 
 const props = defineProps<{
   nodeId: string | number
@@ -27,6 +28,8 @@ const props = defineProps<{
   commit: (next: string) => void
   title?: string // Passed by controller but optional since we hardcode it for now or use prop
 }>()
+
+const openManager = inject<(opts: ModalOptions) => Promise<ModalResult> | null>('openManager', null)
 
 // Use prop title if available, or hardcode. Frame handles styling.
 // Actually BaseController passes title. Let's use it?
@@ -44,10 +47,25 @@ const currentPath = computed(() => {
   }
 })
 
-function selectPath() {
+async function selectPath() {
+  if (!openManager) {
+    console.warn('openManager is not available')
+    return
+  }
+
+  const result = await openManager({
+    mode: 'single',
+    initialTab: 'checkpoints',
+    title: 'Select Checkpoint'
+  })
+
+  if (!result || typeof result !== 'object' || !('ckpt_path' in result)) {
+    return
+  }
+
+  const next = (result as { ckpt_path: string }).ckpt_path
   const current = currentPath.value
-  const next = window.prompt('Enter absolute checkpoint path', current)
-  if (next != null && next !== current) {
+  if (next && next !== current) {
     props.commit(JSON.stringify({ ckpt_path: next }))
   }
 }

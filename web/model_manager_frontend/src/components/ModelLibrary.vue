@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useModelStore } from '../store/models'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, reactive } from 'vue'
+import { useModelCache } from '../cache/models'
+import { useTagsCache } from '../cache/tags'
+import { useImageCache } from '../cache/images'
 import { useIntersectionObserver } from '../util/intersectionObserver'
-import { fetchTags, fetchImageCount } from '../api/models'
+import type { Model, Tag } from '@shared/types/model_record'
 
 const props = defineProps<{
   activeTab: string
+  selectionMode?: 'lora'
+  selectedIds?: string[]
+  excludeSelected?: boolean
 }>()
-const emit = defineEmits(['select-model'])
+const emit = defineEmits(['select-model', 'toggle-select'])
 
-const modelStore = useModelStore()
+const modelCache = useModelCache()
+const tagsCache = useTagsCache()
+const imageCache = useImageCache()
 
 const viewMode = ref<'card' | 'list'>('card')
 const columnCount = ref(4)
@@ -19,13 +26,16 @@ const showTagFilter = ref(false)
 
 const searchQuery = ref('')
 const tagFilters = ref<Map<number, 'include' | 'exclude'>>(new Map())
+const selectionActive = computed(() => props.selectionMode === 'lora')
+const selectedSet = computed(() => new Set(props.selectedIds ?? []))
 
-const rawModels = modelStore.getModels(computed(() => props.activeTab))
-const isLoading = modelStore.isLoading(computed(() => props.activeTab))
-const error = modelStore.getError(computed(() => props.activeTab))
+const rawModels = modelCache.getModels(computed(() => props.activeTab))
+const isLoading = modelCache.isLoading(computed(() => props.activeTab))
+const error = modelCache.getError(computed(() => props.activeTab))
 
 // Preview cycling state
-const previewState = ref<Map<string, { count: number, current: number, interval: number | null }>>(new Map())
+const previewState = reactive<Record<string, { current: number }>>({})
+const previewIntervals = new Map<string, number>()
 
 // Lazy loading logic
 let observer: IntersectionObserver | null = null
@@ -41,7 +51,7 @@ function setupObserver() {
     // Just check for the first image to determine "loaded" or "error"
     // The actual background image is now bound via :style in template
     const img = new Image()
-    const url = `/api/images/${sha256}.webp?seq=0&quality=medium`
+    const url = imageCache.getImageUrl(sha256, 0, 'medium')
     
     img.onload = () => {
       target.classList.remove('lazy')
@@ -65,41 +75,43 @@ function setupObserver() {
 
 // Preview Cycling Logic
 const startCycling = async (sha256: string) => {
-  if (!previewState.value.has(sha256)) {
-    try {
-      const count = await fetchImageCount(sha256)
-      previewState.value.set(sha256, { count, current: 0, interval: null })
-    } catch {
-      return // Failed to get count
-    }
+  await imageCache.loadImageCount(sha256)
+  const count = imageCache.getImageCount(sha256).value
+  if (count <= 1) return
+
+  if (!previewState[sha256]) {
+    previewState[sha256] = { current: 0 }
   }
 
-  const state = previewState.value.get(sha256)
-  if (!state || state.count <= 1) return
+  const existing = previewIntervals.get(sha256)
+  if (existing) clearInterval(existing)
 
-  // Clear any existing interval just in case
-  if (state.interval) clearInterval(state.interval)
+  const interval = window.setInterval(() => {
+    const state = previewState[sha256]
+    if (!state) return
+    state.current = (state.current + 1) % count
+  }, 1000)
 
-  state.interval = setInterval(() => {
-    state.current = (state.current + 1) % state.count
-  }, 1000) // 1 second per slide
+  previewIntervals.set(sha256, interval)
 }
 
 const stopCycling = (sha256: string) => {
-  const state = previewState.value.get(sha256)
-  if (state && state.interval) {
-    clearInterval(state.interval)
-    state.interval = null
-    state.current = 0 // Reset to first image
+  const interval = previewIntervals.get(sha256)
+  if (interval) {
+    clearInterval(interval)
+    previewIntervals.delete(sha256)
+  }
+
+  if (previewState[sha256]) {
+    previewState[sha256].current = 0
   }
 }
 
 const getPreviewStyle = (sha256: string) => {
-  const state = previewState.value.get(sha256)
+  const state = previewState[sha256]
   const seq = state ? state.current : 0
-  // Cache busting optional here depending on backend caching strategy
   return {
-    backgroundImage: `url(/api/images/${sha256}.webp?seq=${seq}&quality=medium)`
+    backgroundImage: `url(${imageCache.getImageUrl(sha256, seq, 'medium')})`
   }
 }
 
@@ -118,9 +130,24 @@ const onMouseLeave = (id: string) => {
   stopCycling(id)
 }
 
-const selectModel = (model: any) => {
-  emit('select-model', model)
+const emitToggleSelect = (model: Model, nextSelected: boolean) => {
+  emit('toggle-select', model, nextSelected)
 }
+
+const selectModel = (model: Model) => {
+  emit('select-model', model)
+  if (selectionActive.value && model.sha256 && !selectedSet.value.has(model.sha256)) {
+    emitToggleSelect(model, true)
+  }
+}
+
+const toggleSelection = (model: Model, event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (!model.sha256) return
+  emitToggleSelect(model, target.checked)
+}
+
+const allTags = tagsCache.getTags()
 
 onMounted(async () => {
   if (viewMode.value === 'card') {
@@ -129,43 +156,29 @@ onMounted(async () => {
 
   // Auto-exclude NSFW
   try {
-    const tags = await fetchTags()
-    const nsfwTag = tags.find(t => t.name.toLowerCase() === 'nsfw')
+    await tagsCache.loadTags()
+    const nsfwTag = allTags.value.find(t => t.name.toLowerCase() === 'nsfw')
     if (nsfwTag) {
       tagFilters.value.set(nsfwTag.id, 'exclude')
     }
   } catch (e) {
-    console.error('Failed to fetch tags for auto-exclude:', e)
+    console.error('Failed to load tags for auto-exclude:', e)
   }
 })
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
-  // Clear all intervals
-  previewState.value.forEach(state => {
-    if (state.interval) clearInterval(state.interval)
-  })
-})
-
-// ... (existing computed/filter logic) ...
-// Extract unique tags from current models for the filter dropdown
-const availableTags = computed(() => {
-  const tagsMap = new Map<number, string>()
-  rawModels.value.forEach((model: any) => {
-    model.tags.forEach((tag: any) => {
-      tagsMap.set(tag.id, tag.name)
-    })
-  })
-  return Array.from(tagsMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  previewIntervals.forEach((interval) => clearInterval(interval))
+  previewIntervals.clear()
 })
 
 const filteredModels = computed(() => {
-  let result = rawModels.value
+  let result = rawModels.value as Model[]
 
   // Apply search filter
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter((m: any) => 
+    result = result.filter((m: Model) => 
       m.name.toLowerCase().includes(q) || 
       m.path.toLowerCase().includes(q)
     )
@@ -181,8 +194,8 @@ const filteredModels = computed(() => {
       .filter(([_, state]) => state === 'exclude')
       .map(([id]) => id)
 
-    result = result.filter((m: any) => {
-      const modelTagIds = new Set(m.tags.map((t: any) => t.id))
+    result = result.filter((m: Model) => {
+      const modelTagIds = new Set(m.tags.map((t: Tag) => t.id))
       
       // Must have ALL included tags
       const hasAllIncluded = includedIds.every(id => modelTagIds.has(id))
@@ -194,7 +207,34 @@ const filteredModels = computed(() => {
     })
   }
 
+  if (props.excludeSelected && selectedSet.value.size > 0) {
+    result = result.filter((m: Model) => !selectedSet.value.has(m.sha256))
+  }
+
   return result
+})
+
+// Extract unique tags for the filter dropdown, keep selected tags on top.
+const availableTags = computed(() => {
+  const tagCounts = new Map<number, number>()
+  filteredModels.value.forEach((model: Model) => {
+    model.tags.forEach((tag: Tag) => {
+      tagCounts.set(tag.id, (tagCounts.get(tag.id) ?? 0) + 1)
+    })
+  })
+
+  const tagsById = new Map(allTags.value.map((tag) => [tag.id, tag]))
+  const selectedTags: Tag[] = []
+  tagFilters.value.forEach((_, id) => {
+    const tag = tagsById.get(id)
+    if (tag) selectedTags.push(tag)
+  })
+
+  const unselectedTags = allTags.value
+    .filter((tag) => !tagFilters.value.has(tag.id) && (tagCounts.get(tag.id) ?? 0) > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return [...selectedTags, ...unselectedTags]
 })
 
 // Re-setup observer when models or view mode changes
@@ -221,7 +261,9 @@ function clearTags() {
 }
 
 function refresh() {
-  modelStore.loadModels(props.activeTab, true)
+  modelCache.reset()
+  imageCache.resetImageCache()
+  modelCache.loadModels(props.activeTab, true)
 }
 
 const setView = (mode: 'card' | 'list') => {
@@ -291,20 +333,32 @@ const gridStyle = computed(() => {
         {{ error }}
       </div>
       <template v-else-if="viewMode === 'card'">
-        <div 
-          v-for="model in filteredModels" 
-          :key="model.sha256" 
-          class="card-item" 
-          :class="{ 'dense-view': columnCount > 6 }"
-          @click="selectModel(model)"
-          @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
-          @mouseleave="onMouseLeave(model.sha256)"
-        >
           <div 
-            class="card-image lazy" 
-            :data-sha256="model.sha256"
-            :style="getPreviewStyle(model.sha256)"
-          ></div>
+            v-for="model in filteredModels" 
+            :key="model.sha256" 
+            class="card-item" 
+            :class="{ 'dense-view': columnCount > 6 }"
+            @click="selectModel(model)"
+            @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
+            @mouseleave="onMouseLeave(model.sha256)"
+          >
+            <label
+              v-if="selectionActive"
+              class="selection-checkbox"
+              @click.stop
+            >
+              <input
+                type="checkbox"
+                :checked="selectedSet.has(model.sha256)"
+                @click.stop
+                @change="(event) => toggleSelection(model, event)"
+              />
+            </label>
+            <div 
+              class="card-image lazy" 
+              :data-sha256="model.sha256"
+              :style="getPreviewStyle(model.sha256)"
+            ></div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
@@ -330,6 +384,18 @@ const gridStyle = computed(() => {
             class="list-item"
             @click="selectModel(model)"
           >
+            <label
+              v-if="selectionActive"
+              class="list-checkbox"
+              @click.stop
+            >
+              <input
+                type="checkbox"
+                :checked="selectedSet.has(model.sha256)"
+                @click.stop
+                @change="(event) => toggleSelection(model, event)"
+              />
+            </label>
             <div class="list-name">{{ model.name }}</div>
             <div class="list-tags">
               <span v-for="tag in model.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
@@ -342,6 +408,7 @@ const gridStyle = computed(() => {
 </template>
 
 <style scoped>
+/* (styles unchanged) */
 .model-library {
   height: 100%;
   display: flex;
@@ -570,7 +637,7 @@ const gridStyle = computed(() => {
 
 .card-item {
   aspect-ratio: 3/4;
-  border: 1px solid #30363d;
+  border: 2px solid #30363d;
   border-radius: 10px;
   overflow: visible;
   background: #11161c;
@@ -578,6 +645,25 @@ const gridStyle = computed(() => {
   cursor: pointer;
   transition: border-color .15s ease;
   z-index: 1;
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  background: rgba(13, 17, 23, 0.8);
+  border-radius: 6px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-checkbox input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 .card-item:hover {
@@ -721,6 +807,18 @@ const gridStyle = computed(() => {
   border: 1px solid #30363d;
   border-radius: 8px;
   background: #0d1117;
+  cursor: pointer;
+}
+
+.list-checkbox {
+  margin-right: 10px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.list-checkbox input {
+  width: 14px;
+  height: 14px;
   cursor: pointer;
 }
 

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { fetchImageCount, deleteImage } from '../api/models'
+import { deleteImage } from '../api/models'
+import { useImageCache } from '../cache/images'
+import { buildApiUrl } from '@shared/util/sniffer_port'
 
 const props = defineProps<{
   sha256: string
@@ -8,17 +10,20 @@ const props = defineProps<{
 
 const emit = defineEmits(['update'])
 
+const imageCache = useImageCache()
+
 const imageCount = ref(0)
 const currentIndex = ref(0)
 const isLoading = ref(false)
 const isHovering = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-const loadImages = async () => {
+const loadImages = async (force = false) => {
   if (!props.sha256) return
   isLoading.value = true
   try {
-    imageCount.value = await fetchImageCount(props.sha256)
+    await imageCache.loadImageCount(props.sha256, force)
+    imageCount.value = imageCache.getImageCount(props.sha256).value
     // If current index is out of bounds after count update, reset to last available or 0
     if (currentIndex.value >= imageCount.value && imageCount.value > 0) {
       currentIndex.value = imageCount.value - 1
@@ -55,7 +60,8 @@ const handleDelete = async () => {
   
   try {
     await deleteImage(props.sha256, currentIndex.value)
-    await loadImages()
+    imageCache.bumpRevision(props.sha256)
+    await loadImages(true)
     emit('update')
   } catch (e) {
     alert('Failed to delete image')
@@ -78,13 +84,15 @@ const handleUpload = async (e: Event) => {
   formData.append('sha256', props.sha256)
   
   try {
-    const response = await fetch('/api/images/upload', {
+    const url = await buildApiUrl('/api/images/upload')
+    const response = await fetch(url, {
       method: 'POST',
       body: formData
     })
     
     if (response.ok) {
-      await loadImages()
+      imageCache.bumpRevision(props.sha256)
+      await loadImages(true)
       currentIndex.value = imageCount.value - 1 // Go to the new image
       emit('update')
     } else {
@@ -100,7 +108,7 @@ const handleUpload = async (e: Event) => {
 
 // Helper for image URL
 const getImageUrl = (seq: number) => {
-  return `/api/images/${props.sha256}.webp?seq=${seq}&quality=high&t=${Date.now()}` // t for cache busting
+  return imageCache.getImageUrl(props.sha256, seq, 'high')
 }
 </script>
 
@@ -118,8 +126,8 @@ const getImageUrl = (seq: number) => {
         <!-- Navigation Arrows -->
         <transition name="fade">
           <div v-show="isHovering && imageCount > 1" class="nav-controls">
-            <button class="nav-btn prev" @click.stop="prevImage">‹</button>
-            <button class="nav-btn next" @click.stop="nextImage">›</button>
+            <button class="nav-btn prev" @click.stop="prevImage">&#10094;</button>
+            <button class="nav-btn next" @click.stop="nextImage">&#10095;</button>
           </div>
         </transition>
 

@@ -1,5 +1,6 @@
 import { reactive, computed, type ComputedRef } from 'vue';
-import { fetchModels, type Model } from '../api/models';
+import { fetchModels } from '../api/models';
+import type { Model } from '@shared/types/model_record';
 
 type TypeInput = string | ComputedRef<string>;
 
@@ -71,4 +72,3 @@ export function useModelStore() {
       getError
     };
   }
-  

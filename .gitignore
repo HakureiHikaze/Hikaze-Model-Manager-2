@@ -1,6 +1,8 @@
 __pycache__
 *node_modules
 *dist
+!web/dist/
+!web/dist/**
 *.vscode
 *.gemini
 *.pytest_cachedata/

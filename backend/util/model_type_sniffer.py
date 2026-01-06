@@ -151,8 +151,20 @@ def get_model_types() -> tuple[str, ...]:
     """
     Convenience accessor for the tuple of model type keys (filtered).
     """
+    if _INSTANCE.model_types:
+        return _INSTANCE.model_types
 
-    return _INSTANCE.model_types
+    # Fallback: Query DB
+    try:
+        from backend.database.db import DatabaseManager
+        db = DatabaseManager()
+        rows = db.execute_query("SELECT DISTINCT type FROM models WHERE type IS NOT NULL AND type != ''")
+        types = [r["type"] for r in rows]
+        types.sort()
+        return tuple(types)
+    except Exception as e:
+        logger.warning(f"Failed to fetch types from DB fallback: {e}")
+        return ()
 
 
 def get_model_paths(type_name: str) -> tuple[str, ...]:

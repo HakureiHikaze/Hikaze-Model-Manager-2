@@ -1,0 +1,174 @@
+﻿# Job: manual-discrepancies-refactor
+
+## Phase 1: 用户批示与问题分析
+- [x] 任务: 收集/确认 manual_discrepancies.md 中每条用户批示
+- [x] 任务: 基于批示定位相关代码问题与原因，并告知用户
+- [x] 用户手动验证
+
+## Phase 2: 冗余与冲突分析
+- [x] 任务: 分端分析冗余设计、冗余代码与冲突代码（管理前端/节点前端/后端节点/后端服务）
+- [x] 任务: 汇总问题并告知用户
+- [x] 用户手动验证
+
+## Phase 3: 交互式重构设计
+- [x] 任务: 管理器前端重构
+  - [x] 条目: 标签数据来源统一（ModelLibrary/HikazeTagInput -> store）
+  - [x] 条目: 图片数量与预览轮播的缓存/复用策略
+  - [x] 条目: 预览轮播的响应式刷新修复
+  - [x] 条目: 标签过滤规则（已选标签置顶强制显示、0 结果标签隐藏）
+  - [x] 条目: store 显式重置接口（支持 pending promotion mode）
+- [x] 任务: 节点前端重构
+  - [x] 条目: ManagerModal 去除硬编码 tabs，改用管理端布局逻辑
+  - [x] 条目: ManagerModal 向 ModelLibrary/ModelDetails 传递所需上下文
+  - [x] 条目: Checkpoint/LoRA 选择按钮接入 openManager（embedded + initialTab）
+  - [x] 条目: legacy 模式仅保留原生控件，不触发 prompt
+  - [x] 条目: LoRA 列表按钮列行高与样式修复
+- [x] 任务: 后端服务重构
+  - [x] 条目: router 重复路由注册清理（tags/images/models）
+  - [x] 条目: images_handler 文档/路径命名一致性修复
+- [x] 任务: 共享接口重构
+  - [x] 条目: shared 与 web/shared 的 LoRA 数据结构镜像统一（version 默认 2）
+  - [x] 条目: LoRA 字段命名统一为下划线版本
+  - [x] 条目: LoRA 解析与工具迁移到 shared 的 loras.ts 并替换引用
+  - [x] 条目: 修复 nodes/util/__init__.py 的无效引用
+  - [x] 条目: 后端 LoRA loader 使用统一解析器
+- [x] 用户手动验证
+
+## Phase 4: 计划代码更改
+- [x] 任务: 管理器前端重构计划
+  - [x] 条目: 标签数据来源统一（ModelLibrary/HikazeTagInput -> store）
+    - 计划: 新建 `web/model_manager_frontend/src/cache/models.ts` 或 `web/model_manager_frontend/src/cache/tags.ts`，集中维护 tags 缓存（load/get/reset）。
+    - 计划: `web/model_manager_frontend/src/components/ModelLibrary.vue` 与 `web/model_manager_frontend/src/components/HikazeTagInput.vue` 改为从 cache 读取 tags，并在 App/布局层触发首次加载。
+    - 风险: tags 首次加载与 NSFW 自动排除逻辑需保持一致；失败时回退为空列表。
+  - [x] 条目: 图片数量与预览轮播的缓存/复用策略
+    - 计划: 在 cache 中新增 `imageCountBySha` 与预览 URL/Blob 缓存（内存 Map + 可选 CacheStorage/LRU）。
+    - 计划: `web/model_manager_frontend/src/components/ModelLibrary.vue` 与 `web/model_manager_frontend/src/components/HikazeImageGallery.vue` 统一走缓存接口，避免 hover 时重复请求。
+    - 风险: 现有 `t=Date.now()` 会破坏缓存命中，需要按刷新场景有选择地 bust。
+  - [x] 条目: 预览轮播的响应式刷新修复
+    - 计划: 用 `reactive` 记录 `previewIndexBySha`，替换 Map 内部对象突变；定时器只更新响应式字段。
+    - 计划: 清理间隔定时器与 observer，确保 tab/组件卸载时不泄漏。
+  - [x] 条目: 标签过滤规则（已选标签置顶强制显示、0 结果标签隐藏）
+    - 计划: `availableTags` 改为来源于 cache 的全量 tags，按结果集过滤，并把已选标签置顶保留。
+    - 计划: 过滤逻辑先基于搜索/标签条件计算结果，再生成可用标签列表。
+  - [x] 条目: store 显式重置接口（支持 pending promotion mode）
+    - 计划: cache 提供 `reset()`/`invalidate(mode)`，清空 models/详情/图片计数/标签等缓存。
+    - 计划: `ModelLibrary` 的 refresh 与 pending promotion 操作完成后触发 reset + 当前 tab 重拉。
+- [x] 任务: 节点前端重构计划
+  - [x] 条目: ManagerModal 去除硬编码 tabs，改用管理端布局逻辑
+    - 计划: `web/custom_node_frontend/src/components/HikazeManagerModal.vue` 复用 `HikazeManagerLayout` 的 `library` slot，删除硬编码 tabs。
+    - 计划: 与 `web/model_manager_frontend/src/App.vue` 对齐：在 modal 内维护 `selectedModel` 状态。
+  - [x] 条目: ManagerModal 向 ModelLibrary/ModelDetails 传递所需上下文
+    - 计划: `ModelLibrary` 传入 `activeTab`，并接收 `select-model` 回调；`ModelDetails` 传入 `model` 与 `update-list`。
+  - [x] 条目: Checkpoint/LoRA 选择按钮接入 openManager（embedded + initialTab）
+    - 计划: `HikazeCheckpointLoaderOverlay.vue`/`HikazeLoraPowerLoaderOverlay.vue` 使用 `openManager`，并按结果写回 payload。
+    - 计划: `web/custom_node_frontend/src/injection/modalService.ts` 更新 ModalResult 类型（ckpt_path 对象或 LoRAListDocument）。
+  - [x] 条目: legacy 模式仅保留原生控件，不触发 prompt
+    - 计划: `web/custom_node_frontend/src/injection/controllers/BaseHikazeNodeController.ts` 的 legacy 分支改为不弹 prompt，保留默认控件行为。
+  - [x] 条目: LoRA 列表按钮列行高与样式修复
+    - 计划: `web/custom_node_frontend/src/components/HikazeLoraListElement.vue` 与 `HikazeLoraPowerLoaderOverlay.vue` 调整 table 行高/line-height/vertical-align。
+- [x] 任务: 后端服务重构计划
+  - [x] 条目: router 重复路由注册清理（tags/images/models）
+    - 计划: `backend/server/router.py` 移除重复 `add_get/add_post`，保留前端实际使用的规范路径。
+    - 风险: 可能影响外部调用的旧路径；如需兼容可留一条 alias 但不重复注册同一 handler。
+  - [x] 条目: images_handler 文档/路径命名一致性修复
+    - 计划: `backend/server/images_handler.py` 文档与路由统一为 `/api/images/get_img_count?sha256=...`。
+    - 计划: 移除 `/api/images/get_image_count/{hash}` 等未使用路径，保持前端调用不变。
+- [x] 任务: 共享接口重构计划
+  - [x] 条目: shared 与 web/shared 的 LoRA 数据结构镜像统一（version 默认 2）
+    - 计划: `shared/types/lora_list.py` 与 `web/shared/types/lora_list.ts` 统一字段名与版本默认值（version=2）。
+    - 计划: 保持对 `LoRAs/loras/LoRAList` 兼容解析，输出使用统一字段。
+  - [x] 条目: LoRA 字段命名统一为下划线版本
+    - 计划: 前后端解析/序列化统一 `full_path/strength_model/strength_clip/enabled`。
+  - [x] 条目: LoRA 解析与工具迁移到 shared 的 loras.ts 并替换引用
+    - 计划: 将 `web/custom_node_frontend/src/util/lora.ts` 迁移合并到 `web/shared/adapters/loras.ts`，统一 parse/stringify。
+    - 计划: `HikazeLoraPowerLoaderOverlay.vue` 改为使用 shared adapter；旧 util 移除或仅保留 re-export。
+  - [x] 条目: 修复 nodes/util/__init__.py 的无效引用
+    - 计划: `nodes/util/__init__.py` 改为导出 `shared.types.lora_list` 与 `nodes.util.lora_list_parser`，移除不存在的 `.dataclasses`。
+  - [x] 条目: 后端 LoRA loader 使用统一解析器
+    - 计划: `nodes/util/lora_list_parser.py` 接入统一 schema（version=2），`nodes/lora_power_loader.py` 使用解析器并遍历统一字段。
+- [x] 任务: 形成可执行改动计划（文件/模块/顺序/风险）
+  - 计划顺序: 共享接口与解析器 -> 后端路由/接口 -> 管理端 cache 替换 -> 节点前端 modal/openManager -> 样式修复。
+  - 依赖: pending 详情 API 完成后再改 cache/pending 逻辑；LoRA 解析迁移完成后再改节点返回值。
+  - 主要风险: cache 替换导致列表/详情更新时序问题；LoRA schema 变更需兼容旧 JSON；路由清理可能影响外部调用。
+- [x] 用户手动验证
+
+## Phase 5: 实施代码更改
+- [x] 任务: 管理器前端重构实施记录
+  - [x] 步骤: 标签数据来源统一（ModelLibrary/HikazeTagInput -> store）
+    - [x] 改动: 新建 `web/model_manager_frontend/src/cache/tags.ts`，提供 tags 的 load/get/reset 接口。
+    - [x] 改动: `web/model_manager_frontend/src/components/ModelLibrary.vue` 改用 tags cache（含 NSFW 自动排除逻辑）。
+    - [x] 改动: `web/model_manager_frontend/src/components/HikazeTagInput.vue` 改用 tags cache 作为候选来源。
+    - [x] 改动: `web/model_manager_frontend/src/components/HikazeManagerLayout.vue` 触发 tags 首次加载。
+  - [x] 步骤: 图片数量与预览轮播的缓存/复用策略
+    - [x] 改动: 新建 `web/model_manager_frontend/src/cache/images.ts`，缓存 image count/preview URL。
+    - [x] 改动: `web/model_manager_frontend/src/components/ModelLibrary.vue` 改用 image cache 获取数量与预览。
+    - [x] 改动: `web/model_manager_frontend/src/components/HikazeImageGallery.vue` 改用 image cache，按需 cache bust。
+  - [x] 步骤: 预览轮播的响应式刷新修复
+    - [x] 改动: `web/model_manager_frontend/src/components/ModelLibrary.vue` 预览状态改为响应式结构，避免 Map 内部突变失效。
+    - [x] 改动: 清理轮播 interval 与 observer，确保切换/卸载不泄漏。
+  - [x] 步骤: 标签过滤规则（已选标签置顶强制显示、0 结果标签隐藏）
+    - [x] 改动: `web/model_manager_frontend/src/components/ModelLibrary.vue` 可用标签基于 tags cache + 当前结果集过滤。
+    - [x] 改动: 已选标签置顶，0 结果标签隐藏的排序/过滤逻辑更新。
+  - [x] 步骤: store 显式重置接口（支持 pending promotion mode）
+    - [x] 改动: 新建 `web/model_manager_frontend/src/cache/models.ts`（替代 `store/models.ts`），提供 load/get/reset/invalidate。
+    - [x] 改动: `web/model_manager_frontend/src/components/HikazeManagerLayout.vue` 与 `ModelLibrary.vue` 改用 models cache。
+    - [x] 改动: `web/model_manager_frontend/src/components/ModelLibrary.vue` 的 refresh 调用 cache.reset 并重载当前 tab。
+    - [x] 改动: `web/model_manager_frontend/src/cache/models.ts` 修复列表空值保护与类型收敛，解决 build 报错。
+    - [x] 改动: pending promotion 完成处补充 cache.reset 调用（暂缓实现，已记录 not_implemented）。
+- [x] 任务: 节点前端重构实施记录
+  - [x] 步骤: ManagerModal 去除硬编码 tabs，改用管理端布局逻辑
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeManagerModal.vue` 移除硬编码 tabs 与 nav slot。
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeManagerModal.vue` 仅使用 `HikazeManagerLayout` 默认 header 逻辑。
+  - [x] 步骤: ManagerModal 向 ModelLibrary/ModelDetails 传递所需上下文
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeManagerModal.vue` 增加 `selectedModel` 与 `handleSelectModel`。
+    - [x] 改动: `ModelLibrary` 传入 `activeTab` 并接收 `select-model`；`ModelDetails` 传入 `model`。
+  - [x] 步骤: Checkpoint/LoRA 选择按钮接入 openManager（embedded + initialTab）
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeCheckpointLoaderOverlay.vue` 注入 `openManager`，返回 `{"ckpt_path": "..."}`
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeLoraPowerLoaderOverlay.vue` 注入 `openManager`，返回 `LoRAListDocument`。
+    - [x] 改动: `web/custom_node_frontend/src/injection/modalService.ts` 更新 `ModalResult` 类型。
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeManagerModal.vue` 在确认时 `closeManager(result)`。
+  - [x] 步骤: legacy 模式仅保留原生控件，不触发 prompt
+    - [x] 改动: `web/custom_node_frontend/src/injection/controllers/BaseHikazeNodeController.ts` 移除 legacy prompt hook。
+  - [x] 步骤: LoRA 列表按钮列行高与样式修复
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeLoraListElement.vue` 调整行高/对齐样式。
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeLoraPowerLoaderOverlay.vue` 表格样式同步修正。
+- [x] 任务: 后端服务重构实施记录
+  - [x] 步骤: router 重复路由注册清理（tags/images/models）
+    - [x] 改动: `backend/server/router.py` 删除重复路由注册，保留前端实际使用的路径。
+  - [x] 步骤: images_handler 文档/路径命名一致性修复
+    - [x] 改动: `backend/server/images_handler.py` 文档注释统一为 `/api/images/get_img_count`。
+    - [x] 改动: `backend/server/router.py` 仅保留 `/api/images/get_img_count` 的路由定义。
+- [x] 任务: 共享接口重构实施记录
+  - [x] 步骤: shared 与 web/shared 的 LoRA 数据结构镜像统一（version 默认 2）
+    - [x] 改动: `shared/types/lora_list.py` 统一字段与默认值（version=2）。
+    - [x] 改动: `web/shared/types/lora_list.ts` 对齐字段与默认值。
+  - [x] 步骤: LoRA 字段命名统一为下划线版本
+    - [x] 改动: `web/shared/adapters/loras.ts` 统一字段名并保留旧字段兼容。
+  - [x] 步骤: LoRA 解析与工具迁移到 shared 的 loras.ts 并替换引用
+    - [x] 改动: `web/custom_node_frontend/src/util/lora.ts` 的 parse/stringify 迁移到 `web/shared/adapters/loras.ts`。
+    - [x] 改动: `web/custom_node_frontend/src/components/HikazeLoraPowerLoaderOverlay.vue` 改用 shared adapter。
+    - [x] 改动: 旧 `web/custom_node_frontend/src/util/lora.ts` 删除或保留 re-export。
+  - [x] 步骤: 修复 nodes/util/__init__.py 的无效引用
+    - [x] 改动: `nodes/util/__init__.py` 修正导出来源，移除不存在的 `.dataclasses`。
+  - [x] 步骤: 后端 LoRA loader 使用统一解析器
+    - [x] 改动: `nodes/util/lora_list_parser.py` 支持 version=2 与 `loras` 字段解析。
+    - [x] 改动: `nodes/lora_power_loader.py` 使用解析器并遍历统一字段。
+- [x] 任务: 自定义节点未显示问题排查/修复
+  - [x] 步骤: 分析 ComfyUI 自定义节点加载与 category 生成流程
+  - [x] 步骤: 初步推测未呈现分组/节点的原因
+  - [x] 步骤: 确认错误日志与定位具体失败点
+  - [x] 步骤: 实施修复并验证
+    - [x] 改动: `shared/types/lora_list.py` 修复 dataclass 默认字段顺序，避免导入失败。
+    - [x] 改动: 重启 ComfyUI 验证节点分组/节点可见性。
+    - [x] 结果: 节点分组/Checkpoint Loader 正常；LoRA Power Loader 设计暂缓实现。
+- [x] 任务: 端口嗅探配置与前端接入
+  - [x] 步骤: 移除 data/config.json/sniffer_config，改为 ComfyUI 路由直读端口
+  - [x] 步骤: 后端端口保留在内存（HikazeServer.port），不再做文件交换
+  - [x] 步骤: 后端允许跨端口访问（CORS）
+  - [x] 步骤: ComfyUI 侧新增 sniffer 端口读取接口
+  - [x] 步骤: 前端轮询端口并缓存，全局 API base 注入到请求与图片 URL
+  - [x] 步骤: 重启 ComfyUI 验证端口注入与请求可用
+  - 备注: 用户确认多数可见功能运作正常，待确认剩余异常点
+- [x] 任务: 按计划实施改动
+- [x] 任务: 更新相关记录（如 manual_discrepancies.md）
+- [x] 用户手动验证

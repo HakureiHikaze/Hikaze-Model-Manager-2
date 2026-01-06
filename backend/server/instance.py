@@ -12,6 +12,18 @@ from .router import setup_routes
 
 logger = logging.getLogger(__name__)
 
+
+@web.middleware
+async def cors_middleware(request: web.Request, handler):
+    if request.method == "OPTIONS":
+        response = web.Response()
+    else:
+        response = await handler(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, PUT, PATCH, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
 class PortFinder:
     @staticmethod
     def find_free_port(base_port: int, max_tries: int = 10) -> int:
@@ -21,13 +33,13 @@ class PortFinder:
         if base_port == 0:
             # Let the OS pick a free port
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(("127.0.0.1", 0))
+                s.bind(("0.0.0.0", 0))
                 return s.getsockname()[1]
 
         for port in range(base_port, base_port + max_tries):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
-                    s.bind(("127.0.0.1", port))
+                    s.bind(("0.0.0.0", port))
                     return port
                 except OSError:
                     logger.debug(f"Port {port} is occupied, trying next...")
@@ -36,7 +48,7 @@ class PortFinder:
         raise RuntimeError(f"Could not find a free port in range {base_port} to {base_port + max_tries - 1}")
 
 class HikazeServer(threading.Thread):
-    def __init__(self, host: str = "127.0.0.1", port: int = 8189):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8189):
         super().__init__(daemon=True)
         self.host = host
         self.base_port = port
@@ -46,7 +58,7 @@ class HikazeServer(threading.Thread):
         self.runner: Optional[web.AppRunner] = None
 
     def create_app(self) -> web.Application:
-        app = web.Application()
+        app = web.Application(middlewares=[cors_middleware])
         setup_routes(app)
         return app
 
