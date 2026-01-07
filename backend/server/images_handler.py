@@ -1,7 +1,9 @@
 import logging
 import os
-from backend.util.image_processor import ImageProcessor
 from aiohttp import web
+from backend.database.db import DatabaseManager
+from backend.util import config
+from backend.util.image_processor import ImageProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,28 @@ async def handle_get_pending_image(request):
     quality = request.query.get("quality", "high")
     
     path = ImageProcessor.get_image_path(name, quality=quality, is_pending=True)
+    if os.path.exists(path):
+        return web.FileResponse(path)
+    return web.Response(status=404, text="Pending image not found")
+
+async def handle_get_pending_image_by_id(request):
+    """
+    Serve a pending image by model ID (original size).
+    URL: /api/images/pending/{id}
+    """
+    raw_id = request.match_info.get("id", "")
+    try:
+        item_id = int(raw_id)
+    except ValueError:
+        return web.json_response({"error": "id must be an integer"}, status=400)
+
+    db = DatabaseManager()
+    record = db.get_pending_model_by_id(item_id)
+    if not record or not record.meta_json or not record.meta_json.images:
+        return web.Response(status=404, text="Pending image not found")
+
+    filename = os.path.basename(str(record.meta_json.images[0]))
+    path = os.path.join(config.PENDING_IMAGES_DIR, filename)
     if os.path.exists(path):
         return web.FileResponse(path)
     return web.Response(status=404, text="Pending image not found")

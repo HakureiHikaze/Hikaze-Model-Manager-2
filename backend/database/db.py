@@ -105,7 +105,10 @@ class DatabaseManager:
             except:
                 m_dict["meta_json"] = {}
 
-        return DataAdapters.dict_to_pending_model_record(m_dict)
+        record = DataAdapters.dict_to_pending_model_record(m_dict)
+        tag_rows = self.get_tags_for_pending_model(item_id)
+        record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
+        return record
 
     def get_tag_names(self, tag_ids: List[int]) -> Dict[int, str]:
         """Resolve a list of Tag IDs to their names."""
@@ -214,6 +217,13 @@ class DatabaseManager:
             JOIN model_tags mt ON t.id = mt.tag_id
             WHERE mt.model_hash = ?
         """, (model_hash,))
+
+    def get_tags_for_pending_model(self, model_id: int) -> List[sqlite3.Row]:
+        return self.execute_query("""
+            SELECT t.* FROM tags t
+            JOIN pending_model_tags pmt ON t.id = pmt.tag_id
+            WHERE pmt.model_id = ?
+        """, (model_id,))
 
     def get_all_tags(self) -> List[sqlite3.Row]:
         return self.execute_query("SELECT * FROM tags ORDER BY name")

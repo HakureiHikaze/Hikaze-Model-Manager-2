@@ -9,7 +9,7 @@ from backend.database.db import DatabaseManager
 from backend.util import hasher, config
 from backend.util.image_processor import ImageProcessor
 from backend.database.migration.legacy_database_adapter import LegacyDatabaseAdapter
-from shared.types.model_record import ModelRecord, PendingModelRecord
+from shared.types.model_record import ModelRecord, PendingModelRecord, Tag
 from shared.types.data_adapters import DataAdapters
 
 logger = logging.getLogger(__name__)
@@ -118,12 +118,22 @@ class MigrationService:
                     except:
                         m_dict["meta_json"] = {}
                 record = DataAdapters.dict_to_pending_model_record(m_dict)
+                tag_rows = db.get_tags_for_pending_model(record.id)
+                record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
                 simple = DataAdapters.full_pending_to_simple_pending(record)
                 models.append(asdict(simple))
             return models
         except Exception as e:
             logger.exception("Error fetching pending models in service")
             raise
+
+    @staticmethod
+    def get_pending_model_details(item_id: int) -> Optional[PendingModelRecord]:
+        """
+        Fetch a PendingModelRecord by ID with tags.
+        """
+        db = DatabaseManager()
+        return db.get_pending_model_by_id(item_id)
 
     @staticmethod
     def promote_pending_models(ids: List[int], conflict_strategy: Optional[str] = None) -> dict:

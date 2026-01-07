@@ -1,4 +1,4 @@
-import type { Model, PendingModelSimpleRecord } from './model_record';
+import type { Model, PendingModelRecord, PendingModelSimpleRecord } from './model_record';
 import type { Tag } from './common';
 
 export interface ModelTypesResponse {
@@ -20,6 +20,8 @@ export interface ImageCountResponse {
 export interface PendingModelsResponse {
   models: PendingModelSimpleRecord[];
 }
+
+export type PendingModelDetailsResponse = PendingModelRecord;
 
 export interface MigrationReport {
   status: 'success' | 'failed';

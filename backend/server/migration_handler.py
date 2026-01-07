@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import asdict
 from aiohttp import web
 
 from backend.database.migration.service import MigrationService
@@ -39,6 +40,28 @@ async def handle_get_pending_models(request):
         return web.json_response({"models": models})
     except Exception as e:
         logger.exception("Error fetching pending models in handler")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_pending_model(request):
+    """
+    GET /api/migration/pending_model?id=<id>
+    Return a PendingModelRecord by ID.
+    """
+    raw_id = request.query.get("id")
+    if raw_id is None:
+        return web.json_response({"error": "id is required"}, status=400)
+    try:
+        item_id = int(raw_id)
+    except ValueError:
+        return web.json_response({"error": "id must be an integer"}, status=400)
+
+    try:
+        record = MigrationService.get_pending_model_details(item_id)
+        if not record:
+            return web.json_response({"error": "Pending model not found"}, status=404)
+        return web.json_response(asdict(record))
+    except Exception as e:
+        logger.exception("Error fetching pending model in handler")
         return web.json_response({"error": str(e)}, status=500)
 
 async def handle_import_models(request):

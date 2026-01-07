@@ -7,6 +7,7 @@ import { useTagsCache } from '../cache/tags';
 const props = defineProps<{
   embedded?: boolean;
   initialTab?: string;
+  mode?: 'active' | 'pending';
 }>()
 
 const modelCache = useModelCache();
@@ -102,7 +103,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="hikaze-layout" :class="{ 'is-embedded': embedded, 'has-initial-tab': !!initialTab }" :style="{ gridTemplateColumns: `1fr 4px ${detailsWidthPct}%` }">
+  <div
+    class="hikaze-layout"
+    :class="{
+      'is-embedded': embedded,
+      'has-initial-tab': !!initialTab,
+      'is-pending': mode === 'pending'
+    }"
+    :style="{ gridTemplateColumns: `1fr 4px ${detailsWidthPct}%` }"
+  >
     <!-- Top Navigation (Tabs) - Only visible if NOT embedded AND NO initialTab -->
     <header class="hikaze-header" v-if="!embedded && !initialTab">
       <div v-if="isLoading" class="tabs-loading">
@@ -122,6 +131,7 @@ onMounted(() => {
           {{ type }}
         </div>
       </nav>
+      <div v-if="mode === 'pending'" class="mode-indicator">Pending Mode</div>
     </header>
 
     <!-- Main Content Area (Library) -->
@@ -151,6 +161,13 @@ onMounted(() => {
   overflow: hidden;
   background-color: var(--color-bg-primary, #0f1115);
   color: var(--color-text-primary, #c9d1d9);
+  --hikaze-accent: #238636;
+  --hikaze-accent-border: #2ea043;
+}
+
+.hikaze-layout.is-pending {
+  --hikaze-accent: #d29922;
+  --hikaze-accent-border: #b0881b;
 }
 
 /* Header spans full width */
@@ -173,6 +190,19 @@ onMounted(() => {
   white-space: nowrap; /* Prevent tabs from wrapping */
 }
 
+.mode-indicator {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(210, 153, 34, 0.2);
+  color: #f0f6fc;
+  border: 1px solid rgba(210, 153, 34, 0.6);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
 .type-tabs .tab {
   padding: 6px 12px;
   border: 1px solid #30363d;
@@ -192,8 +222,8 @@ onMounted(() => {
 }
 
 .type-tabs .tab.active {
-  background: #238636;
-  border-color: #2ea043;
+  background: var(--hikaze-accent);
+  border-color: var(--hikaze-accent-border);
   color: #fff;
 }
 

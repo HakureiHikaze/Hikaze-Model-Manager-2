@@ -2,12 +2,13 @@
 
 ## Guiding Principles
 
-1. **The Plan is the Source of Truth:** All work must be tracked in `plan.md`
+1. **The Job File is the Source of Truth:** All work must be tracked in `.codex/jobs/<job>/<job>.md`
 2. **The Tech Stack is Deliberate:** Changes to the tech stack must be documented in `tech-stack.md` *before* implementation
 3. **User Experience First:** Every decision should prioritize user experience
 4. **Non-Interactive & CI-Aware:** Prefer non-interactive commands.
 5. **Branch Out:** Branch out from the main development branch before starting the entire agent development process.
-6. **No Automatic Testing:** Do NOT execute any automatic unit tests (e.g., `pytest`, `npm test`). All testing, including writing and verifying tests, is the exclusive responsibility of the human developer. The agent must strictly rely on manual verification steps provided to the user. **Exception:** You MUST run build commands (e.g., `npm run build`) to verify compilation/transpilation as part of the implementation process.
+6. **No Automatic Testing:** Do NOT execute any automatic unit tests (e.g., `pytest`, `npm test`). All testing, including writing and verifying tests, is the exclusive responsibility of the human developer. The agent must strictly rely on manual verification steps provided to the user. **Exception:** You MUST run build commands (e.g., `npm run build`) at phase completion, before user verification, and fix any build errors first.
+7. **Evidence-Based Claims:** When stating code behavior or structure, cite the exact file path and relevant lines or command output.
 
 ## Task Workflow
 
@@ -15,14 +16,14 @@ All tasks follow a strict lifecycle:
 
 ### Standard Task Workflow
 
-1. **Select Task:** Choose the next available task from `plan.md` in sequential order
+1. **Select Task:** Choose the next available task from the active job file (`.codex/jobs/<job>/<job>.md`) in sequential order
 
-2. **Mark In Progress:** Before beginning work, edit `plan.md` and change the task from `[ ]` to `[~]`
+2. **Mark In Progress:** Before beginning work, edit the active job file and change the task from `[ ]` to `[~]`
 
 3. **Implement Task:**
    - Write the application code necessary to fulfill the task requirements.
    - Ensure the implementation aligns with the tech stack and product guidelines.
-   - **Critical for TypeScript/Frontend:** After completing development, you MUST run `npm run build` to verify the build passes. Analyze and fix any build errors immediately.
+   - Do not run build commands per task; builds are executed at phase completion before user verification.
 
 4. **Document Deviations:** If implementation differs from tech stack:
    - **STOP** implementation
@@ -30,19 +31,23 @@ All tasks follow a strict lifecycle:
    - Add dated note explaining the change
    - Resume implementation
 
-5. **Update Plan:**
-   - Read `plan.md`, find the line for the completed task.
+5. **Update Job File:**
+   - Read the active job file, find the line for the completed task.
    - Update its status from `[~]` to `[x]`.
    - **Do NOT commit yet.** Commits are performed at the end of the phase.
 
 ### Phase Completion Verification and Checkpointing Protocol
 
-**Trigger:** This protocol is executed immediately after a task is completed that also concludes a phase in `plan.md`.
+**Trigger:** This protocol is executed immediately after a task is completed that also concludes a phase in the active job file.
 
 1.  **Announce Protocol Start:** Inform the user that the phase is complete and the verification and checkpointing protocol has begun.
 
-2.  **Propose a Detailed, Actionable Manual Verification Plan:**
-    -   **CRITICAL:** To generate the plan, first analyze `product.md`, `product-guidelines.md`, and `plan.md` to determine the user-facing goals of the completed phase.
+2.  **Run Build Before User Verification:**
+    - For any frontend/TypeScript work in the phase, run the build commands (e.g., `npm run build`).
+    - **Fix all build errors immediately** before moving on to user verification.
+
+3.  **Propose a Detailed, Actionable Manual Verification Plan:**
+    -   **CRITICAL:** To generate the plan, first analyze `product.md`, `product-guidelines.md`, and the active job file to determine the user-facing goals of the completed phase.
     -   You **must** generate a step-by-step plan that walks the user through the verification process, including any necessary commands and specific, expected outcomes.
     -   The plan you present to the user **must** follow this format:
 
@@ -77,35 +82,36 @@ All tasks follow a strict lifecycle:
         4. **Verify Active Catalog:** Verify the model now appears in the `models` table with a valid SHA256.
         ```
 
-3.  **Await Explicit User Feedback:**
+4.  **Await Explicit User Feedback:**
     -   After presenting the detailed plan, ask the user for confirmation: "**Does this meet your expectations? Please confirm with yes or provide feedback on what needs to be changed.**"
     -   **PAUSE** and await the user's response. Do not proceed without an explicit yes or confirmation.
 
-4.  **Create Checkpoint Commit:**
+5.  **Create Checkpoint Commit:**
     -   Stage all changes. If no changes occurred in this step, proceed with an empty commit.
-    -   Perform the commit with a clear and concise message (e.g., `conductor(checkpoint): Checkpoint end of Phase X`).
+    -   Perform the commit with a clear and concise message (e.g., `codex(checkpoint): Checkpoint end of Phase X`).
 
-5.  **Attach Auditable Verification Report using Git Notes:**
+6.  **Attach Auditable Verification Report using Git Notes:**
     -   **Step 5.1: Draft Note Content:** Create a detailed verification report including the manual verification steps and the user's confirmation.
     -   **Step 5.2: Attach Note:** Use the `git notes` command and the full commit hash from the previous step to attach the full report to the checkpoint commit.
 
-6.  **Get and Record Phase Checkpoint SHA:**
+7.  **Get and Record Phase Checkpoint SHA:**
     -   **Step 6.1: Get Commit Hash:** Obtain the hash of the *just-created checkpoint commit* (`git log -1 --format="%H"`).
-    -   **Step 6.2: Update Plan:** Read `plan.md`, find the heading for the completed phase, and append the first 7 characters of the commit hash in the format `[checkpoint: <sha>]`.
-    -   **Step 6.3: Write Plan:** Write the updated content back to `plan.md`.
+    -   **Step 6.2: Update Job File:** Read the active job file, find the heading for the completed phase, and append the first 7 characters of the commit hash in the format `[checkpoint: <sha>]`.
+    -   **Step 6.3: Write Job File:** Write the updated content back to the job file.
 
-7. **Commit Plan Update:**
-    - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Commit this change with a descriptive message following the format `conductor(plan): Mark phase '<PHASE NAME>' as complete`.
+8. **Commit Job File Update:**
+    - **Action:** Stage the modified job file.
+    - **Action:** Commit this change with a descriptive message following the format `codex(job): Mark phase '<PHASE NAME>' as complete`.
 
-8.  **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been created, with the detailed verification report attached as a git note.
+9.  **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been created, with the detailed verification report attached as a git note.
 
 ### Quality Gates
 
 Before marking any task complete, verify:
 
 - [ ] Code follows project's code style guidelines (as defined in `code_styleguides/`)
-- [ ] For TS/Frontend tasks: `npm run build` succeeds without errors.
+- [ ] For TS/Frontend work in the phase: run `npm run build` before user verification and resolve any build errors.
+- [ ] Evidence cited for code claims (file paths and/or command output).
 - [ ] All public functions/methods are documented (e.g., docstrings, JSDoc, GoDoc)
 - [ ] Type safety is enforced (e.g., type hints, TypeScript types, Go types)
 - [ ] Works correctly on mobile (if applicable)
@@ -118,14 +124,13 @@ Before marking any task complete, verify:
 
 **Purpose:** Document and resolve architectural or implementation gaps discovered during audits or development.
 
-**Location:** `conductor/discrepancies/`
+**Location:** `.codex/manual_discrepancies.md`
 
 **Workflow:**
 1.  **Identify Discrepancy:** During development or audit, identify a gap between design and implementation.
-2.  **Draft Report:** Create a markdown file named `<YYYYMMDD-HHmm>-discrepancies.md` in the current track folder (move to `conductor/discrepancies/` upon completion).
-3.  **Review & Fix:** Discuss findings with the Product Owner. Update the report based on decisions (e.g., "To Fix", "Won't Fix", "Planned").
-4.  **Finalize:** When the analysis is stable (conflicts resolved), rename the file with a `_fixed` suffix (e.g., `...-discrepancies_fixed.md`) and move it to `conductor/discrepancies/`.
-5.  **Reference:** Use these fixed reports as authoritative sources for future refactoring tracks.
+2.  **Draft Report:** Add a section to `.codex/manual_discrepancies.md` with a clear title, evidence, and proposed resolution.
+3.  **Review & Fix:** Discuss findings with the user. Add a user approval line under each item before action.
+4.  **Finalize:** Mark the discrepancy as resolved or deferred, and record follow-up work in the relevant job.
 
 ## Development Commands
 
@@ -218,10 +223,10 @@ A task is complete when:
 
 1. All code implemented to specification
 2. Code passes all configured linting and static analysis checks
-3. **Build Verification:** `npm run build` passes successfully (for frontend/TS tasks).
+3. **Build Verification:** `npm run build` passes successfully before user verification (for frontend/TS phases).
 4. Works beautifully on mobile (if applicable)
-5. Implementation notes added to `plan.md` (if any)
-6. Task marked as `[x]` in `plan.md`
+5. Implementation notes added to the active job file (if any)
+6. Task marked as `[x]` in the active job file
 
 ## Emergency Procedures
 
@@ -229,7 +234,7 @@ A task is complete when:
 1. Create hotfix branch from main
 2. Implement minimal fix
 3. Deploy immediately
-4. Document in plan.md
+4. Document in the active job file
 
 ### Data Loss
 1. Stop all write operations

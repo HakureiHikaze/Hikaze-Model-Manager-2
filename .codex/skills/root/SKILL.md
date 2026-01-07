@@ -23,6 +23,7 @@ Use this skill to govern Codex project work for Hikaze-Model-Manager-2 using the
 - Record new or changed design details in `.codex/guidelines/` during design discussions.
 - Record designed but not implemented items in `.codex/guidelines/not_implemented.md`.
 - Keep all .codex content in Markdown.
+- When stating code or behavior facts, cite evidence (file path + line or command output); avoid assumptions.
 - Use a single file per job to carry phases and tasks.
 - The last task of every phase must be user manual verification.
 - Track branches as indented checklist items; complete same-indent branch items before returning to the parent flow.
@@ -40,10 +41,18 @@ Use `jobs/<job>/<job>.md` with Markdown checklists:
 - [ ] Task: <task>
   - [ ] Branch: <subtask>
   - [ ] Branch: <subtask>
+- [ ] Quality Gates
+  - [ ] Build passes (if applicable)
+  - [ ] Evidence recorded (file refs / command output)
+  - [ ] Docs updated (if needed)
 - [ ] User manual verification
 
 ## Phase 2: <phase-name>
 - [ ] Task: <task>
+- [ ] Quality Gates
+  - [ ] Build passes (if applicable)
+  - [ ] Evidence recorded (file refs / command output)
+  - [ ] Docs updated (if needed)
 - [ ] User manual verification
 ```
 
@@ -52,6 +61,14 @@ Use `jobs/<job>/<job>.md` with Markdown checklists:
 - Treat workflows as the static guidance framework that governs each job and phase.
 - Record workflow branches in the job file as indented checklists.
 - Return to the parent flow after all items at the branch indent are complete.
+
+## Sub-skills
+
+Use specialized skills to reduce context and improve precision when scope is narrow:
+
+- `hikaze-frontend`: Vue/TypeScript/CSS UI work in `web/model_manager_frontend` or `web/custom_node_frontend`.
+- `hikaze-backend`: Python nodes and server work in `nodes/` or `backend/`.
+- `hikaze-api`: API contracts, request/response changes, and frontend-backend integration.
 
 ## Conductor migration (only if requested)
 

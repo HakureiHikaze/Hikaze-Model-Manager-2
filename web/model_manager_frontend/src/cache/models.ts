@@ -1,5 +1,5 @@
 import { reactive, computed, type ComputedRef } from 'vue';
-import { fetchModels, fetchModelDetails, fetchPendingModels } from '../api/models';
+import { fetchModels, fetchModelDetails, fetchPendingModelDetails, fetchPendingModels } from '../api/models';
 import type {
   Model,
   ModelFull,
@@ -149,6 +149,9 @@ function createPendingCache() {
   const cachedModels = reactive<Record<string, PendingModelSimpleRecord[]>>({});
   const loadingTypes = reactive<Record<string, boolean>>({});
   const errorTypes = reactive<Record<string, string | null>>({});
+  const cachedDetails = reactive<Record<string, PendingModelRecord>>({});
+  const loadingDetails = reactive<Record<string, boolean>>({});
+  const errorDetails = reactive<Record<string, string | null>>({});
 
   async function loadModels(type: string, force = false) {
     const key = type || 'pending';
@@ -172,6 +175,31 @@ function createPendingCache() {
     }
   }
 
+  async function loadDetails(id: string, force = false) {
+    const key = String(id || '');
+    if (!key) return;
+    if (cachedDetails[key] && !force) {
+      return;
+    }
+
+    loadingDetails[key] = true;
+    errorDetails[key] = null;
+
+    try {
+      const detail = await fetchPendingModelDetails(Number(key));
+      cachedDetails[key] = detail;
+    } catch (e: any) {
+      console.error(`Error loading pending model details for ${key}:`, e);
+      errorDetails[key] = e?.message || 'Failed to load pending model details';
+    } finally {
+      loadingDetails[key] = false;
+    }
+  }
+
+  function setDetails(detail: PendingModelRecord) {
+    cachedDetails[String(detail.id)] = detail;
+  }
+
   function getModels(type: TypeInput) {
     const key = resolveType(type) || 'pending';
     return computed(() => cachedModels[key] || []);
@@ -187,10 +215,25 @@ function createPendingCache() {
     return computed(() => errorTypes[key] || null);
   }
 
+  function getDetails(id: string) {
+    return computed(() => cachedDetails[String(id)] || null);
+  }
+
+  function isDetailsLoading(id: string) {
+    return computed(() => !!loadingDetails[String(id)]);
+  }
+
+  function getDetailsError(id: string) {
+    return computed(() => errorDetails[String(id)] || null);
+  }
+
   function reset() {
     Object.keys(cachedModels).forEach((key) => delete cachedModels[key]);
     Object.keys(loadingTypes).forEach((key) => delete loadingTypes[key]);
     Object.keys(errorTypes).forEach((key) => delete errorTypes[key]);
+    Object.keys(cachedDetails).forEach((key) => delete cachedDetails[key]);
+    Object.keys(loadingDetails).forEach((key) => delete loadingDetails[key]);
+    Object.keys(errorDetails).forEach((key) => delete errorDetails[key]);
   }
 
   function invalidate(type?: string) {
@@ -210,12 +253,11 @@ function createPendingCache() {
     getError,
     reset,
     invalidate,
-    // Placeholder signatures for parity with active cache.
-    loadDetails: async (_id: string, _force = false) => {},
-    setDetails: (_detail: PendingModelRecord) => {},
-    getDetails: (_id: string) => computed(() => null),
-    isDetailsLoading: (_id: string) => computed(() => false),
-    getDetailsError: (_id: string) => computed(() => null)
+    loadDetails,
+    setDetails,
+    getDetails,
+    isDetailsLoading,
+    getDetailsError
   };
 }
 
