@@ -18,7 +18,7 @@
 - [x] Task: Update `conductor/code_styleguides/` if needed based on `.codex` findings
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Technical Documentation Migration' (Protocol in workflow.md)
 
-## Phase 4: Finalization
+## Phase 4: Finalization [checkpoint: b966468]
 - [x] Task: Final review of all `conductor/` files for consistency and completeness
 - [x] Task: Move final fixed discrepancy report to `conductor/discrepancies/`
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Finalization' (Protocol in workflow.md)
