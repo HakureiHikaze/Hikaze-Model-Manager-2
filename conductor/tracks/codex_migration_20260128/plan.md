@@ -19,6 +19,6 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Technical Documentation Migration' (Protocol in workflow.md)
 
 ## Phase 4: Finalization
-- [ ] Task: Final review of all `conductor/` files for consistency and completeness
-- [ ] Task: Move final fixed discrepancy report to `conductor/discrepancies/`
+- [x] Task: Final review of all `conductor/` files for consistency and completeness
+- [x] Task: Move final fixed discrepancy report to `conductor/discrepancies/`
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Finalization' (Protocol in workflow.md)
