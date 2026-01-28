@@ -6,7 +6,7 @@
 - [x] Task: Document identified discrepancies in `conductor/discrepancies/`
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Context Analysis & Verification' (Protocol in workflow.md)
 
-## Phase 2: Product Documentation Migration
+## Phase 2: Product Documentation Migration [checkpoint: df2bb0d]
 - [x] Task: Update `conductor/product.md` with verified core features and vision
 - [x] Task: Update `conductor/product-guidelines.md` with verified UX and interaction rules
 - [x] Task: Verify updated product docs reflect implementation state (including "Not Implemented" markers)
