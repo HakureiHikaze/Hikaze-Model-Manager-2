@@ -194,21 +194,31 @@ async def handle_update_model(request):
             
     # 4. Handle Tags
     if "tags" in data:
-        new_tag_ids = data["tags"]
-        if not isinstance(new_tag_ids, list):
-             return web.json_response({"error": "tags must be a list of IDs"}, status=400)
-             
+        raw_tags = data["tags"]
+        if not isinstance(raw_tags, list):
+             return web.json_response({"error": "tags must be a list of IDs or tag objects"}, status=400)
+
+        normalized_tag_ids = []
+        for tag in raw_tags:
+            tag_id = None
+            if isinstance(tag, dict):
+                tag_id = tag.get("id")
+            else:
+                tag_id = getattr(tag, "id", tag)
+            try:
+                if tag_id is None:
+                    continue
+                normalized_tag_ids.append(int(tag_id))
+            except (TypeError, ValueError):
+                continue
+
         try:
             current_tags = db.get_tags_for_model(sha256)
             for t in current_tags:
                 db.untag_model(sha256, t["id"])
             
-            for tag_id in new_tag_ids:
-                try:
-                    tid = int(tag_id)
-                    db.tag_model(sha256, tid)
-                except ValueError:
-                    pass
+            for tag_id in normalized_tag_ids:
+                db.tag_model(sha256, tag_id)
         except Exception as e:
             logger.error(f"Error updating tags for {sha256}: {e}")
             return web.json_response({"error": f"Tag update failed: {str(e)}"}, status=500)

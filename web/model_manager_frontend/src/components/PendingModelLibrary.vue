@@ -128,6 +128,9 @@ const toggleSelection = (model: PendingModelSimpleRecord, event: Event) => {
 
 const selectModel = (model: PendingModelSimpleRecord) => {
   emit('select-model', model)
+  if (!selectedSet.value.has(model.id)) {
+    emit('toggle-select', model, true)
+  }
 }
 
 function toggleTag(tagId: number) {

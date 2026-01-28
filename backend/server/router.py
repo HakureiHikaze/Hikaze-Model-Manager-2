@@ -28,6 +28,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/migration/pending_model", handle_get_pending_model)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
     app.router.add_post("/api/migration/import_models", handle_import_models)
+    app.router.add_get("/api/scan", handle_scan_models)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

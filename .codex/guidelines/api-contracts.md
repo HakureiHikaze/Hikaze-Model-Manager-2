@@ -23,6 +23,7 @@ Source: `backend/server/router.py` and handler modules.
 - `GET /api/migration/pending_models` -> `backend/server/migration_handler.py`
 - `POST /api/migration/migrate_legacy_db` -> `backend/server/migration_handler.py`
 - `POST /api/migration/import_models` -> `backend/server/migration_handler.py`
+- `GET /api/scan` -> `backend/server/migration_handler.py`
 
 ### GET /api/migration/pending_models
 - Handler: `backend/server/migration_handler.py`
@@ -41,6 +42,11 @@ Source: `backend/server/router.py` and handler modules.
 - Response (`207`): `BatchPromotionReport`
   - `total`, `success`, `conflict`, `ignored`, `deleted`, `failed`
 - Errors: `400` for invalid JSON or empty `id` array
+
+### GET /api/scan
+- Handler: `backend/server/migration_handler.py`
+- Response: `{ "status": "success", "scanned": number, "added": number, "pending_ids": number[], "skipped": number }`
+- Errors: `503` when model type cache is empty, `500` on server error
 
 ### GET /api/images/pending/{name}.webp
 - Handler: `backend/server/images_handler.py`

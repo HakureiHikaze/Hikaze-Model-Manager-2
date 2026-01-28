@@ -87,3 +87,20 @@ async def handle_import_models(request):
     )
 
     return web.json_response(response, status=207)
+
+
+async def handle_scan_models(request):
+    """
+    GET /api/scan
+    Scan ComfyUI model directories and add missing models to pending_import.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        report = await loop.run_in_executor(None, MigrationService.scan_models_to_pending)
+        if report.get("status") == "error":
+            status_code = int(report.get("status_code", 500))
+            return web.json_response({"error": report.get("error", "Unknown error")}, status=status_code)
+        return web.json_response(report)
+    except Exception as e:
+        logger.exception("Error scanning models")
+        return web.json_response({"error": str(e)}, status=500)
