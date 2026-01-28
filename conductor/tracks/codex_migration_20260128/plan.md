@@ -12,7 +12,7 @@
 - [x] Task: Verify updated product docs reflect implementation state (including "Not Implemented" markers)
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Product Documentation Migration' (Protocol in workflow.md)
 
-## Phase 3: Technical Documentation Migration
+## Phase 3: Technical Documentation Migration [checkpoint: d5676c1]
 - [x] Task: Audit `.codex/constitution/tech-stack.md` and `.codex/skills/` against current dependencies and architecture
 - [x] Task: Update `conductor/tech-stack.md` with verified frontend and backend stacks
 - [x] Task: Update `conductor/code_styleguides/` if needed based on `.codex` findings
