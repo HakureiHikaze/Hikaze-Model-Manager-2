@@ -1,6 +1,6 @@
 # Plan: Migrate .codex Context to Conductor with Codebase Verification
 
-## Phase 1: Context Analysis & Verification
+## Phase 1: Context Analysis & Verification [checkpoint: faa2cde]
 - [x] Task: Audit `.codex/constitution/product.md` against codebase
 - [x] Task: Audit `.codex/guidelines/` (API, architecture, etc.) against codebase
 - [x] Task: Document identified discrepancies in `conductor/discrepancies/`
