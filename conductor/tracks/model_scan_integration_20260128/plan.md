@@ -5,7 +5,7 @@
 - [x] Task: Add `scanModels` function to `web/model_manager_frontend/src/api/models.ts`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API and Infrastructure' (Protocol in workflow.md)
 
-## Phase 2: Standalone Implementation
+## Phase 2: Standalone Implementation [checkpoint: 26527d7]
 - [x] Task: Implement `isScanning` and `runScan` logic in `web/model_manager_frontend/src/App.vue`.
 - [x] Task: Add "Scan" button to `FloatingToolbar` in `web/model_manager_frontend/src/App.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Standalone Implementation' (Protocol in workflow.md)
