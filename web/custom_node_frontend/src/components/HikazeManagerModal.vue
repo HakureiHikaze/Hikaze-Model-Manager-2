@@ -22,7 +22,7 @@ type SelectedLoraItem = {
 
 const selectedModel = ref<Model | undefined>(undefined)
 const selectedModels = ref<Model[]>([])
-const isFullscreen = ref(false)
+const isFullscreen = ref(true)
 const selectedLoraIds = ref<string[]>([])
 const selectedLoraItems = ref<Record<string, SelectedLoraItem>>({})
 const originalLoraBySha = ref<Record<string, LoRAEntry>>({})
@@ -57,7 +57,6 @@ const canConfirm = computed(() => {
   }
   return isMultiSelect.value ? selectedCount.value > 0 : !!selectedModel.value
 })
-const fullscreenLabel = computed(() => (isFullscreen.value ? 'Exit fullscreen' : 'Enter fullscreen'))
 const selectedLoraList = computed(() => {
   return selectedLoraIds.value
     .map((sha) => selectedLoraItems.value[sha])
@@ -125,7 +124,6 @@ watch(
       selectedModels.value = []
       initLoraSelection()
     }
-    isFullscreen.value = false
     managerMode.value = 'active'
     selectedPendingIds.value = []
     selectedPendingModel.value = undefined
@@ -369,10 +367,6 @@ const confirmSelection = () => {
     closeManager({ ckpt_path: selectedModel.value.path })
   }
 }
-
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value
-}
 </script>
 
 <template>
@@ -416,15 +410,6 @@ const toggleFullscreen = () => {
               @click="clearSelection"
             >
               Clear selection
-            </button>
-            <button
-              class="btn btn-secondary btn-icon"
-              type="button"
-              :aria-label="fullscreenLabel"
-              :title="fullscreenLabel"
-              @click="toggleFullscreen"
-            >
-              &#x1F5D7;
             </button>
             <button class="btn btn-secondary" @click="onBackdropClick">Cancel</button>
             <button class="btn btn-primary" :disabled="!canConfirm" @click="confirmSelection">Confirm</button>
