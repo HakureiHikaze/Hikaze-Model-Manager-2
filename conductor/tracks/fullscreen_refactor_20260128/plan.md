@@ -5,7 +5,7 @@
 - [x] Task: Implement port discovery and "Open New Tab" logic.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Context Menu & Global Entry' (Protocol in workflow.md)
 
-## Phase 2: Fullscreen Modal Refactor
+## Phase 2: Fullscreen Modal Refactor [checkpoint: 119ccce]
 - [x] Task: Analyze `HikazeManagerModal.vue` and `modalService.ts`.
 - [x] Task: Refactor `HikazeManagerModal.vue` to force `isFullscreen = true` by default and remove the toggle button.
 - [x] Task: Verify that `FloatingToolbar.vue` inside the modal does not overlap or conflict with fullscreen layout.
