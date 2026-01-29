@@ -4753,7 +4753,7 @@ const kc = { class: "header__title" }, $c = ["title"], Ec = {
       _: 1
     }, 8, ["node-id"]));
   }
-}), wc = /* @__PURE__ */ He(Pc, [["__scopeId", "data-v-4552b61a"]]), as = V(!1), yo = V(null);
+}), wc = /* @__PURE__ */ He(Pc, [["__scopeId", "data-v-3473ea37"]]), as = V(!1), yo = V(null);
 let Xn = null;
 const yn = Qn({
   isOpen: as,
@@ -5271,7 +5271,7 @@ const Gc = { class: "hikaze-lora-content" }, qc = { class: "loRA-list-table" }, 
       _: 1
     }, 8, ["node-id"]));
   }
-}), Xc = /* @__PURE__ */ He(Zc, [["__scopeId", "data-v-7bae3035"]]), Qc = "HikazeLoraPowerLoader";
+}), Xc = /* @__PURE__ */ He(Zc, [["__scopeId", "data-v-15c94417"]]), Qc = "HikazeLoraPowerLoader";
 class eu extends Wt {
   getComponent() {
     return Xc;
@@ -5852,7 +5852,7 @@ const Ou = {
       $n(k.$slots, "toolbar", { activeTab: o.value }, void 0)
     ], 6));
   }
-}), Uu = /* @__PURE__ */ He(zu, [["__scopeId", "data-v-1eb3ed90"]]), Ut = me({}), rn = me({}), an = me({}), cn = me({});
+}), Uu = /* @__PURE__ */ He(zu, [["__scopeId", "data-v-886bfac7"]]), Ut = me({}), rn = me({}), an = me({}), cn = me({});
 function Wu(e) {
   cn[e] = (cn[e] ?? 0) + 1;
 }
@@ -6258,7 +6258,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       ], 6)
     ]));
   }
-}), kd = /* @__PURE__ */ He(Td, [["__scopeId", "data-v-dc36e083"]]), $d = { class: "main-display" }, Ed = {
+}), kd = /* @__PURE__ */ He(Td, [["__scopeId", "data-v-d1d01f45"]]), $d = { class: "main-display" }, Ed = {
   key: 0,
   class: "loader"
 }, Md = ["src"], Ad = { class: "nav-controls" }, Id = { class: "action-overlay" }, Ld = {
@@ -6400,7 +6400,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       }, null, 544)
     ], 32));
   }
-}), Od = /* @__PURE__ */ He(wd, [["__scopeId", "data-v-2b11a420"]]), Fd = { class: "chips-wrapper" }, Rd = ["onClick"], Dd = {
+}), Od = /* @__PURE__ */ He(wd, [["__scopeId", "data-v-14bb3169"]]), Fd = { class: "chips-wrapper" }, Rd = ["onClick"], Dd = {
   key: 0,
   class: "suggestions-list"
 }, jd = ["onMousedown"], Hd = /* @__PURE__ */ je({
@@ -6478,7 +6478,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       })
     ], 2));
   }
-}), Vd = /* @__PURE__ */ He(Hd, [["__scopeId", "data-v-3daf8b7c"]]), Bd = {
+}), Vd = /* @__PURE__ */ He(Hd, [["__scopeId", "data-v-16ad3138"]]), Bd = {
   key: 0,
   class: "model-details"
 }, zd = { class: "gallery-wrapper" }, Ud = { class: "details-body" }, Wd = { class: "field-group" }, Kd = { class: "field-group" }, Gd = ["title"], qd = { class: "field-group" }, Jd = ["value"], Yd = { class: "field-group" }, Zd = { class: "readonly-box" }, Xd = { class: "field-group" }, Qd = { class: "field-group" }, ef = { class: "field-group" }, tf = { class: "link-group" }, nf = { class: "field-group" }, sf = { class: "field-group" }, of = { class: "actions" }, lf = ["disabled"], rf = ["disabled"], af = {
@@ -6662,7 +6662,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       ])]))
     ]));
   }
-}), ff = /* @__PURE__ */ He(df, [["__scopeId", "data-v-438634df"]]), pf = { class: "selected-lora-bar" }, hf = {
+}), ff = /* @__PURE__ */ He(df, [["__scopeId", "data-v-0c0efeb5"]]), pf = { class: "selected-lora-bar" }, hf = {
   key: 0,
   class: "selected-lora-empty"
 }, gf = ["onClick"], mf = ["onChange"], vf = { class: "selected-lora-meta" }, yf = ["title"], _f = {
@@ -6725,7 +6725,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       ], 2)
     ]));
   }
-}), Cf = /* @__PURE__ */ He(bf, [["__scopeId", "data-v-3c98d010"]]), Sf = { class: "pending-library" }, xf = { class: "library-toolbar" }, Tf = { class: "search-box" }, kf = { class: "controls-right" }, $f = {
+}), Cf = /* @__PURE__ */ He(bf, [["__scopeId", "data-v-a1906adb"]]), Sf = { class: "pending-library" }, xf = { class: "library-toolbar" }, Tf = { class: "search-box" }, kf = { class: "controls-right" }, $f = {
   key: 0,
   class: "column-control"
 }, Ef = { class: "view-switch" }, Mf = ["disabled"], Af = { class: "tag-filter" }, If = {
@@ -6961,7 +6961,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       ], 6)
     ]));
   }
-}), Gf = /* @__PURE__ */ He(Kf, [["__scopeId", "data-v-cbb19a36"]]), qf = {
+}), Gf = /* @__PURE__ */ He(Kf, [["__scopeId", "data-v-8fe2238e"]]), qf = {
   key: 0,
   class: "model-details"
 }, Jf = { class: "gallery-wrapper" }, Yf = { class: "pending-image-frame" }, Zf = ["src"], Xf = {
@@ -7095,7 +7095,7 @@ const Yu = { class: "model-library" }, Zu = { class: "library-toolbar" }, Xu = {
       ])]))
     ]));
   }
-}), xp = /* @__PURE__ */ He(Sp, [["__scopeId", "data-v-f0f21e54"]]), Tp = { class: "hikaze-modal-toolbar" }, kp = { class: "modal-title" }, $p = { class: "modal-actions" }, Ep = {
+}), xp = /* @__PURE__ */ He(Sp, [["__scopeId", "data-v-564fd283"]]), Tp = { class: "hikaze-modal-toolbar" }, kp = { class: "modal-title" }, $p = { class: "modal-actions" }, Ep = {
   key: 0,
   class: "selection-count"
 }, Mp = {
@@ -7400,7 +7400,7 @@ ${Tt(m.conflict)}`);
       ]);
     };
   }
-}), Rp = /* @__PURE__ */ He(Fp, [["__scopeId", "data-v-26ef2c02"]]), vi = "__hikazeCollapseHooked", yi = "__hikazeVueNodesSettingHooked";
+}), Rp = /* @__PURE__ */ He(Fp, [["__scopeId", "data-v-85247d81"]]), vi = "__hikazeCollapseHooked", yi = "__hikazeVueNodesSettingHooked";
 class Dp {
   /**
    * Create the manager; call `install()` once ComfyUI app exists.
