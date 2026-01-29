@@ -12,6 +12,6 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Fullscreen Modal Refactor' (Protocol in workflow.md)
 
 ## Phase 3: LoRA Power Loader Analysis
-- [ ] Task: Analyze `HikazeLoraPowerLoaderOverlay.vue` and related controllers.
-- [ ] Task: Draft analysis report on data sync and multi-select flow.
+- [x] Task: Analyze `HikazeLoraPowerLoaderOverlay.vue` and related controllers.
+- [x] Task: Draft analysis report on data sync and multi-select flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: LoRA Power Loader Analysis' (Protocol in workflow.md)
