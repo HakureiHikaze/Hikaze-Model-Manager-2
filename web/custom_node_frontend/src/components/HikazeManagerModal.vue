@@ -8,7 +8,7 @@ import SelectedLoraBar from '@manager/components/SelectedLoraBar.vue'
 import PendingModelLibrary from '@manager/components/PendingModelLibrary.vue'
 import PendingModelDetails from '@manager/components/PendingModelDetails.vue'
 import { useModelCache } from '@manager/cache/models'
-import { importModels } from '@manager/api/models'
+import { importModels, scanModels } from '@manager/api/models'
 import type { Model, PendingModelSimpleRecord, Tag } from '@shared/types/model_record'
 import { adaptLoRAEntry, createEmptyLoRAListDocument, parseLoRAListJson } from '@shared/adapters/loras'
 import type { LoRAEntry, LoRAListDocument } from '@shared/types/lora_list'
@@ -31,6 +31,8 @@ const managerMode = ref<'active' | 'pending'>('active')
 const selectedPendingIds = ref<number[]>([])
 const selectedPendingModel = ref<PendingModelSimpleRecord | undefined>(undefined)
 const isPendingImporting = ref(false)
+const isScanning = ref(false)
+const currentActiveTab = ref('')
 
 const activeCache = useModelCache()
 const pendingCache = useModelCache('pending')
@@ -262,6 +264,30 @@ const togglePendingMode = () => {
   }
 }
 
+const runScan = async (activeTab?: string) => {
+  if (isScanning.value) return
+  const confirmed = window.confirm('Scan model directories for new files? This might take a moment.')
+  if (!confirmed) return
+
+  isScanning.value = true
+  try {
+    const result = await scanModels()
+    window.alert(`Scan complete: ${result.added} new models found, ${result.scanned} scanned total.`)
+    await pendingCache.loadModels('pending', true)
+    
+    // Invalidate cache to ensure stale data is removed
+    activeCache.invalidate()
+    // If we have an active tab, immediately reload it to prevent empty view
+    if (activeTab) {
+      await activeCache.loadModels(activeTab, true)
+    }
+  } catch (e: any) {
+    window.alert(e?.message || 'Failed to scan models')
+  } finally {
+    isScanning.value = false
+  }
+}
+
 const formatConflictSummary = (
   conflicts: Array<{
     pending?: { id?: number; path?: string }
@@ -367,6 +393,10 @@ const confirmSelection = () => {
     closeManager({ ckpt_path: selectedModel.value.path })
   }
 }
+
+const handleTabChange = (tab: string) => {
+  currentActiveTab.value = tab
+}
 </script>
 
 <template>
@@ -384,6 +414,15 @@ const confirmSelection = () => {
             <div v-if="isMultiSelect && !isPendingMode" class="selection-count">
               {{ selectedCount }} selected
             </div>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              @click="() => runScan(currentActiveTab)"
+              :disabled="isScanning"
+              title="Scans disk for new models"
+            >
+              {{ isScanning ? 'Scanning...' : 'Scan' }}
+            </button>
             <button
               class="btn btn-secondary pending-toggle"
               type="button"
@@ -417,9 +456,20 @@ const confirmSelection = () => {
         </div>
 
         <div class="hikaze-modal-body">
-          <HikazeManagerLayout :embedded="true" :initialTab="modalState.options?.initialTab" :mode="managerMode">
+          <HikazeManagerLayout 
+            :embedded="true" 
+            :initialTab="modalState.options?.initialTab" 
+            :mode="managerMode"
+            @tab-change="handleTabChange"
+          >
             <template #library="{ activeTab }">
               <div class="lora-library-pane">
+                <div class="hikaze-modal-toolbar">
+                  <!-- Toolbar moved inside library slot to access activeTab? 
+                       No, the toolbar is outside. We can't access activeTab here easily unless we move toolbar or expose it differently. 
+                       Wait, HikazeManagerLayout exposes activeTab via slot props, but the toolbar is OUTSIDE the layout in the current template structure.
+                  -->
+
                 <SelectedLoraBar
                   v-if="isLoraSelection && !isPendingMode"
                   :items="selectedLoraList"

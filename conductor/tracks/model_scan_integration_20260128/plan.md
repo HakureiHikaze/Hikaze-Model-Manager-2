@@ -11,8 +11,8 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Standalone Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Embedded Modal Implementation
-- [ ] Task: Implement `isScanning` and `runScan` logic in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
-- [ ] Task: Add "Scan" button to modal toolbar in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
+- [x] Task: Implement `isScanning` and `runScan` logic in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
+- [x] Task: Add "Scan" button to modal toolbar in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Embedded Modal Implementation' (Protocol in workflow.md)
 
 ## Phase 4: Finalization
