@@ -45,3 +45,12 @@ export interface BatchPromotionReport {
   deleted: number[];
   failed: Array<{ id: number; error: string }>;
 }
+
+export interface ScanResponse {
+  status: 'success' | 'error';
+  scanned: number;
+  added: number;
+  pending_ids: number[];
+  skipped: number;
+  error?: string;
+}

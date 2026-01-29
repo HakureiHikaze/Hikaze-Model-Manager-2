@@ -5,7 +5,8 @@ import type {
   ImageCountResponse,
   PendingModelsResponse,
   MigrationReport,
-  BatchPromotionReport
+  BatchPromotionReport,
+  ScanResponse
 } from '@shared/types/api';
 import type { Model, ModelFull, Tag, PendingModelRecord, PendingModelSimpleRecord } from '@shared/types/model_record';
 import { adaptModelSimpleRecord, adaptModelRecord, adaptPendingModelRecord, adaptPendingModelSimpleRecord } from '@shared/adapters/models';
@@ -15,6 +16,18 @@ import { buildApiUrl } from '@shared/util/sniffer_port';
 async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
   const url = await buildApiUrl(path);
   return fetch(url, init);
+}
+
+/**
+ * Scan model directories for new files.
+ */
+export async function scanModels(): Promise<ScanResponse> {
+  const response = await fetchApi('/api/scan');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to scan models: ${response.statusText}`);
+  }
+  return await response.json();
 }
 
 /**
