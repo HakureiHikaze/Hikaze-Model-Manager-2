@@ -1,6 +1,6 @@
 # Plan: Model Scan Integration
 
-## Phase 1: API and Infrastructure
+## Phase 1: API and Infrastructure [checkpoint: 090e4ee]
 - [x] Task: Add `ScanResponse` interface to `web/shared/types/api.ts`.
 - [x] Task: Add `scanModels` function to `web/model_manager_frontend/src/api/models.ts`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API and Infrastructure' (Protocol in workflow.md)
