@@ -5,7 +5,11 @@ import HikazeManagerLayout from '@manager/components/HikazeManagerLayout.vue'
 import ModelLibrary from '@manager/components/ModelLibrary.vue'
 import ModelDetails from '@manager/components/ModelDetails.vue'
 import SelectedLoraBar from '@manager/components/SelectedLoraBar.vue'
-import type { Model, Tag } from '@shared/types/model_record'
+import PendingModelLibrary from '@manager/components/PendingModelLibrary.vue'
+import PendingModelDetails from '@manager/components/PendingModelDetails.vue'
+import { useModelCache } from '@manager/cache/models'
+import { importModels } from '@manager/api/models'
+import type { Model, PendingModelSimpleRecord, Tag } from '@shared/types/model_record'
 import { adaptLoRAEntry, createEmptyLoRAListDocument, parseLoRAListJson } from '@shared/adapters/loras'
 import type { LoRAEntry, LoRAListDocument } from '@shared/types/lora_list'
 
@@ -23,6 +27,17 @@ const selectedLoraIds = ref<string[]>([])
 const selectedLoraItems = ref<Record<string, SelectedLoraItem>>({})
 const originalLoraBySha = ref<Record<string, LoRAEntry>>({})
 const loraVersion = ref(2)
+const managerMode = ref<'active' | 'pending'>('active')
+const selectedPendingIds = ref<number[]>([])
+const selectedPendingModel = ref<PendingModelSimpleRecord | undefined>(undefined)
+const isPendingImporting = ref(false)
+
+const activeCache = useModelCache()
+const pendingCache = useModelCache('pending')
+const pendingModels = pendingCache.getModels('pending')
+const pendingCount = computed(() => pendingModels.value.length)
+const hasPendingBadge = computed(() => pendingCount.value > 0)
+const isPendingMode = computed(() => managerMode.value === 'pending')
 
 const modalOptions = computed(() => modalState.options)
 const isMultiSelect = computed(() => modalOptions.value?.mode === 'multi')
@@ -37,6 +52,9 @@ const selectedCount = computed(() => {
   return isLoraSelection.value ? selectedLoraIds.value.length : selectedModels.value.length
 })
 const canConfirm = computed(() => {
+  if (isPendingMode.value) {
+    return false
+  }
   return isMultiSelect.value ? selectedCount.value > 0 : !!selectedModel.value
 })
 const fullscreenLabel = computed(() => (isFullscreen.value ? 'Exit fullscreen' : 'Enter fullscreen'))
@@ -108,6 +126,10 @@ watch(
       initLoraSelection()
     }
     isFullscreen.value = false
+    managerMode.value = 'active'
+    selectedPendingIds.value = []
+    selectedPendingModel.value = undefined
+    pendingCache.loadModels('pending')
   }
 )
 
@@ -177,6 +199,9 @@ const clearSelection = () => {
 }
 
 const handleSelectModel = (model: Model) => {
+  if (isPendingMode.value) {
+    return
+  }
   selectedModel.value = model
 
   if (isLoraSelection.value) {
@@ -201,6 +226,105 @@ const handleSelectModel = (model: Model) => {
     selectedModels.value = selectedModels.value.filter((item) => item.sha256 !== model.sha256)
   } else {
     selectedModels.value = [...selectedModels.value, model]
+  }
+}
+
+const handleSelectPendingModel = (model: PendingModelSimpleRecord) => {
+  selectedPendingModel.value = model
+}
+
+const handleTogglePendingModel = (model: PendingModelSimpleRecord, nextSelected: boolean) => {
+  if (nextSelected) {
+    if (!selectedPendingIds.value.includes(model.id)) {
+      selectedPendingIds.value = [...selectedPendingIds.value, model.id]
+    }
+    return
+  }
+  selectedPendingIds.value = selectedPendingIds.value.filter((id) => id !== model.id)
+}
+
+const enterPendingMode = async () => {
+  managerMode.value = 'pending'
+  selectedPendingIds.value = []
+  selectedPendingModel.value = undefined
+  await pendingCache.loadModels('pending', true)
+}
+
+const exitPendingMode = () => {
+  managerMode.value = 'active'
+  selectedPendingIds.value = []
+  selectedPendingModel.value = undefined
+}
+
+const togglePendingMode = () => {
+  if (isPendingMode.value) {
+    exitPendingMode()
+  } else {
+    enterPendingMode()
+  }
+}
+
+const formatConflictSummary = (
+  conflicts: Array<{
+    pending?: { id?: number; path?: string }
+    existing?: { id?: string; path?: string }
+  }>
+) => {
+  const nameById = new Map(pendingModels.value.map((model) => [model.id, model.name]))
+  return conflicts.map((item, index) => {
+    const pendingId = item.pending?.id
+    const pendingName = pendingId !== undefined ? nameById.get(pendingId) : undefined
+    const pendingLabel = pendingName
+      ? `${pendingName} (#${pendingId})`
+      : `#${pendingId ?? 'unknown'}`
+    const pendingPath = item.pending?.path ? ` | ${item.pending.path}` : ''
+    const existingLabel = item.existing?.id ?? 'unknown'
+    const existingPath = item.existing?.path ? ` | ${item.existing.path}` : ''
+    return `${index + 1}. Pending: ${pendingLabel}${pendingPath}\n   Existing: ${existingLabel}${existingPath}`
+  }).join('\n')
+}
+
+const runPendingImport = async () => {
+  if (selectedPendingIds.value.length === 0 || isPendingImporting.value) return
+  isPendingImporting.value = true
+  try {
+    const result = await importModels(selectedPendingIds.value, null)
+    if (result.conflict.length > 0) {
+      window.alert(`Conflicts detected:\n${formatConflictSummary(result.conflict)}`)
+      const allowed = ['override', 'merge', 'ignore', 'delete'] as const
+      type ConflictStrategy = (typeof allowed)[number]
+      const isConflictStrategy = (value: string): value is ConflictStrategy =>
+        allowed.includes(value as ConflictStrategy)
+
+      let followupStrategy: ConflictStrategy | null = null
+      let conflictIds: number[] = []
+      const choice = window.prompt(
+        'Conflicts found. Choose strategy: override, merge, ignore, delete',
+        'override'
+      )
+      if (choice) {
+        const normalized = choice.trim().toLowerCase()
+        if (!isConflictStrategy(normalized)) {
+          window.alert('Invalid strategy. Please use override, merge, ignore, or delete.')
+        } else {
+          followupStrategy = normalized
+          conflictIds = result.conflict
+            .map((item) => item.pending?.id)
+            .filter((id): id is number => typeof id === 'number')
+        }
+      }
+      if (followupStrategy && conflictIds.length > 0) {
+        await importModels(conflictIds, followupStrategy)
+      }
+    }
+    selectedPendingIds.value = []
+    selectedPendingModel.value = undefined
+    await pendingCache.loadModels('pending', true)
+    activeCache.invalidate()
+  } catch (e: any) {
+    window.alert(e?.message || 'Failed to import pending models')
+  } finally {
+    isPendingImporting.value = false
   }
 }
 
@@ -259,15 +383,33 @@ const toggleFullscreen = () => {
       :class="{ 'is-fullscreen': isFullscreen }"
       @click.self="onBackdropClick"
     >
-      <div class="hikaze-modal-content" :class="{ 'is-fullscreen': isFullscreen }">
+      <div class="hikaze-modal-content" :class="{ 'is-fullscreen': isFullscreen, 'is-pending': isPendingMode }">
         <div class="hikaze-modal-toolbar">
           <div class="modal-title">{{ modalTitle }}</div>
           <div class="modal-actions">
-            <div v-if="isMultiSelect" class="selection-count">
+            <div v-if="isMultiSelect && !isPendingMode" class="selection-count">
               {{ selectedCount }} selected
             </div>
             <button
-              v-if="isLoraSelection"
+              class="btn btn-secondary pending-toggle"
+              type="button"
+              :class="{ active: isPendingMode }"
+              @click="togglePendingMode"
+            >
+              Pending
+              <span v-if="hasPendingBadge" class="badge">{{ pendingCount }}</span>
+            </button>
+            <button
+              v-if="isPendingMode"
+              class="btn btn-secondary pending-import"
+              type="button"
+              :disabled="selectedPendingIds.length === 0 || isPendingImporting"
+              @click="runPendingImport"
+            >
+              Import Selected
+            </button>
+            <button
+              v-if="isLoraSelection && !isPendingMode"
               class="btn btn-secondary"
               type="button"
               :disabled="selectedCount === 0"
@@ -290,17 +432,25 @@ const toggleFullscreen = () => {
         </div>
 
         <div class="hikaze-modal-body">
-          <HikazeManagerLayout :embedded="true" :initialTab="modalState.options?.initialTab">
+          <HikazeManagerLayout :embedded="true" :initialTab="modalState.options?.initialTab" :mode="managerMode">
             <template #library="{ activeTab }">
               <div class="lora-library-pane">
                 <SelectedLoraBar
-                  v-if="isLoraSelection"
+                  v-if="isLoraSelection && !isPendingMode"
                   :items="selectedLoraList"
                   @toggle="handleSelectedBarToggle"
                   @select="handleSelectedBarSelect"
                 />
                 <div class="lora-library-body">
+                  <PendingModelLibrary
+                    v-if="isPendingMode"
+                    :active-tab="activeTab"
+                    :selected-ids="selectedPendingIds"
+                    @select-model="handleSelectPendingModel"
+                    @toggle-select="handleTogglePendingModel"
+                  />
                   <ModelLibrary
+                    v-else
                     :active-tab="activeTab"
                     :selection-mode="isLoraSelection ? 'lora' : undefined"
                     :selected-ids="selectedLoraIds"
@@ -313,7 +463,8 @@ const toggleFullscreen = () => {
             </template>
 
             <template #details>
-              <ModelDetails :model="selectedModel" />
+              <PendingModelDetails v-if="isPendingMode" :model-id="selectedPendingModel?.id" />
+              <ModelDetails v-else :model="selectedModel" />
             </template>
           </HikazeManagerLayout>
         </div>
@@ -437,5 +588,41 @@ const toggleFullscreen = () => {
 
 .btn-secondary:hover {
   background: #2a2f36;
+}
+
+.hikaze-modal-content.is-pending .btn-primary {
+  background: #d29922;
+  border-color: #b0881b;
+}
+
+.pending-toggle {
+  position: relative;
+}
+
+.pending-toggle.active {
+  background: #d29922;
+  border-color: #b0881b;
+  color: #fff;
+}
+
+.pending-import {
+  background: rgba(210, 153, 34, 0.2);
+  border-color: rgba(210, 153, 34, 0.6);
+  color: #f0f6fc;
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #f85149;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  line-height: 18px;
+  height: 18px;
+  min-width: 18px;
+  text-align: center;
 }
 </style>

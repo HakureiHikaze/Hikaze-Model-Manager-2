@@ -7,6 +7,7 @@
 
 ## Visual Hierarchy & Layout
 - **Image-First Exploration:** The main library view (left pane) must prioritize high-quality preview cards. The visual weight should be on the image, followed by the model name and a limited set of primary tags.
+- **Preview Cycling:** For models with multiple images, preload all previews and crossfade every 5 seconds with randomized start offsets to avoid synchronized flips.
 - **Responsive Grid & Density:** The library grid must support dynamic column scaling (2-100 columns). When density increases (e.g., >6 columns), model titles should be hidden to reduce visual noise, relying on tooltips for identification.
 - **Synchronized Tooltips:** Tooltips in the grid view must overlay the card image, synchronized to the parent card's full width (100%), ensuring no horizontal overflow or scrolling artifacts.
 - **Clear Selection States:** Active/Selected items must be instantly recognizable via distinct borders (e.g., blue for focus, green for selection) without obscuring the preview content.

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import sqlite3
 from dataclasses import asdict
 from typing import List, Dict, Optional
 
@@ -9,7 +10,8 @@ from backend.database.db import DatabaseManager
 from backend.util import hasher, config
 from backend.util.image_processor import ImageProcessor
 from backend.database.migration.legacy_database_adapter import LegacyDatabaseAdapter
-from shared.types.model_record import ModelRecord, PendingModelRecord
+from backend.util.model_type_sniffer import get_model_type_index
+from shared.types.model_record import ModelRecord, PendingModelRecord, Tag
 from shared.types.data_adapters import DataAdapters
 
 logger = logging.getLogger(__name__)
@@ -118,12 +120,174 @@ class MigrationService:
                     except:
                         m_dict["meta_json"] = {}
                 record = DataAdapters.dict_to_pending_model_record(m_dict)
+                tag_rows = db.get_tags_for_pending_model(record.id)
+                record.tags = [Tag(t["id"], t["name"]) for t in tag_rows]
                 simple = DataAdapters.full_pending_to_simple_pending(record)
                 models.append(asdict(simple))
             return models
         except Exception as e:
             logger.exception("Error fetching pending models in service")
             raise
+
+    @staticmethod
+    def get_pending_model_details(item_id: int) -> Optional[PendingModelRecord]:
+        """
+        Fetch a PendingModelRecord by ID with tags.
+        """
+        db = DatabaseManager()
+        return db.get_pending_model_by_id(item_id)
+
+    @staticmethod
+    def scan_models_to_pending() -> dict:
+        """
+        Scan model directories and add missing models into pending_import.
+        """
+        index = get_model_type_index()
+        if not index.model_paths_by_type:
+            return {
+                "status": "error",
+                "error": "Model type cache is empty; start ComfyUI once to initialize types cache.",
+                "status_code": 503,
+            }
+
+        db = DatabaseManager()
+        existing_paths = MigrationService._load_existing_paths(db)
+        extensions_by_type = MigrationService._load_extensions_by_type(index.model_paths_by_type.keys())
+
+        scanned = 0
+        added = 0
+        skipped = 0
+        pending_ids: list[int] = []
+        seen_paths: set[str] = set()
+
+        for type_name, roots in index.model_paths_by_type.items():
+            ext_set = extensions_by_type.get(type_name, set())
+            for root in roots:
+                if not root or not os.path.isdir(root):
+                    continue
+                for dirpath, _, filenames in os.walk(root):
+                    for filename in filenames:
+                        if ext_set:
+                            ext = os.path.splitext(filename)[1].lower()
+                            if ext not in ext_set:
+                                continue
+                        full_path = os.path.join(dirpath, filename)
+                        abs_path = os.path.abspath(full_path)
+                        normalized = MigrationService._normalize_path(abs_path)
+                        if normalized in seen_paths:
+                            continue
+                        seen_paths.add(normalized)
+                        scanned += 1
+                        if normalized in existing_paths:
+                            skipped += 1
+                            continue
+                        try:
+                            stat = os.stat(full_path)
+                        except OSError:
+                            skipped += 1
+                            continue
+
+                        record = PendingModelRecord(
+                            id=0,
+                            path=abs_path,
+                            sha256="",
+                            name=os.path.basename(abs_path),
+                            type=type_name,
+                            size_bytes=int(stat.st_size),
+                            created_at=int(stat.st_mtime * 1000),
+                            meta_json=DataAdapters.dict_to_old_meta_json({})
+                        )
+
+                        pending_id = MigrationService._insert_pending_record(db, record)
+                        if pending_id:
+                            added += 1
+                            pending_ids.append(pending_id)
+                            existing_paths.add(normalized)
+                        else:
+                            skipped += 1
+
+        return {
+            "status": "success",
+            "scanned": scanned,
+            "added": added,
+            "pending_ids": pending_ids,
+            "skipped": skipped,
+        }
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        normalized = os.path.normpath(os.path.abspath(path))
+        if os.name == "nt":
+            normalized = os.path.normcase(normalized)
+        return normalized
+
+    @staticmethod
+    def _load_existing_paths(db: DatabaseManager) -> set[str]:
+        existing: set[str] = set()
+        for row in db.execute_query("SELECT path FROM models"):
+            raw = row.get("path") if isinstance(row, dict) else row["path"]
+            if raw:
+                existing.add(MigrationService._normalize_path(str(raw)))
+        for row in db.execute_query("SELECT path FROM pending_import"):
+            raw = row.get("path") if isinstance(row, dict) else row["path"]
+            if raw:
+                existing.add(MigrationService._normalize_path(str(raw)))
+        return existing
+
+    @staticmethod
+    def _load_extensions_by_type(type_names: list[str] | set[str]) -> dict[str, set[str]]:
+        try:
+            import folder_paths
+        except Exception:
+            return {type_name: set() for type_name in type_names}
+
+        extension_map: dict[str, set[str]] = {}
+        fallback_exts = MigrationService._normalize_extensions(
+            getattr(folder_paths, "supported_pt_extensions", None) or []
+        )
+
+        for type_name in type_names:
+            ext_list = None
+            type_entry = folder_paths.folder_names_and_paths.get(type_name)
+            if type_entry:
+                ext_list = type_entry[1]
+            normalized = MigrationService._normalize_extensions(ext_list or [])
+            extension_map[type_name] = normalized if normalized else fallback_exts
+
+        return extension_map
+
+    @staticmethod
+    def _normalize_extensions(exts: list[str] | tuple[str, ...] | set[str]) -> set[str]:
+        normalized: set[str] = set()
+        for ext in exts:
+            if not ext:
+                continue
+            ext_str = str(ext).lower()
+            if "*" in ext_str:
+                continue
+            if not ext_str.startswith("."):
+                ext_str = f".{ext_str}"
+            normalized.add(ext_str)
+        return normalized
+
+    @staticmethod
+    def _insert_pending_record(db: DatabaseManager, record: PendingModelRecord) -> int:
+        data = DataAdapters.to_dict(record)
+        if data.get("id") == 0:
+            data.pop("id", None)
+        data.pop("tags", None)
+        data["meta_json"] = json.dumps(data.get("meta_json") or {})
+
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join(["?"] * len(data))
+        sql = f"INSERT INTO pending_import ({columns}) VALUES ({placeholders})"
+        try:
+            conn = db.get_connection()
+            with conn:
+                cur = conn.execute(sql, list(data.values()))
+            return int(cur.lastrowid or 0)
+        except sqlite3.IntegrityError:
+            return 0
 
     @staticmethod
     def promote_pending_models(ids: List[int], conflict_strategy: Optional[str] = None) -> dict:

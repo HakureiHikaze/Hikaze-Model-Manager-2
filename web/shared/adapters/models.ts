@@ -2,6 +2,8 @@ import type {
     ModelRecord, 
     ModelSimpleRecord, 
     MetaJson, 
+    OldMetaJson,
+    PendingModelRecord,
     PendingModelSimpleRecord 
 } from '../types/model_record';
 import type { Prompts } from '../types/common';
@@ -30,6 +32,18 @@ export function adaptMetaJson(raw: any): MetaJson {
 }
 
 /**
+ * Ensures an OldMetaJson object has no null/undefined fields.
+ */
+export function adaptOldMetaJson(raw: any): OldMetaJson {
+    return {
+        description: String(raw?.description ?? ""),
+        community_links: String(raw?.community_links ?? ""),
+        images: Array.isArray(raw?.images) ? raw.images.map((item: any) => String(item)) : [],
+        prompts: adaptPrompts(raw?.prompts)
+    };
+}
+
+/**
  * Adapts raw API data to a strict ModelRecord.
  */
 export function adaptModelRecord(raw: any): ModelRecord {
@@ -41,6 +55,23 @@ export function adaptModelRecord(raw: any): ModelRecord {
         size_bytes: Number(raw?.size_bytes ?? 0),
         created_at: Number(raw?.created_at ?? 0),
         meta_json: adaptMetaJson(raw?.meta_json),
+        tags: Array.isArray(raw?.tags) ? raw.tags.map(adaptTag) : []
+    };
+}
+
+/**
+ * Adapts raw API data to a strict PendingModelRecord.
+ */
+export function adaptPendingModelRecord(raw: any): PendingModelRecord {
+    return {
+        id: Number(raw?.id ?? 0),
+        path: String(raw?.path ?? ""),
+        sha256: String(raw?.sha256 ?? ""),
+        name: String(raw?.name ?? ""),
+        type: String(raw?.type ?? ""),
+        size_bytes: Number(raw?.size_bytes ?? 0),
+        created_at: Number(raw?.created_at ?? 0),
+        meta_json: adaptOldMetaJson(raw?.meta_json),
         tags: Array.isArray(raw?.tags) ? raw.tags.map(adaptTag) : []
     };
 }

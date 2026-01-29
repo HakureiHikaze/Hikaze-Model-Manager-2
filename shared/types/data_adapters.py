@@ -104,3 +104,32 @@ class DataAdapters:
             created_at=int(data.get("created_at") or 0),
             meta_json=DataAdapters.dict_to_old_meta_json(data.get("meta_json"))
         )
+
+    @staticmethod
+    def model_record_to_db_tuple(record: ModelRecord) -> tuple[Dict[str, Any], Dict[str, Any], List[int]]:
+        """Convert ModelRecord into (base info, meta_json, tag ids) for DB writes."""
+        data = DataAdapters.to_dict(record)
+        if not isinstance(data, dict):
+            return {}, {}, []
+
+        meta_json = data.get("meta_json") or {}
+        raw_tags = data.get("tags") or []
+
+        tag_ids: List[int] = []
+        for tag in raw_tags:
+            tag_id = None
+            if isinstance(tag, dict):
+                tag_id = tag.get("id")
+            else:
+                tag_id = getattr(tag, "id", tag)
+            try:
+                if tag_id is None:
+                    continue
+                tag_ids.append(int(tag_id))
+            except (TypeError, ValueError):
+                continue
+
+        base_info = dict(data)
+        base_info.pop("meta_json", None)
+        base_info.pop("tags", None)
+        return base_info, meta_json, tag_ids

@@ -7,8 +7,8 @@ import type {
   MigrationReport,
   BatchPromotionReport
 } from '@shared/types/api';
-import type { Model, ModelFull, Tag, PendingModelSimpleRecord } from '@shared/types/model_record';
-import { adaptModelSimpleRecord, adaptModelRecord, adaptPendingModelSimpleRecord } from '@shared/adapters/models';
+import type { Model, ModelFull, Tag, PendingModelRecord, PendingModelSimpleRecord } from '@shared/types/model_record';
+import { adaptModelSimpleRecord, adaptModelRecord, adaptPendingModelRecord, adaptPendingModelSimpleRecord } from '@shared/adapters/models';
 import { adaptTag } from '@shared/adapters/tags';
 import { buildApiUrl } from '@shared/util/sniffer_port';
 
@@ -147,6 +147,18 @@ export async function fetchPendingModels(): Promise<PendingModelSimpleRecord[]> 
   }
   const data: PendingModelsResponse = await response.json();
   return (data.models || []).map(adaptPendingModelSimpleRecord);
+}
+
+/**
+ * Fetch full details for a pending model.
+ */
+export async function fetchPendingModelDetails(id: number): Promise<PendingModelRecord> {
+  const response = await fetchApi(`/api/migration/pending_model?id=${encodeURIComponent(id)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pending model details: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return adaptPendingModelRecord(data);
 }
 
 /**

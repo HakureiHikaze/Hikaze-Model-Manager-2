@@ -34,8 +34,15 @@ const isLoading = modelCache.isLoading(computed(() => props.activeTab))
 const error = modelCache.getError(computed(() => props.activeTab))
 
 // Preview cycling state
-const previewState = reactive<Record<string, { current: number }>>({})
+const previewState = reactive<Record<string, { current: number; next: number | null; active: boolean }>>({})
 const previewIntervals = new Map<string, number>()
+const previewTimeouts = new Map<string, number>()
+const previewFadeTimeouts = new Map<string, number>()
+const previewPreloads = new Map<string, Promise<void>>()
+const previewDelays = new Map<string, number>()
+const previewPending = new Set<string>()
+const ROTATE_INTERVAL_MS = 7000
+const FADE_DURATION_MS = 1500
 
 // Lazy loading logic
 let observer: IntersectionObserver | null = null
@@ -74,25 +81,79 @@ function setupObserver() {
 }
 
 // Preview Cycling Logic
+const preloadImages = (sha256: string, count: number) => {
+  const existing = previewPreloads.get(sha256)
+  if (existing) return existing
+  const promise = Promise.all(
+    Array.from({ length: count }, (_, seq) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image()
+        img.onload = () => resolve()
+        img.onerror = () => resolve()
+        img.src = imageCache.getImageUrl(sha256, seq, 'medium')
+      })
+    })
+  ).then(() => undefined)
+  previewPreloads.set(sha256, promise)
+  return promise
+}
+
+const triggerFade = (sha256: string, count: number) => {
+  const state = previewState[sha256]
+  if (!state || !state.active || state.next !== null || previewFadeTimeouts.has(sha256)) {
+    return
+  }
+  const next = (state.current + 1) % count
+  state.next = next
+  const timeout = window.setTimeout(() => {
+    const nextState = previewState[sha256]
+    if (!nextState || !nextState.active) {
+      previewFadeTimeouts.delete(sha256)
+      return
+    }
+    nextState.current = next
+    nextState.next = null
+    previewFadeTimeouts.delete(sha256)
+  }, FADE_DURATION_MS)
+  previewFadeTimeouts.set(sha256, timeout)
+}
+
 const startCycling = async (sha256: string) => {
-  await imageCache.loadImageCount(sha256)
-  const count = imageCache.getImageCount(sha256).value
-  if (count <= 1) return
+  if (previewIntervals.has(sha256) || previewTimeouts.has(sha256) || previewPending.has(sha256)) {
+    return
+  }
+  previewPending.add(sha256)
 
   if (!previewState[sha256]) {
-    previewState[sha256] = { current: 0 }
+    previewState[sha256] = { current: 0, next: null, active: true }
+  } else {
+    previewState[sha256].active = true
+    previewState[sha256].next = null
   }
 
-  const existing = previewIntervals.get(sha256)
-  if (existing) clearInterval(existing)
-
-  const interval = window.setInterval(() => {
+  try {
+    await imageCache.loadImageCount(sha256)
+    const count = imageCache.getImageCount(sha256).value
     const state = previewState[sha256]
-    if (!state) return
-    state.current = (state.current + 1) % count
-  }, 1000)
+    if (!state || !state.active) return
+    if (count <= 1) return
+    await preloadImages(sha256, count)
 
-  previewIntervals.set(sha256, interval)
+    const delay = previewDelays.get(sha256) ?? Math.floor(0.5 * Math.random() * ROTATE_INTERVAL_MS)
+    previewDelays.set(sha256, delay)
+
+    const timeout = window.setTimeout(() => {
+      const interval = window.setInterval(() => {
+        triggerFade(sha256, count)
+      }, ROTATE_INTERVAL_MS)
+      previewIntervals.set(sha256, interval)
+      previewTimeouts.delete(sha256)
+    }, delay)
+
+    previewTimeouts.set(sha256, timeout)
+  } finally {
+    previewPending.delete(sha256)
+  }
 }
 
 const stopCycling = (sha256: string) => {
@@ -101,18 +162,44 @@ const stopCycling = (sha256: string) => {
     clearInterval(interval)
     previewIntervals.delete(sha256)
   }
+  const timeout = previewTimeouts.get(sha256)
+  if (timeout) {
+    clearTimeout(timeout)
+    previewTimeouts.delete(sha256)
+  }
+  const fadeTimeout = previewFadeTimeouts.get(sha256)
+  if (fadeTimeout) {
+    clearTimeout(fadeTimeout)
+    previewFadeTimeouts.delete(sha256)
+  }
+  previewDelays.delete(sha256)
+  previewPending.delete(sha256)
 
   if (previewState[sha256]) {
     previewState[sha256].current = 0
+    previewState[sha256].next = null
+    previewState[sha256].active = false
   }
 }
 
-const getPreviewStyle = (sha256: string) => {
+const getPreviewBaseStyle = (sha256: string) => {
   const state = previewState[sha256]
   const seq = state ? state.current : 0
   return {
     backgroundImage: `url(${imageCache.getImageUrl(sha256, seq, 'medium')})`
   }
+}
+
+const getPreviewNextStyle = (sha256: string) => {
+  const state = previewState[sha256]
+  const nextSeq = state?.next
+  const hasNext = typeof nextSeq === 'number'
+  return {
+    backgroundImage: hasNext
+      ? `url(${imageCache.getImageUrl(sha256, nextSeq, 'medium')})`
+      : 'none',
+    opacity: hasNext ? '1' : '0'
+  } as Record<string, string>
 }
 
 const onMouseEnter = (e: MouseEvent, id: string) => {
@@ -121,13 +208,10 @@ const onMouseEnter = (e: MouseEvent, id: string) => {
   const rect = target.getBoundingClientRect()
   const spaceBelow = window.innerHeight - rect.bottom
   tooltipPlacement.value = spaceBelow < 250 ? 'top' : 'bottom'
-  
-  startCycling(id)
 }
 
-const onMouseLeave = (id: string) => {
+const onMouseLeave = () => {
   hoveredId.value = null
-  stopCycling(id)
 }
 
 const emitToggleSelect = (model: Model, nextSelected: boolean) => {
@@ -170,6 +254,13 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
   previewIntervals.forEach((interval) => clearInterval(interval))
   previewIntervals.clear()
+  previewTimeouts.forEach((timeout) => clearTimeout(timeout))
+  previewTimeouts.clear()
+  previewFadeTimeouts.forEach((timeout) => clearTimeout(timeout))
+  previewFadeTimeouts.clear()
+  previewPreloads.clear()
+  previewDelays.clear()
+  previewPending.clear()
 })
 
 const filteredModels = computed(() => {
@@ -241,6 +332,24 @@ const availableTags = computed(() => {
 watch([filteredModels, viewMode], () => {
   if (viewMode.value === 'card') {
     setupObserver()
+    const nextIds = new Set(filteredModels.value.map((model: Model) => model.sha256))
+    nextIds.forEach((id) => {
+      if (id) {
+        startCycling(id)
+      }
+    })
+    previewIntervals.forEach((_, id) => {
+      if (!nextIds.has(id)) {
+        stopCycling(id)
+      }
+    })
+    previewTimeouts.forEach((_, id) => {
+      if (!nextIds.has(id)) {
+        stopCycling(id)
+      }
+    })
+  } else {
+    previewIntervals.forEach((_, id) => stopCycling(id))
   }
 }, { deep: true })
 
@@ -340,7 +449,7 @@ const gridStyle = computed(() => {
             :class="{ 'dense-view': columnCount > 6 }"
             @click="selectModel(model)"
             @mouseenter="(e) => onMouseEnter(e, model.sha256)" 
-            @mouseleave="onMouseLeave(model.sha256)"
+            @mouseleave="onMouseLeave"
           >
             <label
               v-if="selectionActive"
@@ -357,8 +466,10 @@ const gridStyle = computed(() => {
             <div 
               class="card-image lazy" 
               :data-sha256="model.sha256"
-              :style="getPreviewStyle(model.sha256)"
-            ></div>
+            >
+              <div class="card-image-layer base" :style="getPreviewBaseStyle(model.sha256)"></div>
+              <div class="card-image-layer next" :style="getPreviewNextStyle(model.sha256)"></div>
+            </div>
           <div class="card-meta">
             <div class="card-title">{{ model.name }}</div>
             <div class="card-tags">
@@ -672,14 +783,27 @@ const gridStyle = computed(() => {
 }
 
 .card-image {
+  position: relative;
   width: 100%;
   height: 100%;
   background: #222;
   border-radius: 9px;
   overflow: hidden;
+}
+
+.card-image-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
   background-size: cover;
   background-position: center;
-  transition: opacity 0.3s;
+  opacity: 1;
+  transition: opacity 0.35s ease-in-out;
+  will-change: opacity;
+}
+
+.card-image-layer.next {
+  opacity: 0;
 }
 
 .card-image.lazy {
@@ -696,6 +820,10 @@ const gridStyle = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.card-image.error .card-image-layer {
+  display: none;
 }
 
 .card-image.error::after {

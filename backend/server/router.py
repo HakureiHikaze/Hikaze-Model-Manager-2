@@ -17,6 +17,7 @@ def setup_routes(app: web.Application):
     app.router.add_get("/api/images/get_img_count", handle_get_image_count)
     app.router.add_get("/api/images/{hash}", handle_get_image)
     app.router.add_get("/api/images/{hash}.webp", handle_get_image)
+    app.router.add_get("/api/images/pending/{id:\\d+}", handle_get_pending_image_by_id)
     app.router.add_get("/api/images/pending/{name}", handle_get_pending_image)
     app.router.add_get("/api/images/pending/{name}.webp", handle_get_pending_image)
     app.router.add_post("/api/images/upload", handle_upload_image)
@@ -24,8 +25,10 @@ def setup_routes(app: web.Application):
     
     # Migration APIs
     app.router.add_get("/api/migration/pending_models", handle_get_pending_models)
+    app.router.add_get("/api/migration/pending_model", handle_get_pending_model)
     app.router.add_post("/api/migration/migrate_legacy_db", handle_migrate_legacy_db)
     app.router.add_post("/api/migration/import_models", handle_import_models)
+    app.router.add_get("/api/scan", handle_scan_models)
     
     # Static files setup
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
