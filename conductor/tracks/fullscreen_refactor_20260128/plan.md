@@ -11,7 +11,7 @@
 - [x] Task: Verify that `FloatingToolbar.vue` inside the modal does not overlap or conflict with fullscreen layout.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Fullscreen Modal Refactor' (Protocol in workflow.md)
 
-## Phase 3: LoRA Power Loader Analysis
+## Phase 3: LoRA Power Loader Analysis [checkpoint: b3742f2]
 - [x] Task: Analyze `HikazeLoraPowerLoaderOverlay.vue` and related controllers.
 - [x] Task: Draft analysis report on data sync and multi-select flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: LoRA Power Loader Analysis' (Protocol in workflow.md)
