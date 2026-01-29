@@ -7,7 +7,7 @@
 // Register all node controllers (side-effect imports).
 import "../src/injection/registerControllers";
 import { HikazeInjectionManager } from "../src/injection/manager";
-import { initSnifferGlobals, primeSnifferPort } from "@shared/util/sniffer_port";
+import { initSnifferGlobals, primeSnifferPort, getApiBase } from "@shared/util/sniffer_port";
 
 // Inject styles (Vite lib mode extracts CSS to a separate file)
 const cssUrl = new URL("./hikaze-model-manager-2.css", import.meta.url);
@@ -84,6 +84,17 @@ function registerExtension() {
 
     getCanvasMenuItems() {
       return [
+        {
+          content: "Hikaze Model Manager (HMM)",
+          callback: async () => {
+            const base = await getApiBase();
+            if (base) {
+              window.open(base, "_blank");
+            } else {
+              alert("Hikaze Model Manager server port not found. Is the backend running?");
+            }
+          },
+        },
         {
           content: "Reload Hikaze Node UI",
           // Manual reinjection is useful during development/debugging.
