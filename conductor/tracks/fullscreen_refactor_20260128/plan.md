@@ -1,6 +1,6 @@
 # Plan: UI Refactor - Fullscreen Modal & Global Entry
 
-## Phase 1: Context Menu & Global Entry
+## Phase 1: Context Menu & Global Entry [checkpoint: 35283db]
 - [x] Task: Implement context menu registration in `web/custom_node_frontend/extensions/hikaze-model-manager.js`.
 - [x] Task: Implement port discovery and "Open New Tab" logic.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Context Menu & Global Entry' (Protocol in workflow.md)
