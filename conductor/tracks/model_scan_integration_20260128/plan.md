@@ -6,8 +6,8 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API and Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: Standalone Implementation
-- [ ] Task: Implement `isScanning` and `runScan` logic in `web/model_manager_frontend/src/App.vue`.
-- [ ] Task: Add "Scan" button to `FloatingToolbar` in `web/model_manager_frontend/src/App.vue`.
+- [x] Task: Implement `isScanning` and `runScan` logic in `web/model_manager_frontend/src/App.vue`.
+- [x] Task: Add "Scan" button to `FloatingToolbar` in `web/model_manager_frontend/src/App.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Standalone Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Embedded Modal Implementation

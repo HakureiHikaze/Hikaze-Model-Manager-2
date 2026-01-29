@@ -7,7 +7,7 @@ import ModelDetails from './components/ModelDetails.vue'
 import PendingModelLibrary from './components/PendingModelLibrary.vue'
 import PendingModelDetails from './components/PendingModelDetails.vue'
 import { useModelCache } from './cache/models'
-import { importModels } from './api/models'
+import { importModels, scanModels } from './api/models'
 import type { Model, PendingModelSimpleRecord } from '@shared/types/model_record'
 
 const isEmbedded = computed(() => {
@@ -25,6 +25,7 @@ const selectedPendingModel = ref<PendingModelSimpleRecord | undefined>(undefined
 const selectedPendingIds = ref<number[]>([])
 const managerMode = ref<'active' | 'pending'>('active')
 const isImporting = ref(false)
+const isScanning = ref(false)
 
 const activeCache = useModelCache()
 const pendingCache = useModelCache('pending')
@@ -75,6 +76,24 @@ const togglePendingMode = () => {
 
 const refreshPending = async () => {
   await pendingCache.loadModels('pending', true)
+}
+
+const runScan = async () => {
+  if (isScanning.value) return
+  const confirmed = window.confirm('Scan model directories for new files? This might take a moment.')
+  if (!confirmed) return
+
+  isScanning.value = true
+  try {
+    const result = await scanModels()
+    window.alert(`Scan complete: ${result.added} new models found, ${result.scanned} scanned total.`)
+    await refreshPending()
+    activeCache.invalidate()
+  } catch (e: any) {
+    window.alert(e?.message || 'Failed to scan models')
+  } finally {
+    isScanning.value = false
+  }
 }
 
 const formatConflictSummary = (
@@ -179,6 +198,15 @@ onMounted(() => {
 
     <template #toolbar="{ activeTab }">
       <FloatingToolbar v-if="!isEmbedded" :active-tab="activeTab">
+        <button
+          class="toolbar-btn"
+          type="button"
+          @click="runScan"
+          :disabled="isScanning"
+          title="Scans disk for new models"
+        >
+          {{ isScanning ? 'Scanning...' : 'Scan' }}
+        </button>
         <button
           class="toolbar-btn"
           :class="{ active: isPendingMode }"
