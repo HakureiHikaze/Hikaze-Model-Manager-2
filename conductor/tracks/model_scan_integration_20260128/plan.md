@@ -10,7 +10,7 @@
 - [x] Task: Add "Scan" button to `FloatingToolbar` in `web/model_manager_frontend/src/App.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Standalone Implementation' (Protocol in workflow.md)
 
-## Phase 3: Embedded Modal Implementation
+## Phase 3: Embedded Modal Implementation [checkpoint: 06f47b7]
 - [x] Task: Implement `isScanning` and `runScan` logic in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
 - [x] Task: Add "Scan" button to modal toolbar in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Embedded Modal Implementation' (Protocol in workflow.md)
