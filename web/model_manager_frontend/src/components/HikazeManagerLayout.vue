@@ -13,6 +13,10 @@ const props = defineProps<{
 const modelCache = useModelCache();
 const tagsCache = useTagsCache();
 
+const emit = defineEmits<{
+  (e: 'tab-change', tab: string): void
+}>()
+
 const activeTab = ref<string>('');
 const modelTypes = ref<string[]>([]);
 const isLoading = ref(false);
@@ -24,6 +28,7 @@ const isDragging = ref(false);
 
 function setActiveTab(type: string) {
   activeTab.value = type;
+  emit('tab-change', type);
 }
 
 // Resizing logic
@@ -83,11 +88,13 @@ async function loadModelTypes() {
       const resolved = exactMatch || caseMatch;
       if (resolved) {
         activeTab.value = resolved;
+        emit('tab-change', resolved);
         return;
       }
     }
     if (modelTypes.value.length > 0) {
       activeTab.value = modelTypes.value[0] || '';
+      emit('tab-change', activeTab.value);
     }
   } catch (e: any) {
     error.value = e.message || 'Failed to load model types';

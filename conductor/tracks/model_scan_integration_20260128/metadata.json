@@ -1,0 +1,8 @@
+{
+  "track_id": "model_scan_integration_20260128",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-28T11:30:00Z",
+  "updated_at": "2026-01-28T11:30:00Z",
+  "description": "为node打开的全屏模态modelmanager的标题栏，以及独立页面modelmanager的浮动工具栏添加scan按钮，显示单词scan。该按钮应当向后端请求scan"
+}

@@ -8,6 +8,7 @@
 ## Visual Hierarchy & Layout
 - **Image-First Exploration:** The main library view (left pane) must prioritize high-quality preview cards. The visual weight should be on the image, followed by the model name and a limited set of primary tags.
 - **Preview Cycling:** For models with multiple images, preload all previews and crossfade every 7 seconds with randomized start offsets to avoid synchronized flips. (Implemented)
+- **Mandatory Fullscreen Modal:** All model selection interfaces triggered from within ComfyUI nodes must occupy the full browser viewport to provide an immersive management experience. Windowed modal modes are strictly excluded.
 - **Responsive Grid & Density:** The library grid must support dynamic column scaling (2-100 columns). When density increases (e.g., >6 columns), model titles should be hidden to reduce visual noise, relying on tooltips for identification.
 
 ...

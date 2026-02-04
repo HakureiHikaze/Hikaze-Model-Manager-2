@@ -11,7 +11,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 ## Primary Goals
 - **Unified Management Interface:** Introduce a dedicated manager page accessible via integrated buttons within custom nodes. The UI currently serves as a functional prototype with high-fidelity mock data, ready for backend integration.
 - **Overlay-Driven Interaction:** Implement a Vue-based overlay system that sits atop native ComfyUI node regions, mapping complex UI form data to JSON strings within standard text inputs for backend consumption. Supports context-aware initial states via `embedded` and `initialTab` properties.
-- **Global Manager Accessibility:** Provide a full-screen, dedicated web interface (served on a separate port) for stable and immersive model management, accessible from the ComfyUI sidebar or directly via browser.
+- **Global Manager Accessibility:** Provide a full-screen, dedicated web interface (served on a separate port) for stable and immersive model management, accessible from the ComfyUI context menu (Right-click -> HMM) or directly via browser.
 - **Data Integrity & Evolution:** Transition the core data model from path-based identification to SHA256-prioritized indexing to ensure robust references even when files move.
 - **Stage 1 Migration:** Import legacy databases into a pending queue, preserving legacy tags and metadata, with reactive image migration. (Implemented)
 - **Stage 2 Migration:** Promotion of models from the pending queue to the active library with SHA256 deduplication and conflict resolution (override/merge/delete). (Implemented)
@@ -19,7 +19,7 @@ Custom ComfyUI node project scaffold (Python + Vue/TS) for Hikaze Model Manager 
 ## Key Features
 - **Context-Aware Manager Entry:** When entering the manager from a node (e.g., a Checkpoint loader), the view automatically filters to the relevant model category (Checkpoints/LoRA/CLIP/etc.). (Implemented)
 - **Sophisticated Node Overlays:** Custom Vue overlays that replace or enhance standard node widgets, allowing for rich form elements that serialize their state into a hidden JSON input (`hikaze_payload`). (Implemented)
-- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and reactive local search/tag filtering. (Implemented)
+- **Rich Model Exploration:** A full-featured management suite including category tabs, toggleable card/list views, and reactive local search/tag filtering. Node-triggered entry always uses mandatory fullscreen mode. (Implemented)
 - **Lazy-Loaded Visuals:** High-performance card grid utilizing Intersection Observer and sequential WebP fetching (`/api/images/{hash}.webp?seq=N`). (Implemented)
 - **Legacy Database Integration:** A multi-stage migration path to import legacy databases. Supports dynamic model type detection from the backend. (Implemented)
 - **Persistent-Session Cache:** Model lists are fetched per category and cached in memory for instant tab switching, with manual refresh support. (Implemented)

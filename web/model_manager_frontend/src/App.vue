@@ -78,7 +78,7 @@ const refreshPending = async () => {
   await pendingCache.loadModels('pending', true)
 }
 
-const runScan = async () => {
+const runScan = async (activeTab?: string) => {
   if (isScanning.value) return
   const confirmed = window.confirm('Scan model directories for new files? This might take a moment.')
   if (!confirmed) return
@@ -88,7 +88,13 @@ const runScan = async () => {
     const result = await scanModels()
     window.alert(`Scan complete: ${result.added} new models found, ${result.scanned} scanned total.`)
     await refreshPending()
+    
+    // Invalidate cache to ensure stale data is removed
     activeCache.invalidate()
+    // If we have an active tab, immediately reload it to prevent empty view
+    if (activeTab) {
+      await activeCache.loadModels(activeTab, true)
+    }
   } catch (e: any) {
     window.alert(e?.message || 'Failed to scan models')
   } finally {
@@ -201,7 +207,7 @@ onMounted(() => {
         <button
           class="toolbar-btn"
           type="button"
-          @click="runScan"
+          @click="() => runScan(activeTab)"
           :disabled="isScanning"
           title="Scans disk for new models"
         >
