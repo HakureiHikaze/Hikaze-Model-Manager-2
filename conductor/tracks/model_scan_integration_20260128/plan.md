@@ -15,6 +15,6 @@
 - [x] Task: Add "Scan" button to modal toolbar in `web/custom_node_frontend/src/components/HikazeManagerModal.vue`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Embedded Modal Implementation' (Protocol in workflow.md)
 
-## Phase 4: Finalization
+## Phase 4: Finalization [checkpoint: 8b2810d]
 - [x] Task: Final review and verification.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Finalization' (Protocol in workflow.md)
