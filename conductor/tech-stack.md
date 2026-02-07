@@ -18,6 +18,7 @@
 - **State Management:** Vue Composition API (Reactive/Ref) for local state; potential Pinia if global state complexity increases.
 - **Styling:** CSS3 (Standard) with a focus on CSS variables for theme consistency.
 - **Integration:** Custom Vue overlays injected via ComfyUI's frontend extension system (VueNodes).
+    - *Decision:* We explicitly favor DOM-based Vue overlays over native Canvas drawing (Legacy method) to support complex UI features and maintainability.
 
 ## Tooling & Workflow
 - **Linting & Formatting:** `vue-tsc` for type checking, `TypeScript` for source.
