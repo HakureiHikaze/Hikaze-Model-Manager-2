@@ -19,7 +19,7 @@
 - [x] Task: Propose a refactored `BaseHikazeNodeController` extension to support legacy-style "Canvas Overlays" if needed.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: V2 Compatibility & Migration Mapping' (Protocol in workflow.md)
 
-## Phase 4: Documentation & Finalization
+## Phase 4: Documentation & Finalization [checkpoint: 07981c0]
 - [x] Task: Draft the final Migration Strategy report detailing the feasibility and implementation path.
 - [x] Task: Update project guidelines (e.g., `architecture-index.md`) to reflect findings.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Documentation & Finalization' (Protocol in workflow.md)
