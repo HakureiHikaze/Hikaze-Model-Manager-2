@@ -1,0 +1,8 @@
+{
+  "track_id": "legacy_analysis_20260128",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-28T12:16:00Z",
+  "updated_at": "2026-01-28T12:16:00Z",
+  "description": "查阅旧代码文件@old_code/ ,深入分析对于legacy模式，原有代码如何实现对canva进行注入并实现控件覆盖层，并分析该实现是否能兼容当前新版本的注入路径。此外，从当前分支新建一个名为'legacy_node_layout'分支"
+}

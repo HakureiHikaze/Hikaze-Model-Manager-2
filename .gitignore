@@ -7,3 +7,4 @@ __pycache__
 *.gemini
 *.pytest_cachedata/
 data
+old_code/
