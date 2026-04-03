@@ -495,6 +495,7 @@ const handleTabChange = (tab: string) => {
                   />
                 </div>
               </div>
+            </div>
             </template>
 
             <template #details>

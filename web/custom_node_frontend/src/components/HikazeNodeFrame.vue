@@ -1,7 +1,9 @@
 <template>
+  <!-- VueNodes mode: Teleport to node's DOM -->
   <Teleport v-if="target" :to="target">
     <div
       class="hikaze-node-frame"
+      :class="{ 'vue-mode': true }"
       :style="rootStyle"
       @pointerdown.stop
       @pointermove.stop
@@ -12,7 +14,7 @@
       <div class="header" :style="headerStyle" v-if="title">
         <div class="header__title">{{ title }}</div>
         <div v-if="error" class="header__error" :title="error">{{ error }}</div>
-        
+
         <!-- Header Actions Slot -->
         <div class="header-actions" v-if="$slots['header-actions']">
           <slot name="header-actions" />
@@ -25,6 +27,34 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Legacy Canvas mode: Direct render (no teleport) -->
+  <div
+    v-else
+    class="hikaze-node-frame"
+    :class="{ 'legacy-mode': true }"
+    :style="rootStyle"
+    @pointerdown.stop
+    @pointermove.stop
+    @pointerup.stop
+    @contextmenu.stop
+  >
+    <!-- Header -->
+    <div class="header" :style="headerStyle" v-if="title">
+      <div class="header__title">{{ title }}</div>
+      <div v-if="error" class="header__error" :title="error">{{ error }}</div>
+
+      <!-- Header Actions Slot -->
+      <div class="header-actions" v-if="$slots['header-actions']">
+        <slot name="header-actions" />
+      </div>
+    </div>
+
+    <!-- Body Slot -->
+    <div class="body-wrap">
+      <slot />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
