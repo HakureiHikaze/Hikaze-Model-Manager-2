@@ -464,12 +464,6 @@ const handleTabChange = (tab: string) => {
           >
             <template #library="{ activeTab }">
               <div class="lora-library-pane">
-                <div class="hikaze-modal-toolbar">
-                  <!-- Toolbar moved inside library slot to access activeTab? 
-                       No, the toolbar is outside. We can't access activeTab here easily unless we move toolbar or expose it differently. 
-                       Wait, HikazeManagerLayout exposes activeTab via slot props, but the toolbar is OUTSIDE the layout in the current template structure.
-                  -->
-
                 <SelectedLoraBar
                   v-if="isLoraSelection && !isPendingMode"
                   :items="selectedLoraList"
@@ -495,7 +489,6 @@ const handleTabChange = (tab: string) => {
                   />
                 </div>
               </div>
-            </div>
             </template>
 
             <template #details>

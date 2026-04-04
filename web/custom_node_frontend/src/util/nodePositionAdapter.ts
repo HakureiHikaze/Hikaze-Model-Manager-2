@@ -13,6 +13,10 @@ type UnknownNode = {
   pos?: [number, number]
   size?: [number, number]
   flags?: { collapsed?: boolean }
+  inputs?: Array<any>
+  outputs?: Array<any>
+  widgets?: Array<any>
+  widgets_start_y?: number
 }
 
 type UnknownApp = any
@@ -72,6 +76,7 @@ export class NodePositionAdapter {
 
   /**
    * Transform canvas coordinates to screen pixel coordinates.
+   * Uses LiteGraph's DragAndScale (ds) state for precise positioning.
    */
   private canvasToScreen(
     canvasX: number,
@@ -79,38 +84,120 @@ export class NodePositionAdapter {
     width: number,
     height: number
   ): NodeOverlayGeometry | null {
-    const canvas = this.app?.canvas?.canvas
-    if (!canvas) {
+    const canvas = this.app?.canvas
+    if (!canvas || !canvas.canvas) {
       return null
     }
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return null
-    }
-
-    // Get the current transformation matrix
-    const transform = ctx.getTransform()
-
-    // Apply transformation to get screen coordinates
-    const screenX = canvasX * transform.a + canvasY * transform.c + transform.e
-    const screenY = canvasX * transform.b + canvasY * transform.d + transform.f
-
-    // Scale dimensions
-    const scaledWidth = width * transform.a
-    const scaledHeight = height * transform.d
+    // Use LiteGraph's ds (DragScale) state for accurate offset/scale
+    const ds = canvas.ds
+    const scale = ds?.scale ?? 1
+    const offset = ds?.offset ?? [0, 0]
 
     // Get canvas element position on page
-    const canvasRect = canvas.getBoundingClientRect()
-    const canvasOffsetX = canvasRect.left + window.scrollX
-    const canvasOffsetY = canvasRect.top + window.scrollY
+    const canvasRect = canvas.canvas.getBoundingClientRect()
+    
+    // Formula: screenPos = canvasRectPos + (nodeCanvasPos + dsOffset) * scale
+    const screenX = canvasRect.left + (canvasX + offset[0]) * scale
+    const screenY = canvasRect.top + (canvasY + offset[1]) * scale
+
+    // Scale dimensions
+    const scaledWidth = width * scale
+    const scaledHeight = height * scale
 
     return {
-      x: canvasOffsetX + screenX,
-      y: canvasOffsetY + screenY,
+      x: screenX,
+      y: screenY,
       width: scaledWidth,
       height: scaledHeight
     }
+  }
+
+  /**
+   * Get the geometry for just the widget area of the node (excluding IO slots).
+   * In LiteGraph, the node body contains IO slots at the top and widgets below.
+   * This method returns the geometry of only the widget area.
+   */
+  getWidgetAreaGeometry(): NodeOverlayGeometry | null {
+    const fullGeometry = this.getGeometry()
+    if (!fullGeometry) return null
+
+    const widgetsStartY = this.getWidgetsStartY()
+    const scale = this.getScale()
+    const scaledOffset = widgetsStartY * scale
+
+    // Ensure we don't produce negative height
+    const adjustedHeight = Math.max(0, fullGeometry.height - scaledOffset)
+
+    return {
+      x: fullGeometry.x,
+      y: fullGeometry.y + scaledOffset,
+      width: fullGeometry.width,
+      height: adjustedHeight
+    }
+  }
+
+  /**
+   * Get the geometry for a specific widget, with inset to avoid covering resize handles.
+   * Uses the widget's `last_y` property (set by LiteGraph during drawing) for precise positioning.
+   *
+   * @param widgetName - Name of the widget to align to
+   * @param inset - Graph-space inset (pixels at scale=1) to shrink overlay from node edges
+   */
+  getTargetWidgetGeometry(widgetName: string, inset: number = 6): NodeOverlayGeometry | null {
+    const nodePos = this.node?.pos
+    const nodeSize = this.node?.size
+    if (!nodePos || !nodeSize) return null
+    if (this.node?.flags?.collapsed) return null
+
+    // Find the target widget's Y position
+    const widget = Array.isArray(this.node.widgets)
+      ? this.node.widgets.find((w: any) => w?.name === widgetName)
+      : undefined
+    const widgetY = (typeof widget?.last_y === 'number')
+      ? widget.last_y
+      : this.getWidgetsStartY()
+
+    // Compute overlay rect in graph/canvas space with inset
+    const canvasX = nodePos[0] + inset
+    const canvasY = nodePos[1] + widgetY
+    const width = Math.max(0, nodeSize[0] - 2 * inset)
+    const height = Math.max(0, nodeSize[1] - widgetY - inset)
+
+    if (width <= 0 || height <= 0) return null
+
+    return this.canvasToScreen(canvasX, canvasY, width, height)
+  }
+
+  /**
+   * Compute the Y offset (in canvas/graph space) where widgets start within the node body.
+   * Prefers the LiteGraph-computed `widgets_start_y` property if available,
+   * otherwise estimates from the number of IO slots.
+   */
+  private getWidgetsStartY(): number {
+    // Prefer LiteGraph's pre-computed value
+    if (typeof this.node?.widgets_start_y === 'number' && this.node.widgets_start_y > 0) {
+      return this.node.widgets_start_y
+    }
+
+    // Fallback: estimate from IO slot counts
+    const numInputs = Array.isArray(this.node?.inputs) ? this.node.inputs.length : 0
+    const numOutputs = Array.isArray(this.node?.outputs) ? this.node.outputs.length : 0
+    const maxSlots = Math.max(numInputs, numOutputs)
+
+    if (maxSlots === 0) return 0
+
+    // Read slot height from LiteGraph global if available, otherwise use default
+    const slotHeight = (globalThis as any)?.LiteGraph?.NODE_SLOT_HEIGHT ?? 20
+    return maxSlots * slotHeight
+  }
+
+  /**
+   * Get the current scale of the canvas.
+   */
+  getScale(): number {
+    const ds = this.app?.canvas?.ds
+    return ds?.scale ?? 1
   }
 
   /**

@@ -28,6 +28,8 @@ type UnknownNode = {
   id?: string | number
   type?: string
   title?: string
+  pos?: [number, number]
+  size?: [number, number]
   widgets?: Array<any>
   onResize?: () => void
   graph?: any
@@ -154,6 +156,9 @@ export class BaseHikazeNodeController {
       } catch { /* ignore */ }
       this.canvasOverlayEl = null
     }
+
+    // Clean up position adapter
+    this.positionAdapter = null
 
     if (this.resizeObserver) {
       try {
@@ -301,6 +306,9 @@ export class BaseHikazeNodeController {
   /**
    * Mount the Vue component overlay for the node.
    * Supports both VueNodes mode (Teleport into DOM) and Legacy Canvas mode (absolute overlay).
+   * 
+   * Key principle: Vue App is mounted ONCE to the correct target container.
+   * No unmount -> remount cycle, which would violate Vue 3 lifecycle rules.
    */
   private ensureFrameMounted(ctx: InjectionContext, attemptsRemaining = 50) {
     const nodeId = this.node?.id
@@ -316,14 +324,61 @@ export class BaseHikazeNodeController {
     // Store app reference for position adapter
     this.app = ctx.app
 
-    // Create or reuse Vue app
-    if (!this.vueApp) {
-      const host = document.createElement('div')
-      host.setAttribute('data-hikaze-node-overlay-host', '1')
-      host.style.display = 'none' // Hidden initially
-      document.body.appendChild(host)
-      this.vueHost = host
+    // Determine target container BEFORE creating Vue App
+    let targetContainer: HTMLDivElement | null = null
 
+    if (ctx.mode === 'legacy') {
+      // Legacy mode: Get overlay container and create/reuse overlay div
+      const container = getOverlayContainer(nodeId, 'legacy', this.app)
+      if (!container) {
+        console.warn('[Hikaze] Failed to get overlay container for node', nodeId)
+        return
+      }
+
+      // Create or reuse the overlay div
+      let overlay = container.querySelector(
+        `[data-hikaze-canvas-overlay][data-node-id="${nodeId}"]`
+      ) as HTMLDivElement | null
+
+      if (!overlay) {
+        overlay = document.createElement('div')
+        overlay.setAttribute('data-hikaze-canvas-overlay', '1')
+        overlay.setAttribute('data-node-id', String(nodeId))
+        overlay.style.position = 'fixed'
+        overlay.style.pointerEvents = 'auto'
+        overlay.style.zIndex = '1000'
+        overlay.style.overflow = 'hidden'
+        container.appendChild(overlay)
+      }
+
+      this.canvasOverlayEl = overlay
+      targetContainer = overlay
+
+      // Start position synchronization for legacy mode
+      this.startPositionSync()
+    } else {
+      // Vue mode: Create/reuse hidden host in body
+      let host = document.querySelector(
+        `[data-hikaze-node-overlay-host][data-node-id="${nodeId}"]`
+      ) as HTMLDivElement | null
+
+      if (!host) {
+        host = document.createElement('div')
+        host.setAttribute('data-hikaze-node-overlay-host', '1')
+        host.setAttribute('data-node-id', String(nodeId))
+        host.style.display = 'none'
+        document.body.appendChild(host)
+      }
+
+      this.vueHost = host
+      targetContainer = host
+
+      // No position sync needed in Vue mode
+      this.stopPositionSync()
+    }
+
+    // Create Vue App ONCE and mount to the determined target
+    if (!this.vueApp) {
       const app = createApp({
         render: () =>
           h(this.getComponent(), {
@@ -336,68 +391,11 @@ export class BaseHikazeNodeController {
       })
 
       app.provide('openManager', openManager)
-      app.mount(host)
+      app.mount(targetContainer)
       this.vueApp = app
+
+      console.info(`[Hikaze] Mounted overlay for node ${nodeId} in ${ctx.mode} mode`)
     }
-
-    // Mode-specific mounting
-    if (ctx.mode === 'vue') {
-      this.mountVueMode(ctx)
-    } else {
-      this.mountLegacyMode(ctx)
-    }
-  }
-
-  /**
-   * Mount in VueNodes mode: HikazeNodeFrame will teleport to node's DOM.
-   */
-  private mountVueMode(ctx: InjectionContext) {
-    // In VueNodes mode, the host can remain hidden.
-    // HikazeNodeFrame component handles teleporting to .lg-node-widgets
-    if (this.vueHost) {
-      this.vueHost.style.display = 'none'
-    }
-    this.stopPositionSync() // No need for position sync in VueNodes mode
-  }
-
-  /**
-   * Mount in Legacy Canvas mode: Create absolute-positioned overlay.
-   */
-  private mountLegacyMode(ctx: InjectionContext) {
-    // Get overlay container (canvas parent)
-    const container = getOverlayContainer(this.node.id!, 'legacy', this.app)
-    if (!container) {
-      console.warn('[Hikaze] Failed to get overlay container for node', this.node.id)
-      return
-    }
-
-    // Create or reuse overlay element
-    if (!this.canvasOverlayEl) {
-      const overlay = document.createElement('div')
-      overlay.setAttribute('data-hikaze-canvas-overlay', '1')
-      overlay.setAttribute('data-node-id', String(this.node.id))
-      overlay.style.position = 'fixed'
-      overlay.style.pointerEvents = 'auto'
-      overlay.style.zIndex = '1000'
-      overlay.style.overflow = 'hidden'
-      container.appendChild(overlay)
-      this.canvasOverlayEl = overlay
-
-      // Mount Vue app to overlay
-      if (this.vueHost && this.vueApp) {
-        // Re-mount to the overlay
-        this.vueApp.unmount()
-        this.vueApp.mount(overlay)
-        this.vueHost.remove()
-        this.vueHost = overlay
-      }
-    } else {
-      // Ensure overlay is visible
-      this.canvasOverlayEl.style.display = 'block'
-    }
-
-    // Start position synchronization
-    this.startPositionSync()
   }
 
   /**
@@ -409,21 +407,85 @@ export class BaseHikazeNodeController {
     // Initial position update
     this.syncOverlayPosition()
 
+    // Track last synced state for change detection
+    let lastScale = 0
+    let lastOffsetX = 0
+    let lastOffsetY = 0
+    let lastNodePos: [number, number] | null = null
+    let lastNodeSize: [number, number] | null = null
+
     // Sync on animation frame for smooth tracking
     const syncLoop = () => {
-      if (!this.canvasOverlayEl) return
-      this.syncOverlayPosition()
+      if (!this.canvasOverlayEl || !this.app?.canvas?.ds) {
+        this.positionSyncTimer = window.requestAnimationFrame(syncLoop)
+        return
+      }
+
+      const ds = this.app.canvas.ds
+      const currentScale = ds.scale ?? 1
+      const currentOffset = ds.offset ?? [0, 0]
+      const currentNodePos = this.node.pos as [number, number] | undefined
+      const currentNodeSize = this.node.size as [number, number] | undefined
+
+      // Check if anything has changed
+      const scaleChanged = currentScale !== lastScale
+      const offsetChanged = currentOffset[0] !== lastOffsetX || currentOffset[1] !== lastOffsetY
+      const nodeMoved = !lastNodePos || 
+                        currentNodePos?.[0] !== lastNodePos[0] || 
+                        currentNodePos?.[1] !== lastNodePos[1]
+      const nodeResized = !lastNodeSize || 
+                          currentNodeSize?.[0] !== lastNodeSize[0] || 
+                          currentNodeSize?.[1] !== lastNodeSize[1]
+
+      if (scaleChanged || offsetChanged || nodeMoved || nodeResized) {
+        // Update tracked state
+        lastScale = currentScale
+        lastOffsetX = currentOffset[0]
+        lastOffsetY = currentOffset[1]
+        lastNodePos = currentNodePos ? [...currentNodePos] : null
+        lastNodeSize = currentNodeSize ? [...currentNodeSize] : null
+
+        // Sync overlay position
+        this.syncOverlayPosition()
+      }
+
       this.positionSyncTimer = window.requestAnimationFrame(syncLoop)
     }
     this.positionSyncTimer = window.requestAnimationFrame(syncLoop)
 
-    // Also sync on window resize and scroll
-    const onViewportChange = () => this.syncOverlayPosition()
-    window.addEventListener('resize', onViewportChange)
-    window.addEventListener('scroll', onViewportChange, true)
+    // Force sync on specific events with a small delay
+    const forceSync = () => {
+      setTimeout(() => {
+        // Reset tracked state to force a full resync
+        lastScale = 0
+        lastOffsetX = 0
+        lastOffsetY = 0
+        lastNodePos = null
+        lastNodeSize = null
+        this.syncOverlayPosition()
+      }, 16) // One frame delay
+    }
+
+    window.addEventListener('resize', forceSync)
+    window.addEventListener('scroll', forceSync, true)
+    
+    const canvasEl = this.app?.canvas?.canvas
+    if (canvasEl) {
+      // Sync after zoom/drag interactions
+      canvasEl.addEventListener('wheel', forceSync, { passive: true })
+      canvasEl.addEventListener('pointerup', forceSync, { passive: true })
+      // Also sync on double click (often triggers zoom)
+      canvasEl.addEventListener('dblclick', forceSync, { passive: true })
+    }
+    
     this.cleanupFns.push(() => {
-      window.removeEventListener('resize', onViewportChange)
-      window.removeEventListener('scroll', onViewportChange, true)
+      window.removeEventListener('resize', forceSync)
+      window.removeEventListener('scroll', forceSync, true)
+      if (canvasEl) {
+        canvasEl.removeEventListener('wheel', forceSync)
+        canvasEl.removeEventListener('pointerup', forceSync)
+        canvasEl.removeEventListener('dblclick', forceSync)
+      }
     })
   }
 
@@ -450,18 +512,26 @@ export class BaseHikazeNodeController {
       this.app
     )
 
-    const geometry = this.positionAdapter.getGeometry()
+    const geometry = this.positionAdapter.getTargetWidgetGeometry(PAYLOAD_WIDGET)
     if (!geometry) {
       // Hide overlay if geometry cannot be determined
       this.canvasOverlayEl.style.display = 'none'
       return
     }
 
+    // Get canvas scale to apply CSS transform so content scales with zoom
+    const scale = this.positionAdapter.getScale()
+
     // Show and position overlay
+    // Use transform: scale() so internal HTML content (text, controls) scales with canvas zoom.
+    // Width/height are set to unscaled (graph-space) dimensions; the CSS transform
+    // scales them to match screen pixel size.
     this.canvasOverlayEl.style.display = 'block'
     this.canvasOverlayEl.style.left = `${geometry.x}px`
     this.canvasOverlayEl.style.top = `${geometry.y}px`
-    this.canvasOverlayEl.style.width = `${geometry.width}px`
-    this.canvasOverlayEl.style.height = `${geometry.height}px`
+    this.canvasOverlayEl.style.width = `${geometry.width / scale}px`
+    this.canvasOverlayEl.style.height = `${geometry.height / scale}px`
+    this.canvasOverlayEl.style.transform = `scale(${scale})`
+    this.canvasOverlayEl.style.transformOrigin = '0 0'
   }
 }

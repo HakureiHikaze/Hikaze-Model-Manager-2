@@ -107,6 +107,9 @@ export class HikazeInjectionManager {
    * Reinject all Hikaze nodes in the active graph (debug/manual reload).
    */
   reinjectAll(reason: InjectionReason = 'manual-reload') {
+    // Dispose all existing controllers/overlays first to prevent stale overlays
+    // from previous workflows persisting on screen.
+    this.disposeAllControllers()
     this.reinjectAllForMode(this.getCurrentMode(), reason)
   }
 
@@ -251,10 +254,17 @@ export class HikazeInjectionManager {
     this.controllers.clear()
     this.controllersByNode = new WeakMap<object, BaseHikazeNodeController>()
 
-    // Best-effort cleanup for orphaned Vue overlay hosts (e.g., after mode switches).
+    // Best-effort cleanup for orphaned overlay DOM elements (e.g., after mode/graph switches).
     try {
       document
         .querySelectorAll("[data-hikaze-node-overlay-host='1']")
+        .forEach((el) => el.remove())
+    } catch {
+      // ignore
+    }
+    try {
+      document
+        .querySelectorAll("[data-hikaze-canvas-overlay]")
         .forEach((el) => el.remove())
     } catch {
       // ignore
