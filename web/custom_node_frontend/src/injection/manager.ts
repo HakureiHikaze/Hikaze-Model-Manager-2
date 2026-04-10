@@ -104,6 +104,19 @@ export class HikazeInjectionManager {
   }
 
   /**
+   * ComfyUI callback: node is being removed from the graph.
+   * Cleans up the controller and its associated DOM overlays.
+   */
+  onNodeRemoved(node: UnknownNode) {
+    try {
+      if (!this.isHikazeNode(node)) return
+      this.disposeControllerIfExists(node)
+    } catch (e) {
+      console.error('[Hikaze] Error in onNodeRemoved:', e)
+    }
+  }
+
+  /**
    * Reinject all Hikaze nodes in the active graph (debug/manual reload).
    */
   reinjectAll(reason: InjectionReason = 'manual-reload') {
@@ -401,7 +414,7 @@ export class HikazeInjectionManager {
    * Whether this node is managed by our injection system.
    * Convention: node type starts with `HIKAZE_NODE_TYPE_PREFIX`.
    */
-  private isHikazeNode(node: UnknownNode): boolean {
+  isHikazeNode(node: UnknownNode): boolean {
     const nodeType = this.getNodeType(node)
     return !!nodeType && nodeType.startsWith(HIKAZE_NODE_TYPE_PREFIX)
   }

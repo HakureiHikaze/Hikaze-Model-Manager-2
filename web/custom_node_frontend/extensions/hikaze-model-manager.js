@@ -45,6 +45,23 @@ const manager = new HikazeInjectionManager({
 });
 
 /**
+ * Inject onRemoved hook onto a Hikaze node to handle cleanup.
+ * This is necessary because ComfyUI's registerExtension does not
+ * expose a native nodeRemoved event.
+ */
+function injectOnRemovedHook(node) {
+  const originalOnRemoved = node.onRemoved;
+  node.onRemoved = function (...args) {
+    try {
+      manager.onNodeRemoved?.(node);
+    } catch (e) {
+      console.error(`[${EXT_NAME}] Error in onRemoved handler:`, e);
+    }
+    return originalOnRemoved?.call(this, ...args);
+  };
+}
+
+/**
  * Register the ComfyUI extension once `app.registerExtension` becomes available.
  * ComfyUI may load extensions before the app is fully initialized, so we retry.
  */
@@ -79,7 +96,20 @@ function registerExtension() {
      * Called when a new node is added (e.g. from menu).
      */
     nodeCreated(node) {
+      if (manager.isHikazeNode(node)) {
+        injectOnRemovedHook(node);
+      }
       manager.onNodeCreated(node);
+    },
+
+    /**
+     * Called when a node is loaded from a saved workflow.
+     * We also need to inject the onRemoved hook for these nodes.
+     */
+    loadedGraphNode(node) {
+      if (manager.isHikazeNode(node)) {
+        injectOnRemovedHook(node);
+      }
     },
 
     getCanvasMenuItems() {
