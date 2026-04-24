@@ -1,8 +1,0 @@
-{
-  "track_id": "db_schema_migration_refactor_20251226",
-  "type": "refactor",
-  "status": "new",
-  "created_at": "2025-12-26T10:00:00Z",
-  "updated_at": "2025-12-26T10:00:00Z",
-  "description": "Refactor database schema and migration flow to support legacy imports, pending staging queue, and explicit conflict handling."
-}

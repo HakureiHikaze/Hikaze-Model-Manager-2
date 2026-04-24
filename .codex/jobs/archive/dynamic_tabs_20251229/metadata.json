@@ -1,8 +1,0 @@
-{
-  "track_id": "dynamic_tabs_20251229",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2025-12-29T11:01:00Z",
-  "updated_at": "2025-12-29T11:01:00Z",
-  "description": "Implement dynamic tab rendering in HikazeManagerLayout using backend API, including an 'Others' tab and handling initialTab selection."
-}
