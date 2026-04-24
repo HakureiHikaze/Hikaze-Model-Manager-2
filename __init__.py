@@ -80,8 +80,11 @@ class HikazeModelManagerExtension(ComfyExtension):
         Return a list of io.ComfyNode subclasses to expose to ComfyUI.
         """
         node_list = [
-            HikazeCheckpointLoader,
-            HikazeLoraPowerLoader,
+            n for n in [
+                HikazeCheckpointLoader,
+                HikazeLoraPowerLoader,
+            ]
+            if n is not None
         ]
         LOGGER.info(
             "HikazeModelManagerExtension.get_node_list from %s -> %s",
