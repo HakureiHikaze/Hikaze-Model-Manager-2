@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from dataclasses import asdict
 from aiohttp import web
@@ -71,7 +72,7 @@ async def handle_import_models(request):
     """
     try:
         data = await request.json()
-    except Exception:
+    except (json.JSONDecodeError, TypeError, ValueError):
         return web.json_response({"error": "Invalid JSON body"}, status=400)
 
     ids = data.get("id")
