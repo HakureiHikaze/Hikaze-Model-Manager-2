@@ -81,7 +81,8 @@ class DatabaseManager:
         if isinstance(m_dict.get("meta_json"), str):
             try:
                 m_dict["meta_json"] = json.loads(m_dict["meta_json"])
-            except:
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning("Failed to parse meta_json for model %s: %s. Resetting to empty dict.", m_dict.get("sha256", "unknown"), e)
                 m_dict["meta_json"] = {}
         
         record = DataAdapters.dict_to_model_record(m_dict)
@@ -102,7 +103,8 @@ class DatabaseManager:
         if isinstance(m_dict.get("meta_json"), str):
             try:
                 m_dict["meta_json"] = json.loads(m_dict["meta_json"])
-            except:
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning("Failed to parse meta_json for pending model %s: %s. Resetting to empty dict.", item_id, e)
                 m_dict["meta_json"] = {}
 
         record = DataAdapters.dict_to_pending_model_record(m_dict)
